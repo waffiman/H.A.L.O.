@@ -1,0 +1,12 @@
+node_modules
+session_data
+n8n_data
+linkedin_user_data
+user_data
+**/Cache/
+**/Cache_Data/
+*.log
+*.png
+*.html
+.git
+.env

@@ -1,0 +1,57 @@
+# IONOS VPS: n8n + linkedin-agent + control dashboard.
+# Public access via n8n-cf-tunnel (Cloudflare) or SSH tunnel to :3080.
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    env_file:
+      - n8n-public.env
+    environment:
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - N8N_PROXY_HOPS=1
+      - NODE_ENV=production
+      - GENERIC_TIMEZONE=Europe/Berlin
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+
+  linkedin-agent:
+    build: .
+    container_name: linkedin-agent
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./session_data:/app/session_data
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    shm_size: "2gb"
+    restart: unless-stopped
+
+  outreach-dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: outreach-dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3080:3080"
+    env_file:
+      - .env
+    environment:
+      - PORT=3080
+      - APP_ROOT=/app-data
+      - HOST_APP_ROOT=/root/cold-outreach-agent
+    volumes:
+      - .:/app-data
+      # Same tree at host path so `docker compose --project-directory $HOST_APP_ROOT` can see .env inside this container
+      - /root/cold-outreach-agent:/root/cold-outreach-agent
+      - /var/run/docker.sock:/var/run/docker.sock
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1

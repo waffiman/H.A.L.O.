@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#090b0e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>H.A.L.O. — Headless Automated Lead Operator</title>
+  <script>
+    (() => {
+      try {
+        const t = localStorage.getItem('halo_theme');
+        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+        if (t === 'light') document.documentElement.style.colorScheme = 'light';
+      } catch (_) { /* ignore */ }
+    })();
+  </script>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="apple-touch-icon" href="/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="nav-backdrop" class="nav-backdrop hidden" aria-hidden="true"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="brand" title="Headless Automated Lead Operator">
+        <img class="brand-logo" src="/logo.svg" width="32" height="32" alt="H.A.L.O." />
+        <span class="brand-copy">
+          <span class="brand-name">H.A.L.O.</span>
+          <span class="brand-sub">Lead Operator</span>
+        </span>
+      </div>
+      <button type="button" id="btn-nav-close" class="nav-close" title="Close menu" aria-label="Close menu">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/></svg>
+      </button>
+    </div>
+    <nav id="nav" class="sidebar-nav"></nav>
+    <div id="nav-brain-slot" class="sidebar-brain-slot"></div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button type="button" id="btn-menu" class="menu-toggle" title="Open menu" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+        </button>
+        <div class="topbar-title">
+          <h1 id="page-title" title="">Dashboard</h1>
+          <p id="page-subtitle" class="page-subtitle"></p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" id="btn-save" class="btn primary" title="Save settings. Cycles are not started; the next scheduled run will use these values."><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Save</span></button>
+        <button type="button" id="btn-apply" class="btn ghost btn-restart" title="Save settings and recreate H.A.L.O. Runs enabled stage(s) immediately: A then B when both are on; one stage when only one is on. Save alone does not force a run."><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label-full">Save and restart</span><span class="btn-label-short">Restart</span></button>
+        <button type="button" id="btn-bell" class="bell" title="Notifications">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2Z"/></svg>
+          <span id="bell-badge" class="bell-badge hidden">0</span>
+        </button>
+      </div>
+    </header>
+    <div id="toast" class="toast hidden"></div>
+    <div class="workspace">
+      <section id="view" class="view"></section>
+    </div>
+    <footer class="site-footer" role="contentinfo">
+      <a
+        href="https://waffiweb.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="waffi-credit"
+        aria-label="Built by WAFFi — visit waffiweb.com"
+      >
+        <span class="waffi-credit-eyebrow">Built by</span>
+        <span class="waffi-credit-sep" aria-hidden="true">·</span>
+        <span class="waffi-logo-wrap">
+          <img class="waffi-credit-logo" src="/waffi-logo.png" alt="" width="72" height="22" />
+          <svg class="waffi-drip-layer" viewBox="0 0 281 123" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <path class="syrup-pool" fill="#f9c416" d="M21.2 83.4C25.5 81.6 34.8 81.2 43.2 82.4C52.2 83.6 59.8 85.2 63.6 87.4C65.6 88.7 64.8 91.2 59.2 92C53.8 92.7 48.6 92.4 45.4 92.1C40.8 91.7 36.2 91.2 31.6 90.9C26.8 90.6 22.6 89.8 20.8 87.8C19.4 86.2 19.6 84.6 21.2 83.4Z"/>
+            <path class="syrup-drip syrup-drip-a" fill="#f9c416" d="M32.2 90.9C33.8 90.5 36.2 90.8 36.9 92.6C37.3 93.8 36.9 100.2 36.7 106.5C36.5 112.2 36.6 115.2 34.4 116.8C32.4 118.2 31.5 115.8 31.7 111.2C31.9 105.2 31.8 98.4 31.8 94.2C31.8 92.4 31.4 91.2 32.2 90.9Z"/>
+            <path class="syrup-drip syrup-drip-b" fill="#f0b400" d="M42.2 91.3C43.8 90.9 46.2 91.2 46.9 92.8C47.3 93.7 46.8 97.6 46.5 100.2C46.2 102.8 45.2 104.1 43.7 103.7C42.3 103.3 41.7 101.2 41.6 98.2C41.5 95.4 41.4 92.6 42.2 91.3Z"/>
+            <ellipse class="syrup-drop" cx="34.2" cy="117.2" rx="2.3" ry="2.9" fill="#f9c416"/>
+          </svg>
+        </span>
+        <span class="waffi-credit-sep" aria-hidden="true">·</span>
+        <span class="waffi-credit-url">waffiweb.com</span>
+        <svg class="waffi-credit-arrow" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M3 8h10M9 4l4 4-4 4"/>
+        </svg>
+      </a>
+    </footer>
+  </main>
+  <div id="notify-backdrop" class="notify-backdrop hidden" aria-hidden="true"></div>
+  <aside id="notify-panel" class="notify-panel hidden" aria-label="Notifications">
+    <div class="notify-head">
+      <strong title="System alerts and CRM events">Notifications</strong>
+      <div class="row">
+        <button type="button" class="btn ghost" id="btn-read-all" title="Mark all notifications as read">Read all</button>
+        <button type="button" class="btn ghost" id="btn-notify-close" title="Close notifications">Close</button>
+      </div>
+    </div>
+    <div id="notify-list" class="notify-list"></div>
+  </aside>
+  <div id="onboarding-root" class="onboarding-root hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-label="H.A.L.O. setup guide">
+    <div class="onboarding-backdrop"></div>
+    <article class="onboarding-card">
+      <button type="button" class="ob-close" aria-label="Close setup guide" title="Close">×</button>
+      <div class="onboarding-body">
+        <div class="onboarding-copy">
+          <span class="ob-kicker"></span>
+          <h2 class="ob-title"></h2>
+          <ul class="ob-bullets"></ul>
+        </div>
+        <div class="ob-art"></div>
+      </div>
+      <footer class="onboarding-foot">
+        <div class="ob-dots" role="tablist" aria-label="Setup steps"></div>
+        <button type="button" class="btn ob-next onboarding-next-btn" title="Next step">Next</button>
+      </footer>
+    </article>
+  </div>
+  <div id="onboarding-plane" class="onboarding-plane hidden" aria-hidden="true">
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <path fill="#fff" stroke="#111" stroke-width="2" stroke-linejoin="round" d="M6 32 L58 10 L38 32 L58 54 Z"/>
+      <path fill="var(--accent)" stroke="none" d="M38 32 L58 10 L46 30 Z" opacity="0.9"/>
+    </svg>
+  </div>
+  <div id="notion-connect-root" class="notion-connect-root hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Connect Notion CRM">
+    <div class="nc-backdrop notion-connect-backdrop"></div>
+    <article class="nc-card notion-connect-card">
+      <button type="button" class="nc-close ob-close" aria-label="Close" title="Close">×</button>
+      <header class="nc-head">
+        <img src="/notion-icon.png" alt="" width="28" height="28" class="nc-logo" />
+        <div>
+          <p class="nc-kicker">Notion · 2 clicks</p>
+          <h2 class="nc-title">Connect your CRM</h2>
+          <p class="nc-lead muted">H.A.L.O. creates a ready-made pipeline database in your Notion — no manual fields.</p>
+        </div>
+      </header>
+      <div class="nc-steps" aria-hidden="true">
+        <span class="nc-dot active"></span>
+        <span class="nc-dot"></span>
+      </div>
+      <div class="nc-body">
+        <div data-nc-step="1" class="nc-step">
+          <ol class="nc-instructions">
+            <li>Open <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener noreferrer">Notion → My integrations</a> and create an internal integration named <strong>H.A.L.O.</strong></li>
+            <li>Copy the <strong>Internal Integration Secret</strong> and paste it below.</li>
+            <li>In Notion, open the page where you want the CRM → <strong>⋯ → Connections</strong> → add <strong>H.A.L.O.</strong></li>
+          </ol>
+          <label class="field" for="nc-token">Integration token
+            <input type="password" id="nc-token" autocomplete="off" placeholder="ntn_… or secret_…" />
+          </label>
+          <p id="nc-status" class="nc-status" role="status"></p>
+        </div>
+        <div data-nc-step="2" class="nc-step hidden">
+          <p class="muted nc-step-hint">Choose the parent page — H.A.L.O. will create <strong>H.A.L.O. CRM</strong> inside it with Status, Link, Ice-breaker, and Processing at.</p>
+          <div class="nc-page-toolbar row">
+            <label class="field nc-search-field">
+              <span class="sr-only">Search pages</span>
+              <input type="search" id="nc-page-search" placeholder="Search pages…" />
+            </label>
+            <button type="button" class="btn ghost" id="nc-btn-refresh-pages">Refresh</button>
+          </div>
+          <div id="nc-page-list" class="nc-page-list"></div>
+        </div>
+      </div>
+      <footer class="nc-foot onboarding-foot">
+        <button type="button" class="btn ghost nc-later">Later</button>
+        <div class="nc-foot-actions row">
+          <button type="button" class="btn ghost hidden" id="nc-btn-back">Back</button>
+          <button type="button" class="btn primary" id="nc-btn-validate">Continue</button>
+          <button type="button" class="btn primary hidden" id="nc-btn-provision">Create CRM</button>
+        </div>
+      </footer>
+    </article>
+  </div>
+    <div id="supabase-connect-root" class="notion-connect-root hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Connect Supabase CRM">
+    <div class="sc-backdrop notion-connect-backdrop"></div>
+    <article class="nc-card notion-connect-card sc-card-wide">
+      <button type="button" class="sc-close ob-close" aria-label="Close" title="Close">×</button>
+      <header class="nc-head">
+        <svg class="sc-logo" width="28" height="28" viewBox="0 0 109 113" fill="none" aria-hidden="true">
+          <path d="M63.7 110.7V73.4c0-4.3 2.3-8.3 6.1-10.4l35.7-20.6c2.7-1.6 6.1-1.6 8.8 0l35.7 20.6a12 12 0 0 1 6.1 10.4v37.3c0 4.3-2.3 8.3-6.1 10.4l-35.7 20.6c-2.7 1.6-6.1 1.6-8.8 0L69.8 121.1a12 12 0 0 1-6.1-10.4z" fill="#3ECF8E"/>
+        </svg>
+        <div>
+          <p class="nc-kicker">Supabase · setup</p>
+          <h2 class="nc-title">Connect your CRM</h2>
+          <p class="nc-lead muted" id="sc-lead">One wizard: run SQL once in Supabase, then paste credentials here.</p>
+        </div>
+      </header>
+      <div class="nc-steps" aria-hidden="true">
+        <span class="sc-dot nc-dot active" data-sc-dot="1"></span>
+        <span class="sc-dot nc-dot" data-sc-dot="2"></span>
+        <span class="sc-dot nc-dot" data-sc-dot="3"></span>
+      </div>
+      <div class="nc-body sg-body">
+        <div data-sc-step="1" class="nc-step">
+          <p class="sc-step-title">Step 1 — Create table in Supabase</p>
+          <ol class="nc-instructions sg-steps">
+            <li>Create a project at <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">supabase.com/dashboard</a> → <strong>New project</strong>.</li>
+            <li>Open <a href="https://supabase.com/dashboard/project/_/sql/new" target="_blank" rel="noopener noreferrer">SQL Editor → New query</a> (pick your project first).</li>
+            <li>Click <strong>Copy SQL</strong> below, paste into the editor, then click <strong>Run</strong>. This creates the <code>leads</code> table (required — without it connect will fail).</li>
+          </ol>
+          <div class="sg-schema-copy-row">
+            <button type="button" class="btn ghost" id="sc-copy-schema" title="Copy SQL to clipboard">Copy SQL</button>
+          </div>
+          <pre id="sc-schema-sql" class="sr-only" aria-hidden="true">Loading schema…</pre>
+          <p class="sg-note muted">Safe to re-run. Without this SQL, H.A.L.O. cannot store leads.</p>
+        </div>
+        <div data-sc-step="2" class="nc-step hidden">
+          <p class="sc-step-title">Step 2 — Paste API credentials</p>
+          <ol class="nc-instructions sg-steps">
+            <li>Open <a href="https://supabase.com/dashboard/project/_/settings/api" target="_blank" rel="noopener noreferrer">Project Settings → API</a>.</li>
+            <li>Copy <strong>Project URL</strong> and the secret <strong>service_role</strong> key (not the anon key).</li>
+          </ol>
+          <label class="field" for="sc-url">Project URL
+            <input type="url" id="sc-url" autocomplete="off" placeholder="https://YOUR-REF.supabase.co" />
+          </label>
+          <label class="field" for="sc-key">Service role key
+            <input type="password" id="sc-key" autocomplete="off" placeholder="eyJhbG…" />
+          </label>
+          <p id="sc-status" class="nc-status" role="status"></p>
+        </div>
+        <div data-sc-step="3" class="nc-step hidden">
+          <p class="sc-step-title">Step 3 — Finish</p>
+          <p class="muted nc-step-hint">Credentials verified and <code>leads</code> table found. Click <strong>Connect CRM</strong> to save them on the server and open the pipeline.</p>
+          <ul class="sg-checklist">
+            <li>Statuses: Lead → Proposal 1 → Proposal 2 → Active → Lost</li>
+            <li>Agent Stage A/B will read and write this Supabase table</li>
+            <li>CRM page unlocks table &amp; kanban automatically</li>
+          </ul>
+          <p id="sc-status-3" class="nc-status" role="status"></p>
+        </div>
+      </div>
+      <footer class="nc-foot onboarding-foot">
+        <button type="button" class="btn ghost sc-later">Later</button>
+        <div class="nc-foot-actions row">
+          <button type="button" class="btn ghost hidden" id="sc-btn-back">Back</button>
+          <button type="button" class="btn primary" id="sc-btn-primary">Continue</button>
+        </div>
+      </footer>
+    </article>
+  </div>
+<script src="/regions/catalog.js"></script>
+  <script src="/onboarding.js"></script>
+  <script src="/notion-connect.js"></script>
+  <script src="/supabase-connect.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

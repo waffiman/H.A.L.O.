@@ -1,0 +1,27 @@
+{
+  "outcome": "book_a_call",
+  "portrait": {
+    "roles": ["Founder", "CEO", "Agency owner", "Coach", "Realtor", "Creator"],
+    "industries": ["Agency", "Coaching", "Real estate", "Creator economy", "Professional services"],
+    "companySize": "solo",
+    "decisionMaker": ["Founder", "CEO"],
+    "stage": "early",
+    "regions": ["US"],
+    "budget": "unknown",
+    "urgency": "active",
+    "painPoints": ["Low leads", "No website", "Manual admin", "Need app / dashboard"],
+    "linkedinSignals": ["Launching offer", "Open to DM"],
+    "need": "Early-stage founders and operators who need a website or app that captures leads, reduces admin, or presents their offer clearly — and who can take a short strategy call.",
+    "greenFlags": "asks pricing, mentions launch, wants website or app",
+    "nonFit": "No decision power, hard refusal, wrong persona, or clearly outside this portrait"
+  },
+  "linkedInSearch": {
+    "connectionDegree": "2nd",
+    "keywordsExtra": "",
+    "currentCompany": "",
+    "pastCompany": "",
+    "school": "",
+    "profileLanguage": "en"
+  },
+  "searchUrlOverride": ""
+}

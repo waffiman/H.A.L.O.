@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#090b0e" />
+  <title>H.A.L.O. — LinkedIn session repair</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <style>
+    :root { color-scheme: dark; --bg:#090b0e; --fg:#e8eaed; --muted:#9aa0a6; --accent:#3d9a6a; --bad:#c45c5c; --line:#2a2f36; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); min-height:100dvh; }
+    header { padding:16px 18px 8px; }
+    h1 { margin:0; font-size:1.15rem; font-weight:650; }
+    .sub { margin:6px 0 0; color:var(--muted); font-size:0.85rem; line-height:1.4; }
+    .status { padding:8px 18px; font-size:0.85rem; }
+    .status.ok { color: var(--accent); }
+    .status.bad { color: var(--bad); }
+    .card { max-width: 420px; margin: 8px auto 0; padding: 0 18px 24px; }
+    label { display:block; font-size:0.8rem; color:var(--muted); margin:14px 0 6px; }
+    input {
+      width:100%; padding:14px 12px; border-radius:10px; border:1px solid var(--line);
+      background:#0d0f12; color:var(--fg); font-size:16px;
+    }
+    input:focus { outline:2px solid var(--accent); border-color:transparent; }
+    .pass-wrap { position:relative; }
+    .pass-wrap input { padding-right:72px; }
+    .pass-toggle {
+      position:absolute; right:6px; top:50%; transform:translateY(-50%);
+      padding:8px 10px; font-size:0.8rem; background:transparent; color:var(--muted);
+      border:0; font-weight:600;
+    }
+    .actions { margin-top:18px; display:flex; flex-direction:column; gap:10px; }
+    button {
+      padding:14px 16px; border-radius:10px; border:0; background:#2a2f36; color:var(--fg);
+      font-weight:650; font-size:1rem;
+    }
+    button.primary { background:var(--accent); color:#04140c; position:relative; }
+    button:disabled { opacity:0.55; }
+    button.is-loading { pointer-events:none; }
+    .btn-spinner {
+      display:none; width:1.1rem; height:1.1rem;
+      border:2px solid rgba(4,20,12,.25); border-top-color:#04140c;
+      border-radius:50%; animation:btn-spin .7s linear infinite;
+      position:absolute; left:50%; top:50%; margin:-0.55rem 0 0 -0.55rem;
+    }
+    button.is-loading .btn-spinner { display:block; }
+    button.is-loading .btn-label { visibility:hidden; }
+    @keyframes btn-spin { to { transform:rotate(360deg); } }
+    .challenge { display:none; margin-top:16px; }
+    .challenge.show { display:block; }
+    .frame-wrap { background:#111; border-radius:10px; overflow:hidden; }
+    .frame-wrap img { display:block; width:100%; height:auto; max-height:55dvh; object-fit:contain; background:#0a0a0a; user-select:none; -webkit-user-drag:none; }
+    .challenge-hint { color:var(--muted); font-size:0.85rem; margin:10px 0; line-height:1.45; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LinkedIn session repair</h1>
+    <p class="sub">Sign in here. If LinkedIn asks to verify, approve the sign-in request in your LinkedIn mobile app.</p>
+  </header>
+  <div id="status" class="status">Starting remote browser…</div>
+  <div class="card">
+    <form id="login-form" autocomplete="on">
+      <label for="username">Email or phone</label>
+      <input id="username" name="username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required />
+
+      <label for="password">Password</label>
+      <div class="pass-wrap">
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <button type="button" class="pass-toggle" id="btn-pass-toggle" aria-label="Show password">Show</button>
+      </div>
+
+      <div class="actions">
+        <button type="submit" id="btn-signin" class="primary"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Sign in</span></button>
+      </div>
+    </form>
+
+    <div id="challenge" class="challenge">
+      <p class="challenge-hint">
+        Open the <strong>LinkedIn app</strong> on your phone and tap <strong>Yes</strong> on the sign-in request.
+        Leave <strong>Recognize this device</strong> checked on the screen below if you see it — later repairs may skip this step.
+        This page refreshes automatically; wait here until the session is restored.
+      </p>
+      <div class="frame-wrap">
+        <img id="frame" alt="LinkedIn verification" />
+      </div>
+    </div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token') || '';
+    const statusEl = document.getElementById('status');
+    const form = document.getElementById('login-form');
+    const btnSignin = document.getElementById('btn-signin');
+    const passEl = document.getElementById('password');
+    const challenge = document.getElementById('challenge');
+    const frame = document.getElementById('frame');
+    let done = false;
+    let submitting = false;
+    let uiMode = 'form';
+    const queue = [];
+    let flushing = false;
+
+    function setStatus(text, cls) {
+      statusEl.textContent = text;
+      statusEl.className = 'status' + (cls ? ' ' + cls : '');
+    }
+
+    async function api(path, opts) {
+      const res = await fetch(path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', ...(opts && opts.headers) },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      return data;
+    }
+
+    async function flushQueue() {
+      if (flushing || !queue.length) return;
+      flushing = true;
+      while (queue.length) {
+        const ev = queue.shift();
+        try {
+          await api('/api/linkedin/repair/input', {
+            method: 'POST',
+            body: JSON.stringify({ token, ...ev }),
+          });
+        } catch (e) {
+          setStatus(e.message, 'bad');
+          break;
+        }
+      }
+      flushing = false;
+      if (queue.length) flushQueue();
+    }
+
+    function sendInput(ev) {
+      queue.push(ev);
+      flushQueue();
+    }
+
+    async function ensureStarted() {
+      await api('/api/linkedin/repair/start', { method: 'POST', body: JSON.stringify({ token }) });
+    }
+
+    document.getElementById('btn-pass-toggle').onclick = () => {
+      const show = passEl.type === 'password';
+      passEl.type = show ? 'text' : 'password';
+      document.getElementById('btn-pass-toggle').textContent = show ? 'Hide' : 'Show';
+    };
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (done || submitting) return;
+      const username = document.getElementById('username').value.trim();
+      const password = passEl.value;
+      if (!username || !password) {
+        setStatus('Enter email/phone and password.', 'bad');
+        return;
+      }
+      submitting = true;
+      btnSignin.disabled = true;
+      btnSignin.classList.add('is-loading');
+      setStatus('Signing in on remote Chromium…');
+      sendInput({ type: 'signin', username, password });
+      // Keep spinner until challenge UI or success — do not re-enable after 2.5s
+    });
+
+    async function poll() {
+      if (done) return;
+      try {
+        const st = await api('/api/linkedin/repair/status?token=' + encodeURIComponent(token));
+        uiMode = st.uiMode || 'form';
+        if (st.status === 'captured' || st.liAtCaptured) {
+          done = true;
+          challenge.classList.remove('show');
+          setStatus('Session restored. You can close this tab.', 'ok');
+          btnSignin.disabled = true;
+          btnSignin.classList.remove('is-loading');
+          const label = btnSignin.querySelector('.btn-label');
+          if (label) label.textContent = 'Done';
+          return;
+        }
+        if (st.status === 'credential_error' || (st.lastSignInError && /wrong email or password/i.test(st.lastSignInError || ''))) {
+          submitting = false;
+          btnSignin.disabled = false;
+          btnSignin.classList.remove('is-loading');
+          setStatus(st.lastSignInError || st.error || 'Wrong email or password — try again.', 'bad');
+          return;
+        }
+        if (st.status === 'error' || st.status === 'timeout') {
+          submitting = false;
+          btnSignin.disabled = false;
+          btnSignin.classList.remove('is-loading');
+          setStatus((st.error || st.status) + ' — fix credentials and Sign in again.', 'bad');
+        } else if (uiMode === 'challenge') {
+          challenge.classList.add('show');
+          setStatus('Approve the sign-in request in your LinkedIn app — waiting…');
+          frame.src = '/api/linkedin/repair/frame?token=' + encodeURIComponent(token) + '&t=' + Date.now();
+        } else {
+          challenge.classList.remove('show');
+          if (!submitting) {
+            setStatus(
+              st.status === 'running' || st.status === 'awaiting_user'
+                ? 'Remote browser ready — enter LinkedIn email and password, then Sign in.'
+                : 'Status: ' + (st.status || '…')
+            );
+          }
+        }
+      } catch (e) {
+        setStatus(e.message, 'bad');
+      }
+      setTimeout(poll, 900);
+    }
+
+    if (!token) {
+      setStatus('Missing repair token in URL.', 'bad');
+    } else {
+      ensureStarted().then(poll).catch((e) => setStatus(e.message, 'bad'));
+    }
+  </script>
+</body>
+</html>

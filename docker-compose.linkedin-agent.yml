@@ -1,0 +1,16 @@
+# VPS-only: linkedin-agent without n8n (n8n runs separately on the server).
+services:
+  linkedin-agent:
+    build: .
+    container_name: linkedin-agent
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./session_data:/app/session_data
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    shm_size: '2gb'
+    restart: unless-stopped
