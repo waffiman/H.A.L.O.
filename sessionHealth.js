@@ -3,14 +3,16 @@
  * Used so the agent can soft-fail and external repair (cookie push) can detect status.
  */
 import fs from 'fs';
-import path from 'path';
+import { sessionStatusFile } from './dataRoot.js';
 
-const STATUS_PATH = path.join(process.cwd(), 'session_status.json');
+function statusPath() {
+  return sessionStatusFile();
+}
 
 export function readSessionStatus() {
   try {
-    if (!fs.existsSync(STATUS_PATH)) return null;
-    return JSON.parse(fs.readFileSync(STATUS_PATH, 'utf8'));
+    if (!fs.existsSync(statusPath())) return null;
+    return JSON.parse(fs.readFileSync(statusPath(), 'utf8'));
   } catch {
     return null;
   }
@@ -23,7 +25,7 @@ export function writeSessionStatus(patch = {}) {
     ...patch,
     updatedAt: new Date().toISOString(),
   };
-  fs.writeFileSync(STATUS_PATH, JSON.stringify(next, null, 2));
+  fs.writeFileSync(statusPath(), JSON.stringify(next, null, 2));
   return next;
 }
 

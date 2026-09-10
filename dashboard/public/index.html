@@ -102,6 +102,40 @@
     </div>
     <div id="notify-list" class="notify-list"></div>
   </aside>
+  <div id="support-backdrop" class="support-backdrop hidden" aria-hidden="true"></div>
+  <aside id="support-panel" class="support-panel hidden" aria-label="Support chat">
+    <div class="support-head">
+      <img
+        class="support-avatar"
+        id="support-avatar"
+        src="/api/telegram/bot-avatar"
+        width="40"
+        height="40"
+        alt=""
+        onerror="this.onerror=null;this.src='/waffi-telegram-bot.png'"
+      />
+      <div class="support-head-text">
+        <strong id="support-title">Support</strong>
+        <span class="support-sub muted" id="support-sub">Chat with WAFFi</span>
+      </div>
+      <button type="button" class="btn ghost" id="btn-support-close" title="Close support chat">Close</button>
+    </div>
+    <div id="support-messages" class="support-messages" role="log" aria-live="polite"></div>
+    <form id="support-form" class="support-compose" autocomplete="off">
+      <button type="submit" class="support-send" id="btn-support-send" title="Send message" aria-label="Send message">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4l.1 6.8L15 12 3.5 13.8l-.1 6.8z"/>
+        </svg>
+      </button>
+      <textarea id="support-input" rows="1" maxlength="4000" placeholder="Message…" aria-label="Support message"></textarea>
+    </form>
+  </aside>
+  <button type="button" id="btn-support-fab" class="support-fab" title="Contact support" aria-label="Contact support">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+      <path fill="currentColor" d="M12 1a9 9 0 0 0-9 9v4a3 3 0 0 0 3 3h1v-6H5v-1a7 7 0 0 1 14 0v1h-2v6h1a3 3 0 0 0 3-3v-4a9 9 0 0 0-9-9zm-1 18.5c0 .83.67 1.5 1.5 1.5h1c.28 0 .5.22.5.5v1h-4.5A2.5 2.5 0 0 1 7 20v-1h4z"/>
+    </svg>
+    <span id="support-fab-dot" class="support-fab-dot hidden" aria-hidden="true"></span>
+  </button>
   <div id="onboarding-root" class="onboarding-root hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-label="H.A.L.O. setup guide">
     <div class="onboarding-backdrop"></div>
     <article class="onboarding-card">

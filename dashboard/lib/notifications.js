@@ -143,7 +143,8 @@ async function sendTelegramCopy(item) {
 }
 
 /** Sync session health into notifications (idempotent via key). */
-export function syncSessionNotifications(session, cookies) {
+export function syncSessionNotifications(session, cookies, workspaceId) {
+  let flagged = false;
   if (session && session.ok === false) {
     addNotification({
       key: 'session_dead',
@@ -152,6 +153,7 @@ export function syncSessionNotifications(session, cookies) {
       title: 'LinkedIn session inactive',
       message: `LinkedIn session is no longer valid${session.reason ? ` (${session.reason})` : ''}. Open H.A.L.O. → LinkedIn and Sign in (email/password + app approval if asked).`,
     });
+    flagged = true;
   }
   if (cookies && cookies.present === false) {
     addNotification({
@@ -161,5 +163,16 @@ export function syncSessionNotifications(session, cookies) {
       title: 'LinkedIn li_at cookie missing',
       message: 'No valid LinkedIn session on the server. Use Sign in on the LinkedIn page (email/password + app approval).',
     });
+    flagged = true;
+  }
+  if (flagged && workspaceId) {
+    import('./supportChat.js')
+      .then(({ flagTenantError }) =>
+        flagTenantError(workspaceId, {
+          title: session?.ok === false ? 'LinkedIn session inactive' : 'LinkedIn li_at missing',
+          message: session?.reason || 'Session / cookie error',
+        })
+      )
+      .catch(() => {});
   }
 }

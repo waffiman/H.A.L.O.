@@ -5,14 +5,19 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { splitMessageForDm, sanitizeIceBreaker } from './messageQuality.js';
 import * as crm from './crmStore.js';
+import { cookiesFile, sessionDataDir, stateJsonFile } from './dataRoot.js';
 
 dotenv.config({ override: true });
+// Tenant one-shots: load cabinet overrides after root .env (WORKSPACE_ID, stage flags, …)
+if (process.env.TENANT_DATA_ROOT) {
+  dotenv.config({ path: path.join(process.env.TENANT_DATA_ROOT, 'tenant.env'), override: true });
+}
 
 /** Re-read .env so dashboard Save is visible without relying on a stale Docker env snapshot.
  *  STAGE_A_ONESHOT=1 preserves CLI/docker overrides across reload (one-shot scripts). */
 function reloadEnv() {
   const preserve = {};
-  if (process.env.STAGE_A_ONESHOT === '1') {
+  if (process.env.STAGE_A_ONESHOT === '1' || process.env.STAGE_B_ONESHOT === '1') {
     for (const k of [
       'OUTREACH_PAUSED',
       'SKIP_STAGE_A',
@@ -41,11 +46,18 @@ function reloadEnv() {
       'CONNECT_ACCEPT_EXPIRE',
       'GEMINI_API_KEY',
       'GEMINI_MODEL',
+      'TENANT_DATA_ROOT',
+      'WORKSPACE_ID',
+      'STAGE_A_ONESHOT',
+      'STAGE_B_ONESHOT',
     ]) {
       if (process.env[k] != null) preserve[k] = process.env[k];
     }
   }
   dotenv.config({ override: true });
+  if (process.env.TENANT_DATA_ROOT) {
+    dotenv.config({ path: path.join(process.env.TENANT_DATA_ROOT, 'tenant.env'), override: true });
+  }
   Object.assign(process.env, preserve);
 }
 
@@ -106,9 +118,9 @@ function normalizeCookieForPlaywright(raw) {
 async function loadCookies(context) {
     try {
         const fs = await import('fs');
-        const cookiesPath = path.join(__dirname, 'cookies.json');
+        const cookiesPath = cookiesFile();
         if (fs.existsSync(cookiesPath)) {
-            console.log('Loading cookies from cookies.json...');
+            console.log(`Loading cookies from ${cookiesPath}...`);
             const raw = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
             const cookies = (Array.isArray(raw) ? raw : [])
               .map(normalizeCookieForPlaywright)
@@ -146,9 +158,9 @@ async function persistSessionCookies(context) {
       console.log('Skip cookie persist — live context has no li_at (keep last good cookies.json).');
       return;
     }
-    const outPath = path.join(process.cwd(), 'cookies.json');
+    const outPath = cookiesFile();
     fs.writeFileSync(outPath, JSON.stringify(linkedIn, null, 2));
-    console.log(`Persisted ${linkedIn.length} LinkedIn cookies → cookies.json (li_at=true)`);
+    console.log(`Persisted ${linkedIn.length} LinkedIn cookies → ${outPath} (li_at=true)`);
   } catch (e) {
     console.error('persistSessionCookies:', e.message);
   }
@@ -1876,8 +1888,8 @@ async function sendMessageToLead(page, browser, statePath, lead) {
 }
 
 async function ensureLoggedInBrowser() {
-  const sessionPath = path.join(process.cwd(), 'session_data');
-  const statePath = path.join(process.cwd(), 'state.json');
+  const sessionPath = sessionDataDir();
+  const statePath = stateJsonFile();
 
   const contextOptions = {
     headless: true,
@@ -2019,13 +2031,13 @@ async function closeBrowser(browser) {
     // Never overwrite good cookies with a logged-out browser context
     if (st?.ok !== false) {
       await persistSessionCookies(browser).catch(() => {});
-      await browser.storageState({ path: path.join(process.cwd(), 'state.json') }).catch(() => {});
+      await browser.storageState({ path: stateJsonFile() }).catch(() => {});
     } else {
       console.log('Skipping cookie/state persist — session marked dead (keep last good cookies.json).');
     }
   } catch (_) {
     await persistSessionCookies(browser).catch(() => {});
-    await browser.storageState({ path: path.join(process.cwd(), 'state.json') }).catch(() => {});
+    await browser.storageState({ path: stateJsonFile() }).catch(() => {});
   }
   await browser.close().catch((e) => console.error('Browser close:', e.message));
 }
@@ -2119,7 +2131,7 @@ async function runStageA() {
       await closeBrowser(browser);
       browser = null;
       try {
-        const sessionPath = path.join(process.cwd(), 'session_data');
+        const sessionPath = sessionDataDir();
         fs.rmSync(sessionPath, { recursive: true, force: true });
         fs.mkdirSync(sessionPath, { recursive: true });
       } catch (_) {}

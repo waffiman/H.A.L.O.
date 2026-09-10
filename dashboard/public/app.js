@@ -8,6 +8,7 @@ const ICONS = {
   profile: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="12" cy="9" r="3.1" fill="currentColor"/><path fill="currentColor" d="M6.4 18.1c1.45-2.35 3.35-3.45 5.6-3.45s4.15 1.1 5.6 3.45C16 19.15 14.1 19.75 12 19.75s-4-.6-5.6-1.65z"/></svg>',
   billing: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>',
   general: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="12" cy="9" r="3.1" fill="currentColor"/><path fill="currentColor" d="M6.4 18.1c1.45-2.35 3.35-3.45 5.6-3.45s4.15 1.1 5.6 3.45C16 19.15 14.1 19.75 12 19.75s-4-.6-5.6-1.65z"/></svg>',
+  admin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 3.18 6 2.67v4.6c0 3.9-2.5 7.54-6 8.86-3.5-1.32-6-4.96-6-8.86v-4.6l6-2.67zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/></svg>',
   brain: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M11.5 3C10.12 3 8.9 3.73 8.18 4.84 6.86 5.17 5.75 6.38 5.75 7.85c0 .52.14 1.01.39 1.43C4.68 10.42 4.25 11.38 4.25 12.42c0 2.07 1.68 3.75 3.75 3.75.35 0 .68-.05 1-.14.61.81 1.57 1.29 2.62 1.29 1.05 0 2.01-.48 2.62-1.29.32.09.65.14 1 .14 2.07 0 3.75-1.68 3.75-3.75 0-1.04-.43-2-.89-2.64.25-.42.39-.91.39-1.43 0-1.47-1.11-2.68-2.43-3.01C14.1 3.73 12.88 3 11.5 3zm0 2c.55 0 1.04.28 1.33.71-.4-.15-.82-.23-1.26-.23-1.05 0-1.98.55-2.5 1.38-.22-.36-.57-.61-.99-.73.28-.72 1-1.23 1.84-1.23h1.58zm1 0h1.58c.84 0 1.56.51 1.84 1.23-.42.12-.77.37-.99.73-.52-.83-1.45-1.38-2.5-1.38-.44 0-.86.08-1.26.23.29-.43.78-.71 1.33-.71zM8.5 11a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm7 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm-3.5 2.75c.97 0 1.75.78 1.75 1.75 0 .2-.03.39-.09.57-.44-.32-.98-.5-1.56-.5-.58 0-1.12.18-1.56.5-.06-.18-.09-.37-.09-.57 0-.97.78-1.75 1.75-1.75z"/></svg>',
   /** Transparent-bg Notion mark (from user asset); inverted via CSS on dark UI */
   notionImg: '<img src="/notion-icon.png" alt="" class="notion-btn-icon" width="14" height="14" />',
@@ -30,6 +31,8 @@ const NAV = [
 let settings = null;
 let counts = null;
 let page = 'dashboard';
+/** @type {{ email?: string, workspaceId?: string, role?: string, displayName?: string, userUnreadSupport?: boolean } | null} */
+let haloMe = null;
 /** Working copy of Book-a-call weekly schedule (Sales Brain). */
 let brainBookingDraft = null;
 const BOOKING_WEEK_DAYS = [
@@ -547,7 +550,6 @@ const NAV_GROUPS = [
   { label: 'Settings', ids: ['profile'] },
   { label: 'Help', ids: ['faq'] },
 ];
-
 function setPageHeader(title, subtitle = '') {
   titleEl.textContent = title;
   if (subtitleEl) {
@@ -1861,6 +1863,7 @@ function renderNav() {
     </button>`;
       })
       .join('');
+    if (!items) return '';
     return `<div class="nav-group"><div class="nav-group-label">${g.label}</div>${items}</div>`;
   }).join('');
   navEl.querySelectorAll('[data-page]').forEach((btn) => {
@@ -1869,7 +1872,7 @@ function renderNav() {
       if (page === 'profile') {
         openProfileTile = '';
         const h = (location.hash || '').replace(/^#/, '');
-        if (/^(profile-)?(general|integrations|billing)$/.test(h)) {
+        if (/^(profile-)?(general|integrations|billing|admin)$/.test(h)) {
           history.replaceState(null, '', location.pathname + location.search);
         }
       }
@@ -4410,6 +4413,243 @@ function renderFaq() {
   view._faqCleanup = () => document.removeEventListener('keydown', onEsc);
 }
 
+function formatSupportTime(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function resizeSupportInput(el = supportInput) {
+  if (!el) return;
+  el.style.height = 'auto';
+  const next = Math.min(132, Math.max(38, el.scrollHeight));
+  el.style.height = `${next}px`;
+}
+
+const supportPanel = document.getElementById('support-panel');
+const supportBackdrop = document.getElementById('support-backdrop');
+const supportMessagesEl = document.getElementById('support-messages');
+const supportForm = document.getElementById('support-form');
+const supportInput = document.getElementById('support-input');
+const supportFab = document.getElementById('btn-support-fab');
+const supportFabDot = document.getElementById('support-fab-dot');
+
+let supportOpen = false;
+let supportWorkspaceId = '';
+/** @type {EventSource | null} */
+let supportEs = null;
+let supportPollTimer = null;
+let supportBadgeTimer = null;
+const supportSeenIds = new Set();
+
+function setSupportFabUnread(on) {
+  supportFabDot?.classList.toggle('hidden', !on);
+  if (haloMe) haloMe.userUnreadSupport = !!on;
+}
+
+async function refreshSupportFabBadge() {
+  try {
+    const data = await api('/api/support/status');
+    setSupportFabUnread(data.unreadFromSupport === true);
+  } catch {
+    /* ignore when signed out */
+  }
+}
+
+function stopSupportLive() {
+  if (supportEs) {
+    try {
+      supportEs.close();
+    } catch {
+      /* ignore */
+    }
+    supportEs = null;
+  }
+  if (supportPollTimer) {
+    clearInterval(supportPollTimer);
+    supportPollTimer = null;
+  }
+}
+
+/** Poll while chat is open if EventSource fails — no Supabase Realtime required. */
+function startSupportPollFallback() {
+  if (supportPollTimer || !supportOpen) return;
+  supportPollTimer = setInterval(async () => {
+    if (!supportOpen) return;
+    try {
+      const q = supportWorkspaceId ? `?workspaceId=${encodeURIComponent(supportWorkspaceId)}` : '';
+      const data = await api(`/api/support/messages${q}`);
+      renderSupportMessages(data.messages || []);
+    } catch {
+      /* ignore */
+    }
+  }, 20000);
+}
+
+function pulseSupportFab() {
+  if (!supportFab) return;
+  supportFab.classList.remove('is-pressing');
+  // reflow so re-click restarts animation
+  void supportFab.offsetWidth;
+  supportFab.classList.add('is-pressing');
+  window.setTimeout(() => supportFab.classList.remove('is-pressing'), 700);
+}
+
+function renderSupportMessages(messages) {
+  if (!supportMessagesEl) return;
+  const list = Array.isArray(messages) ? messages : [];
+  supportSeenIds.clear();
+  list.forEach((m) => m?.id && supportSeenIds.add(m.id));
+  if (!list.length) {
+    supportMessagesEl.innerHTML =
+      '<p class="support-empty">No messages yet. Ask anything about H.A.L.O. — we reply here.</p>';
+    return;
+  }
+  supportMessagesEl.innerHTML = list
+    .map((m) => {
+      const who = m.author === 'support' ? 'Support' : 'You';
+      const cls = m.author === 'support' ? 'support' : 'user';
+      return `<div class="support-bubble ${cls}" data-id="${escapeAttr(m.id || '')}">
+        <div>${escapeHtml(m.body || '')}</div>
+        <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
+      </div>`;
+    })
+    .join('');
+  supportMessagesEl.scrollTop = supportMessagesEl.scrollHeight;
+}
+
+function appendSupportMessage(m) {
+  if (!m?.id || supportSeenIds.has(m.id) || !supportMessagesEl) return;
+  supportSeenIds.add(m.id);
+  const empty = supportMessagesEl.querySelector('.support-empty');
+  if (empty) empty.remove();
+  const who = m.author === 'support' ? 'Support' : 'You';
+  const cls = m.author === 'support' ? 'support' : 'user';
+  supportMessagesEl.insertAdjacentHTML(
+    'beforeend',
+    `<div class="support-bubble ${cls}" data-id="${escapeAttr(m.id)}">
+      <div>${escapeHtml(m.body || '')}</div>
+      <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
+    </div>`
+  );
+  supportMessagesEl.scrollTop = supportMessagesEl.scrollHeight;
+  if (m.author === 'support' && supportOpen) {
+    api('/api/support/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
+    setSupportFabUnread(false);
+  } else if (m.author === 'support' && !supportOpen) {
+    setSupportFabUnread(true);
+  }
+}
+
+function startSupportLive(workspaceId) {
+  stopSupportLive();
+  const q = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : '';
+  try {
+    supportEs = new EventSource(`/api/support/stream${q}`);
+    supportEs.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        if (data.type === 'snapshot') renderSupportMessages(data.messages || []);
+        else if (data.type === 'message' && data.message) appendSupportMessage(data.message);
+      } catch {
+        /* ignore */
+      }
+    };
+    supportEs.onerror = () => {
+      if (supportEs) {
+        try {
+          supportEs.close();
+        } catch {
+          /* ignore */
+        }
+        supportEs = null;
+      }
+      startSupportPollFallback();
+    };
+  } catch {
+    startSupportPollFallback();
+  }
+}
+
+async function openSupportChat() {
+  const ws = String(haloMe?.workspaceId || '').trim();
+  supportWorkspaceId = ws;
+  const titleEl = document.getElementById('support-title');
+  const subEl = document.getElementById('support-sub');
+  if (titleEl) titleEl.textContent = 'Support';
+  if (subEl) subEl.textContent = 'Chat with WAFFi';
+
+  supportOpen = true;
+  supportPanel?.classList.remove('hidden');
+  supportBackdrop?.classList.remove('hidden');
+  supportFab?.classList.add('is-chat-open');
+  setNotifyOpen(false);
+  setNavOpen(false);
+
+  api('/api/support/mark-read', { method: 'POST', body: '{}' })
+    .then(() => setSupportFabUnread(false))
+    .catch(() => {});
+
+  try {
+    const data = await api('/api/support/messages');
+    renderSupportMessages(data.messages || []);
+  } catch (e) {
+    if (supportMessagesEl) {
+      supportMessagesEl.innerHTML = `<p class="support-empty">${escapeHtml(e.message || 'Failed to load chat')}</p>`;
+    }
+  }
+  startSupportLive(ws);
+  resizeSupportInput();
+  supportInput?.focus();
+}
+
+function closeSupportChat() {
+  supportOpen = false;
+  supportPanel?.classList.add('hidden');
+  supportBackdrop?.classList.add('hidden');
+  supportFab?.classList.remove('is-chat-open');
+  stopSupportLive();
+}
+
+function toggleSupportChat() {
+  pulseSupportFab();
+  if (supportOpen) closeSupportChat();
+  else openSupportChat();
+}
+
+async function sendSupportChatMessage(e) {
+  e?.preventDefault?.();
+  const body = String(supportInput?.value || '').trim();
+  if (!body) return;
+  const btn = document.getElementById('btn-support-send');
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api('/api/support/messages', {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
+    if (supportInput) {
+      supportInput.value = '';
+      resizeSupportInput();
+    }
+    if (data.message) appendSupportMessage(data.message);
+  } catch (err) {
+    toast(err.message || 'Send failed', true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function renderComing(name) {
   setPageHeader(name, `${name} channel — coming soon`);
   titleEl.title = `${name} coming soon`;
@@ -4847,6 +5087,7 @@ function profileTileFromHash() {
   if (hash === 'integrations' || hash === 'profile-integrations') return 'integrations';
   if (hash === 'billing' || hash === 'profile-billing') return 'billing';
   if (hash === 'general' || hash === 'profile-general') return 'general';
+  if (hash === 'admin' || hash === 'profile-admin') return 'admin';
   return '';
 }
 
@@ -4874,7 +5115,7 @@ function applyHaloTheme(theme) {
 function openProfileSection(id) {
   openProfileTile = id || '';
   if (id) location.hash = `profile-${id}`;
-  else if (/^#?(profile-)?(general|integrations|billing)$/.test(location.hash || '')) {
+  else if (/^#?(profile-)?(general|integrations|billing|admin)$/.test(location.hash || '')) {
     history.replaceState(null, '', location.pathname + location.search);
   }
   renderProfile();
@@ -4887,6 +5128,7 @@ function renderProfile() {
     general: ['General', 'Account details for this cabinet'],
     integrations: ['Integrations', 'API keys, LLM, Apify, Telegram'],
     billing: ['Billing', 'Trial, subscription, and Stripe'],
+    admin: ['Admin', 'HALO cabinets, leads, and support inbox'],
   };
   if (section && titles[section]) setPageHeader(titles[section][0], titles[section][1]);
   else setPageHeader('Profile', 'Account, billing, and integrations');
@@ -4906,6 +5148,7 @@ function renderProfile() {
       const trialEnded = me.trialEnded === true;
       const integProblem = settings?.integrationsHasProblem === true;
       const displayName = String(t.displayName || '').trim();
+      const showAdmin = me.isWaffiAdmin === true;
 
       const backBtn = `
         <button type="button" class="profile-back" id="btn-profile-back" aria-label="Back to Profile">
@@ -4947,7 +5190,11 @@ function renderProfile() {
           .catch(() => {});
       };
 
-      if (section === 'general' || section === 'integrations' || section === 'billing') {
+      if (section === 'general' || section === 'integrations' || section === 'billing' || section === 'admin') {
+        if (section === 'admin' && !showAdmin) {
+          view.innerHTML = `<div class="card"><p class="muted">Admin is only available on the WAFFi cabinet.</p></div>`;
+          return;
+        }
         const generalBody = `
           <div class="grid-2" style="gap:12px">
             <div><span class="muted">Name</span><div>${escapeHtml(displayName || '—')}</div></div>
@@ -4981,11 +5228,14 @@ function renderProfile() {
             ? generalBody
             : section === 'billing'
               ? billingBody
-              : `<div id="profile-integrations-body"></div>`;
+              : section === 'admin'
+                ? `<div id="profile-admin-body"><p class="muted">Loading cabinets…</p></div>`
+                : `<div id="profile-integrations-body" class="profile-integrations-page"></div>`;
+        const wide = section === 'integrations' || section === 'admin';
         view.innerHTML = `
-          <div class="profile-page">
+          <div class="profile-page${wide ? ' profile-page-wide' : ''}">
             ${backBtn}
-            <div class="profile-page-card card">${body}</div>
+            <div class="profile-page-card card${wide ? ' profile-page-card-flush' : ''}">${body}</div>
           </div>`;
         document.getElementById('btn-profile-back')?.addEventListener('click', () => openProfileSection(''));
         if (section === 'integrations') {
@@ -4994,6 +5244,8 @@ function renderProfile() {
             host.innerHTML = buildIntegrationsMarkup();
             wireIntegrationsUi(host);
           }
+        } else if (section === 'admin') {
+          renderAdminPanel(document.getElementById('profile-admin-body'));
         } else {
           wireBillingAndLogout();
           const themeSw = document.getElementById('halo-theme-light');
@@ -5007,10 +5259,10 @@ function renderProfile() {
         return;
       }
 
-      const tileBtn = (id, label, icon, hint) => {
+      const tileBtn = (id, label, icon, hint, extraWarn = false) => {
         const warn =
-          id === 'integrations' && integProblem
-            ? `<span class="integ-warn profile-tile-warn" title="Credentials need attention"><svg class="integ-warn-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path fill="#fff" d="M12 7.25a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1zm0 9.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg></span>`
+          (id === 'integrations' && integProblem) || extraWarn
+            ? `<span class="integ-warn profile-tile-warn" title="Needs attention"><svg class="integ-warn-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path fill="#fff" d="M12 7.25a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1zm0 9.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg></span>`
             : '';
         return `
         <button type="button" class="profile-tile profile-tile-link" data-profile-tile="${id}">
@@ -5029,6 +5281,7 @@ function renderProfile() {
           ${tileBtn('general', 'General', ICONS.general, 'Account details for this cabinet')}
           ${tileBtn('integrations', 'Integrations', ICONS.integrations, 'API keys, LLM, Apify, Telegram')}
           ${tileBtn('billing', 'Billing', ICONS.billing, 'Trial, subscription, and Stripe')}
+          ${showAdmin ? tileBtn('admin', 'Admin', ICONS.admin, 'Cabinets, leads, and support inbox') : ''}
         </div>`;
 
       view.querySelectorAll('[data-profile-tile]').forEach((el) => {
@@ -5040,13 +5293,314 @@ function renderProfile() {
     });
 }
 
+let adminSelectedWs = '';
+let adminPollTimer = null;
+const adminSeenIds = new Set();
+
+function stopAdminChatLive() {
+  if (adminPollTimer) {
+    clearInterval(adminPollTimer);
+    adminPollTimer = null;
+  }
+}
+
+function formatAdminSubStatus(status) {
+  const s = String(status || 'trial').toLowerCase();
+  if (s === 'active') return 'Active';
+  if (s === 'past_due') return 'Past due';
+  if (s === 'canceled') return 'Canceled';
+  return 'Trial';
+}
+
+function wireAdminMessageDeletes(host) {
+  if (!host) return;
+  host.querySelectorAll('[data-admin-del-msg]').forEach((btn) => {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = btn.getAttribute('data-admin-del-msg');
+      if (!id) return;
+      if (!window.confirm('Delete this message permanently from Supabase?')) return;
+      try {
+        await api(`/api/admin/support/messages/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        adminSeenIds.delete(id);
+        btn.closest('.admin-msg-row')?.remove();
+        if (host && !host.querySelector('.admin-msg-row')) {
+          host.innerHTML = '<p class="support-empty">No messages yet in this cabinet thread.</p>';
+        }
+      } catch (err) {
+        toast(err.message || 'Delete failed', true);
+      }
+    });
+  });
+}
+
+function adminMessageHtml(m) {
+  const who = m.author === 'support' ? 'You (support)' : 'User';
+  const cls = m.author === 'support' ? 'support' : 'user';
+  return `<div class="support-bubble ${cls} admin-msg-row" data-id="${escapeAttr(m.id || '')}">
+    <button type="button" class="admin-msg-del" data-admin-del-msg="${escapeAttr(m.id || '')}" title="Delete message" aria-label="Delete message">×</button>
+    <div>${escapeHtml(m.body || '')}</div>
+    <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
+  </div>`;
+}
+
+function renderAdminMessages(host, messages) {
+  if (!host) return;
+  const list = Array.isArray(messages) ? messages : [];
+  adminSeenIds.clear();
+  list.forEach((m) => m?.id && adminSeenIds.add(m.id));
+  if (!list.length) {
+    host.innerHTML = '<p class="support-empty">No messages yet in this cabinet thread.</p>';
+    return;
+  }
+  host.innerHTML = list.map((m) => adminMessageHtml(m)).join('');
+  host.scrollTop = host.scrollHeight;
+  wireAdminMessageDeletes(host);
+}
+
+function updateAdminDeleteButton() {
+  const btn = document.getElementById('btn-admin-delete-cabinets');
+  if (!btn) return;
+  const n = document.querySelectorAll('#admin-cabinet-list input[data-admin-check]:checked').length;
+  btn.disabled = n === 0;
+  btn.textContent = n ? `Delete selected (${n})` : 'Delete selected';
+}
+
+async function openAdminCabinetChat(workspaceId, meta = {}) {
+  const ws = String(workspaceId || '').trim();
+  if (!ws) return;
+  adminSelectedWs = ws;
+  const title = document.getElementById('admin-chat-title');
+  const sub = document.getElementById('admin-chat-sub');
+  const box = document.getElementById('admin-chat-messages');
+  if (title) title.textContent = meta.displayName || meta.email || ws;
+  if (sub) sub.textContent = `${meta.email || '—'} · ${ws}`;
+  document.querySelectorAll('.admin-cabinet-row').forEach((el) => {
+    el.classList.toggle('is-active', el.dataset.ws === ws);
+  });
+  stopAdminChatLive();
+  try {
+    await api('/api/admin/support/mark-read', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId: ws }),
+    });
+    const row = document.querySelector(`.admin-cabinet-row[data-ws="${CSS.escape(ws)}"]`);
+    row?.querySelector('.admin-unread-dot')?.classList.add('hidden');
+    row?.classList.remove('is-unread');
+  } catch {
+    /* ignore */
+  }
+  try {
+    const data = await api(`/api/support/messages?workspaceId=${encodeURIComponent(ws)}`);
+    renderAdminMessages(box, data.messages || []);
+  } catch (e) {
+    if (box) box.innerHTML = `<p class="support-empty">${escapeHtml(e.message || 'Failed to load chat')}</p>`;
+  }
+  adminPollTimer = setInterval(async () => {
+    if (!adminSelectedWs) return;
+    try {
+      const data = await api(`/api/support/messages?workspaceId=${encodeURIComponent(adminSelectedWs)}`);
+      renderAdminMessages(box, data.messages || []);
+    } catch {
+      /* ignore */
+    }
+  }, 8000);
+  document.getElementById('admin-chat-input')?.focus();
+}
+
+async function sendAdminChatMessage(e) {
+  e?.preventDefault?.();
+  const ws = adminSelectedWs;
+  const input = document.getElementById('admin-chat-input');
+  const body = String(input?.value || '').trim();
+  if (!ws || !body) return;
+  const btn = document.getElementById('btn-admin-send');
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api('/api/support/messages', {
+      method: 'POST',
+      body: JSON.stringify({ body, workspaceId: ws }),
+    });
+    if (input) {
+      input.value = '';
+      resizeSupportInput(input);
+    }
+    if (data.message) {
+      const box = document.getElementById('admin-chat-messages');
+      if (box && data.message.id && !adminSeenIds.has(data.message.id)) {
+        adminSeenIds.add(data.message.id);
+        const empty = box.querySelector('.support-empty');
+        if (empty) empty.remove();
+        box.insertAdjacentHTML('beforeend', adminMessageHtml(data.message));
+        wireAdminMessageDeletes(box);
+        box.scrollTop = box.scrollHeight;
+      }
+    }
+  } catch (err) {
+    toast(err.message || 'Send failed', true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function deleteSelectedAdminCabinets(host) {
+  const checked = [...document.querySelectorAll('#admin-cabinet-list input[data-admin-check]:checked')];
+  const ids = checked.map((el) => el.value).filter(Boolean);
+  if (!ids.length) return;
+  const labels = checked
+    .map((el) => el.closest('.admin-cabinet-row')?.dataset?.name || el.value)
+    .slice(0, 8)
+    .join(', ');
+  const more = ids.length > 8 ? ` (+${ids.length - 8} more)` : '';
+  if (
+    !window.confirm(
+      `Permanently delete ${ids.length} cabinet(s)?\n\n${labels}${more}\n\nThis removes the tenant, all their leads, and support chat history. WAFFi (default) cannot be deleted.`
+    )
+  ) {
+    return;
+  }
+  try {
+    const out = await api('/api/admin/cabinets/delete', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceIds: ids }),
+    });
+    toast(`Deleted ${out.deleted?.length || ids.length} cabinet(s)`);
+    if (ids.includes(adminSelectedWs)) {
+      adminSelectedWs = '';
+      stopAdminChatLive();
+    }
+    await renderAdminPanel(host);
+  } catch (err) {
+    toast(err.message || 'Delete failed', true);
+  }
+}
+
+async function renderAdminPanel(host) {
+  if (!host) return;
+  stopAdminChatLive();
+  adminSelectedWs = '';
+  host.innerHTML = '<p class="muted">Loading cabinets…</p>';
+  try {
+    const data = await api('/api/admin/overview');
+    const cabinets = data.cabinets || [];
+    const rows = cabinets
+      .map((c) => {
+        const name = c.displayName || c.email || c.workspaceId;
+        const preview = c.lastMessage?.body
+          ? escapeHtml(String(c.lastMessage.body).slice(0, 90))
+          : '<span class="muted">No messages yet</span>';
+        const problem = c.hasProblem
+          ? `<div class="admin-problem">${escapeHtml(c.problem)}</div>`
+          : '';
+        const locked = c.isDefault === true;
+        return `<div class="admin-cabinet-row${c.unreadFromUser ? ' is-unread' : ''}" data-ws="${escapeAttr(c.workspaceId)}" data-email="${escapeAttr(c.email || '')}" data-name="${escapeAttr(name)}">
+          <label class="admin-cabinet-check" title="${locked ? 'WAFFi cabinet cannot be deleted' : 'Select cabinet'}">
+            <input type="checkbox" data-admin-check value="${escapeAttr(c.workspaceId)}" ${locked ? 'disabled' : ''} />
+          </label>
+          <button type="button" class="admin-cabinet-hit" data-admin-open="${escapeAttr(c.workspaceId)}">
+            <span class="admin-unread-dot${c.unreadFromUser ? '' : ' hidden'}" aria-hidden="true"></span>
+            <span class="admin-cabinet-compact">
+              <strong>${escapeHtml(name)}</strong>
+              <span class="admin-pill admin-pill-${escapeAttr(String(c.subscriptionStatus || 'trial'))}">${escapeHtml(formatAdminSubStatus(c.subscriptionStatus))}</span>
+              <span class="admin-cabinet-leads">${Number(c.leadCount) || 0} leads</span>
+            </span>
+            <span class="admin-cabinet-details">
+              <span class="admin-cabinet-meta muted">${escapeHtml(c.email || '')} · <code>${escapeHtml(c.workspaceId)}</code>${c.isDefault ? ' · WAFFi' : ''}</span>
+              <span class="admin-cabinet-preview">${preview}</span>
+              ${problem}
+            </span>
+          </button>
+        </div>`;
+      })
+      .join('');
+
+    host.innerHTML = `
+      <div class="admin-panel">
+        <div class="admin-stats">
+          <div class="admin-stat"><span class="muted">Cabinets</span><strong>${Number(data.totalCabinets) || 0}</strong></div>
+          <div class="admin-stat"><span class="muted">Total leads</span><strong>${Number(data.totalLeads) || 0}</strong></div>
+          <div class="admin-stat"><span class="muted">Unread chats</span><strong>${Number(data.unreadThreads) || 0}</strong></div>
+          <div class="admin-stat"><span class="muted">Problems</span><strong>${Number(data.problemCabinets) || 0}</strong></div>
+        </div>
+        <div class="admin-split">
+          <div class="admin-list" id="admin-cabinet-list">
+            <div class="admin-list-toolbar">
+              <span class="muted" style="font-size:0.78rem">Cabinets</span>
+              <button type="button" class="btn danger btn-sm" id="btn-admin-delete-cabinets" disabled>Delete selected</button>
+            </div>
+            ${rows || '<p class="muted" style="padding:12px">No cabinets yet.</p>'}
+          </div>
+          <div class="admin-chat">
+            <div class="admin-chat-head">
+              <div>
+                <strong id="admin-chat-title">Select a cabinet</strong>
+                <div class="muted admin-chat-sub" id="admin-chat-sub">Open a user to view history and reply</div>
+              </div>
+              <button type="button" class="btn ghost btn-sm" id="btn-admin-refresh">Refresh</button>
+            </div>
+            <div id="admin-chat-messages" class="admin-chat-messages support-messages">
+              <p class="support-empty">Pick a cabinet on the left to open support chat.</p>
+            </div>
+            <form id="admin-chat-form" class="support-compose admin-compose" autocomplete="off">
+              <button type="submit" class="support-send" id="btn-admin-send" title="Send reply" aria-label="Send reply">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4l.1 6.8L15 12 3.5 13.8l-.1 6.8z"/>
+                </svg>
+              </button>
+              <textarea id="admin-chat-input" rows="1" maxlength="4000" placeholder="Reply to this cabinet…" aria-label="Admin reply"></textarea>
+            </form>
+          </div>
+        </div>
+      </div>`;
+
+    host.querySelectorAll('[data-admin-open]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const row = el.closest('.admin-cabinet-row');
+        openAdminCabinetChat(el.dataset.adminOpen, {
+          email: row?.dataset?.email,
+          displayName: row?.dataset?.name,
+        });
+      });
+    });
+    host.querySelectorAll('input[data-admin-check]').forEach((el) => {
+      el.addEventListener('click', (e) => e.stopPropagation());
+      el.addEventListener('change', updateAdminDeleteButton);
+    });
+    document.getElementById('btn-admin-delete-cabinets')?.addEventListener('click', () =>
+      deleteSelectedAdminCabinets(host)
+    );
+    document.getElementById('btn-admin-refresh')?.addEventListener('click', () => renderAdminPanel(host));
+    const form = document.getElementById('admin-chat-form');
+    const input = document.getElementById('admin-chat-input');
+    form?.addEventListener('submit', sendAdminChatMessage);
+    input?.addEventListener('input', () => resizeSupportInput(input));
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendAdminChatMessage(e);
+      }
+    });
+    resizeSupportInput(input);
+    updateAdminDeleteButton();
+  } catch (e) {
+    host.innerHTML = `<p class="muted">${escapeHtml(e.message || 'Failed to load admin overview')}</p>`;
+  }
+}
+
 function buildIntegrationsMarkup() {
   const groups = {};
-  for (const item of settings?.integrations || []) (groups[item.group] ||= []).push(item);
-  const order = ['Supabase', 'LLM', 'Apify', 'Telegram'];
+  for (const item of settings?.integrations || []) {
+    // Shared HALO Supabase — tenants do not connect their own project
+    if (item.group === 'Supabase') continue;
+    (groups[item.group] ||= []).push(item);
+  }
+  const order = ['LLM', 'Apify', 'Telegram'];
   const groupNames = [
     ...order.filter((g) => groups[g]),
-    ...Object.keys(groups).filter((g) => !order.includes(g) && g !== 'Google Calendar'),
+    ...Object.keys(groups).filter((g) => !order.includes(g) && g !== 'Google Calendar' && g !== 'Supabase'),
   ];
 
   const warnIcon =
@@ -5056,31 +5610,23 @@ function buildIntegrationsMarkup() {
     .map((group) => {
       const items = groups[group] || [];
       const hasProblem = items.some((it) => it.problem);
-      const open = openIntegrationGroups[group] === true || (openIntegrationGroups[group] == null && hasProblem);
       const body = renderIntegrationsGroupBody(group, items);
       return `
-      <details class="integ-accordion ${hasProblem ? 'has-problem' : ''}" data-group="${escapeAttr(group)}" ${open ? 'open' : ''}>
-        <summary class="integ-summary" title="${escapeAttr(group)} credentials">
-          <span class="integ-summary-left">
-            <span class="integ-chevron" aria-hidden="true"></span>
+      <section class="integ-section ${hasProblem ? 'has-problem' : ''}" data-group="${escapeAttr(group)}">
+        <div class="integ-section-head">
+          <span class="integ-section-left">
             <span class="integ-group-title">${escapeHtml(group)}</span>
             <span class="muted integ-count">${items.length}</span>
           </span>
           ${hasProblem ? `<span class="integ-warn" title="One or more credentials need attention">${warnIcon}</span>` : ''}
-        </summary>
+        </div>
         <div class="integ-body">${body}</div>
-      </details>`;
+      </section>`;
     })
     .join('');
 }
 
 function wireIntegrationsUi(root = view) {
-  root.querySelectorAll('details.integ-accordion').forEach((el) => {
-    el.addEventListener('toggle', () => {
-      openIntegrationGroups[el.dataset.group] = el.open;
-    });
-  });
-
   root.querySelector('#btn-supabase-connect-open')?.addEventListener('click', () => {
     if (root.querySelector('#btn-supabase-connect-open')?.disabled) return;
     window.HaloSupabaseConnect?.openConnect();
@@ -5341,6 +5887,18 @@ async function boot() {
   if (notifyBackdrop) notifyBackdrop.onclick = () => setNotifyOpen(false);
   const closeBtn = document.getElementById('btn-notify-close');
   if (closeBtn) closeBtn.onclick = () => setNotifyOpen(false);
+  document.getElementById('btn-support-close')?.addEventListener('click', () => closeSupportChat());
+  supportBackdrop?.addEventListener('click', () => closeSupportChat());
+  supportFab?.addEventListener('click', () => toggleSupportChat());
+  supportForm?.addEventListener('submit', sendSupportChatMessage);
+  supportInput?.addEventListener('input', () => resizeSupportInput());
+  supportInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendSupportChatMessage(e);
+    }
+  });
+  resizeSupportInput();
   const menuBtn = document.getElementById('btn-menu');
   const navBackdrop = document.getElementById('nav-backdrop');
   const navClose = document.getElementById('btn-nav-close');
@@ -5351,6 +5909,7 @@ async function boot() {
     if (e.key === 'Escape') {
       setNavOpen(false);
       setNotifyOpen(false);
+      closeSupportChat();
     }
   });
   window.addEventListener('resize', () => {
@@ -5398,15 +5957,19 @@ async function boot() {
     updateBell();
     try {
       const me = await fetch('/api/auth/me', { credentials: 'same-origin' }).then((r) => r.json());
-      if (me?.ok && me.trialEnded) {
-        let ban = document.getElementById('halo-trial-banner');
-        if (!ban) {
-          ban = document.createElement('div');
-          ban.id = 'halo-trial-banner';
-          ban.style.cssText =
-            'position:sticky;top:0;z-index:50;background:#7f1d1d;color:#fecaca;padding:10px 16px;text-align:center;font-size:0.88rem;border-bottom:1px solid #991b1b';
-          ban.textContent = `Trial ended (${me.leadCount}/${me.tenant?.trialLeadLimit || 50} leads). New leads blocked until upgrade.`;
-          document.body.prepend(ban);
+      if (me?.ok) {
+        haloMe = me.tenant || null;
+        setSupportFabUnread(me.tenant?.userUnreadSupport === true);
+        if (me.trialEnded) {
+          let ban = document.getElementById('halo-trial-banner');
+          if (!ban) {
+            ban = document.createElement('div');
+            ban.id = 'halo-trial-banner';
+            ban.style.cssText =
+              'position:sticky;top:0;z-index:50;background:#7f1d1d;color:#fecaca;padding:10px 16px;text-align:center;font-size:0.88rem;border-bottom:1px solid #991b1b';
+            ban.textContent = `Trial ended (${me.leadCount}/${me.tenant?.trialLeadLimit || 50} leads). New leads blocked until upgrade.`;
+            document.body.prepend(ban);
+          }
         }
       }
     } catch {
@@ -5416,6 +5979,11 @@ async function boot() {
     if (pageParam && NAV.some((n) => n.id === pageParam)) page = pageParam;
     render();
     setInterval(refreshNotifications, 30000);
+    refreshSupportFabBadge().catch(() => {});
+    if (supportBadgeTimer) clearInterval(supportBadgeTimer);
+    supportBadgeTimer = setInterval(() => {
+      if (!supportOpen) refreshSupportFabBadge().catch(() => {});
+    }, 60000);
   } catch (e) {
     view.innerHTML = `<div class="coming">Failed to load: ${escapeHtml(e.message)}</div>`;
   }

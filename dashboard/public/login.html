@@ -21,15 +21,10 @@ body{
   width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line);
   border-radius:16px;padding:2rem;box-shadow:0 12px 32px rgba(0,0,0,.45);
 }
-.logo{display:flex;align-items:center;gap:.6rem;margin-bottom:1.4rem}
-.ring{
-  width:32px;height:32px;border-radius:50%;border:2px solid var(--accent);
-  display:flex;align-items:center;justify-content:center;
-}
-.ring::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent-glow)}
+.logo{display:flex;align-items:center;gap:.65rem;margin-bottom:1.4rem}
+.logo img{width:32px;height:32px;display:block;border-radius:8px}
 .logo span{font-weight:800;letter-spacing:.08em}
-h1{font-size:1.35rem;font-weight:800;margin-bottom:.35rem}
-.sub{color:var(--muted);font-size:.88rem;margin-bottom:1.4rem;line-height:1.5}
+h1{font-size:1.35rem;font-weight:800;margin-bottom:1.25rem}
 label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:.35rem;font-weight:500}
 input{
   width:100%;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);
@@ -60,9 +55,8 @@ button.primary:disabled{opacity:.6;cursor:wait}
 </head>
 <body>
   <div class="card">
-    <div class="logo"><div class="ring"></div><span>H.A.L.O.</span></div>
+    <div class="logo"><img src="/logo.svg" width="32" height="32" alt="H.A.L.O."/><span>H.A.L.O.</span></div>
     <h1>Sign in to your cabinet</h1>
-    <p class="sub">Each account sees only its own leads. WAFFi production leads stay in the owner cabinet.</p>
     <p class="err" id="err"></p>
     <form id="f">
       <div class="field">

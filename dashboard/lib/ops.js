@@ -29,6 +29,8 @@ import {
   readEnvFile,
   writeEnvFile,
 } from './env.js';
+import { tenantPaths, ensureTenantRuntime } from './tenantRuntime.js';
+import { waffiWorkspaceId } from './tenants.js';
 import {
   addNotification,
   listNotifications,
@@ -294,11 +296,12 @@ function readProspectSearchPreview() {
 }
 
 /** Wipe dead Chromium cookie stores so a fresh li_at paste can take effect. */
-export function resetBrowserSessionsForCookieRepair() {
-  const profiles = [
-    path.join(APP_ROOT, 'session_data'),
-    path.join(APP_ROOT, 'session_data_connect'),
-  ];
+export function resetBrowserSessionsForCookieRepair(workspaceId = waffiWorkspaceId()) {
+  const paths = tenantPaths(workspaceId);
+  const profiles = [paths.sessionData];
+  if (paths.isLegacy) {
+    profiles.push(path.join(APP_ROOT, 'session_data_connect'));
+  }
   const cookieRel = [
     'Default/Cookies',
     'Default/Cookies-journal',
@@ -332,11 +335,36 @@ export function resetBrowserSessionsForCookieRepair() {
     }
   }
   try {
-    fs.writeFileSync(path.join(APP_ROOT, '.cookie_repair_pending'), new Date().toISOString());
+    fs.writeFileSync(path.join(paths.root, '.cookie_repair_pending'), new Date().toISOString());
   } catch {
     /* ignore */
   }
   return cleared;
+}
+
+export function readSessionStatus(workspaceId = waffiWorkspaceId()) {
+  try {
+    const p = path.join(tenantPaths(workspaceId).root, 'session_status.json');
+    if (!fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function readLiAtPresent(workspaceId = waffiWorkspaceId()) {
+  try {
+    const cookiesPath = tenantPaths(workspaceId).cookies;
+    if (!fs.existsSync(cookiesPath)) return { present: false, count: 0 };
+    const cookies = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
+    const list = Array.isArray(cookies) ? cookies : [];
+    return {
+      present: list.some((c) => c.name === 'li_at' && c.value),
+      count: list.length,
+    };
+  } catch {
+    return { present: false, count: 0 };
+  }
 }
 
 export async function countNotionStatuses(workspaceId) {
@@ -432,29 +460,6 @@ export function notionCrmUrl() {
   return `https://www.notion.so/${compact}`;
 }
 
-export function readSessionStatus() {
-  try {
-    if (!fs.existsSync(SESSION_STATUS_PATH)) return null;
-    return JSON.parse(fs.readFileSync(SESSION_STATUS_PATH, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-export function readLiAtPresent() {
-  try {
-    if (!fs.existsSync(COOKIES_PATH)) return { present: false, count: 0 };
-    const cookies = JSON.parse(fs.readFileSync(COOKIES_PATH, 'utf8'));
-    const list = Array.isArray(cookies) ? cookies : [];
-    return {
-      present: list.some((c) => c.name === 'li_at' && c.value),
-      count: list.length,
-    };
-  } catch {
-    return { present: false, count: 0 };
-  }
-}
-
 /** Convert EditThisCookie / Chrome export cookie → Playwright cookie shape */
 function toPlaywrightCookie(c) {
   const name = c.name;
@@ -489,9 +494,12 @@ function toPlaywrightCookie(c) {
  * - raw li_at value
  * - EditThisCookie JSON array (extracts li_at + writes all LinkedIn cookies)
  */
-export function ingestCookiePaste(raw) {
+export function ingestCookiePaste(raw, workspaceId = waffiWorkspaceId()) {
   const text = String(raw || '').trim();
   if (!text) throw new Error('Empty cookie paste');
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  ensureTenantRuntime(ws);
+  const paths = tenantPaths(ws);
 
   // EditThisCookie / JSON array
   if (text.startsWith('[')) {
@@ -512,11 +520,11 @@ export function ingestCookiePaste(raw) {
     const liAt = linkedIn.find((c) => c.name === 'li_at');
     if (!liAt?.value) throw new Error('li_at cookie not found in EditThisCookie export');
 
-    fs.writeFileSync(COOKIES_PATH, JSON.stringify(linkedIn, null, 2));
-    const cleared = resetBrowserSessionsForCookieRepair();
+    fs.writeFileSync(paths.cookies, JSON.stringify(linkedIn, null, 2));
+    const cleared = resetBrowserSessionsForCookieRepair(ws);
     // mark session healthy after repair
     try {
-      const statusPath = SESSION_STATUS_PATH;
+      const statusPath = path.join(paths.root, 'session_status.json');
       fs.writeFileSync(
         statusPath,
         JSON.stringify(
@@ -528,6 +536,7 @@ export function ingestCookiePaste(raw) {
             source: 'dashboard_cookie_paste',
             cookieCount: linkedIn.length,
             profilesCleared: cleared,
+            workspaceId: ws,
           },
           null,
           2
@@ -543,20 +552,24 @@ export function ingestCookiePaste(raw) {
       liAtPresent: true,
       liAtPreview: `${liAt.value.slice(0, 6)}…${liAt.value.slice(-4)}`,
       profilesCleared: cleared,
+      workspaceId: ws,
     };
   }
 
   // Raw li_at only
-  return upsertLiAt(text);
+  return upsertLiAt(text, ws);
 }
 
-export function upsertLiAt(token) {
+export function upsertLiAt(token, workspaceId = waffiWorkspaceId()) {
   const value = String(token || '').trim();
   if (!value || value.length < 20) throw new Error('li_at token looks too short');
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  ensureTenantRuntime(ws);
+  const paths = tenantPaths(ws);
   let cookies = [];
-  if (fs.existsSync(COOKIES_PATH)) {
+  if (fs.existsSync(paths.cookies)) {
     try {
-      cookies = JSON.parse(fs.readFileSync(COOKIES_PATH, 'utf8'));
+      cookies = JSON.parse(fs.readFileSync(paths.cookies, 'utf8'));
       if (!Array.isArray(cookies)) cookies = [];
     } catch {
       cookies = [];
@@ -573,11 +586,11 @@ export function upsertLiAt(token) {
     secure: true,
     sameSite: 'None',
   });
-  fs.writeFileSync(COOKIES_PATH, JSON.stringify(rest, null, 2));
-  const cleared = resetBrowserSessionsForCookieRepair();
+  fs.writeFileSync(paths.cookies, JSON.stringify(rest, null, 2));
+  const cleared = resetBrowserSessionsForCookieRepair(ws);
   try {
     fs.writeFileSync(
-      SESSION_STATUS_PATH,
+      path.join(paths.root, 'session_status.json'),
       JSON.stringify(
         {
           ok: true,
@@ -586,6 +599,7 @@ export function upsertLiAt(token) {
           updatedAt: new Date().toISOString(),
           source: 'dashboard_li_at_paste',
           profilesCleared: cleared,
+          workspaceId: ws,
         },
         null,
         2
@@ -594,7 +608,14 @@ export function upsertLiAt(token) {
   } catch {
     /* ignore */
   }
-  return { ok: true, mode: 'li_at', count: rest.length, liAtPresent: true, profilesCleared: cleared };
+  return {
+    ok: true,
+    mode: 'li_at',
+    count: rest.length,
+    liAtPresent: true,
+    profilesCleared: cleared,
+    workspaceId: ws,
+  };
 }
 
 export function readPrompt(name) {
@@ -616,8 +637,13 @@ export function writePrompt(name, text) {
   fs.writeFileSync(path.join(PROMPTS_DIR, `${name}.md`), String(text ?? ''), 'utf8');
 }
 
-export function buildSettingsView() {
-  const env = readEnvFile();
+export function buildSettingsView(workspaceId = waffiWorkspaceId()) {
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  const rootEnv = readEnvFile();
+  const paths = tenantPaths(ws);
+  const tenantEnv = paths.isLegacy ? {} : readEnvFile(paths.envFile);
+  // Shared secrets from root; stage/LinkedIn flags from tenant.env when non-default
+  const env = paths.isLegacy ? rootEnv : { ...rootEnv, ...tenantEnv, WORKSPACE_ID: ws };
   const stageAMs = Number(env.STAGE_A_INTERVAL_MS || 172800000);
   const stageBMs = Number(env.STAGE_B_INTERVAL_MS || 1800000);
   const stageAInt = msToInterval(stageAMs, env.STAGE_A_INTERVAL_UNIT || 'hours');
@@ -628,12 +654,13 @@ export function buildSettingsView() {
   const stageBOn = env.SKIP_STAGE_B !== '1' && env.SKIP_CONVERSATION !== '1';
   // Master is a convenience toggle: ON only when both stages are enabled
   const masterOn = stageAOn && stageBOn;
-  const session = readSessionStatus();
-  const cookies = readLiAtPresent();
-  syncSessionNotifications(session, cookies);
+  const session = readSessionStatus(ws);
+  const cookies = readLiAtPresent(ws);
+  // Only push TG session alerts for the active request cabinet
+  syncSessionNotifications(session, cookies, ws);
   const linkedinSessionOk =
     session?.ok === true && !session?.needsCookieRepair && cookies.present;
-  const integrations = buildIntegrationsView(env);
+  const integrations = buildIntegrationsView(rootEnv);
 
   return {
     masterEnabled: masterOn,
@@ -892,10 +919,15 @@ function buildIntegrationsView(env) {
   return items;
 }
 
-export function applyDashboardPatch(body = {}) {
+export function applyDashboardPatch(body = {}, workspaceId = waffiWorkspaceId()) {
   const updates = {};
   const removeKeys = [];
-  const env = readEnvFile();
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  ensureTenantRuntime(ws);
+  const paths = tenantPaths(ws);
+  const env = paths.isLegacy
+    ? readEnvFile()
+    : { ...readEnvFile(), ...readEnvFile(paths.envFile), WORKSPACE_ID: ws };
 
   // Master = convenience to enable/disable BOTH stages together.
   // Turning master ON → enable A+B. Turning master OFF → disable A+B.
@@ -1095,8 +1127,6 @@ export function applyDashboardPatch(body = {}) {
     }
   }
 
-  writeEnvFile(updates, { removeKeys });
-
   if (body.brain && typeof body.brain === 'object') {
     const policy = readBrainSalesPolicy();
     if (body.brain.userPrompt != null) {
@@ -1131,10 +1161,43 @@ export function applyDashboardPatch(body = {}) {
   }
 
   if (body.liAtToken || body.cookiePaste) {
-    ingestCookiePaste(body.cookiePaste || body.liAtToken);
+    ingestCookiePaste(body.cookiePaste || body.liAtToken, ws);
   }
 
-  return buildSettingsView();
+  // Integration secrets always go to root .env (shared LLM/Apify/Telegram)
+  const rootOnlyKeys = new Set();
+  const tenantKeys = new Set();
+  for (const k of Object.keys(updates)) {
+    if (
+      /TOKEN|API_KEY|PASSWORD|SECRET|RESEND|STRIPE|SUPABASE|NOTION|DASHBOARD_/i.test(k) ||
+      k === 'CRM_BACKEND'
+    ) {
+      rootOnlyKeys.add(k);
+    } else {
+      tenantKeys.add(k);
+    }
+  }
+
+  if (paths.isLegacy) {
+    writeEnvFile(updates, { removeKeys });
+  } else {
+    const rootUpdates = {};
+    const tenantUpdates = { WORKSPACE_ID: ws };
+    for (const [k, v] of Object.entries(updates)) {
+      if (rootOnlyKeys.has(k)) rootUpdates[k] = v;
+      else tenantUpdates[k] = v;
+    }
+    if (Object.keys(rootUpdates).length || removeKeys.some((k) => rootOnlyKeys.has(k))) {
+      writeEnvFile(rootUpdates, {
+        removeKeys: removeKeys.filter((k) => rootOnlyKeys.has(k)),
+      });
+    }
+    writeEnvFile(tenantUpdates, {
+      removeKeys: removeKeys.filter((k) => !rootOnlyKeys.has(k)),
+    }, paths.envFile);
+  }
+
+  return buildSettingsView(ws);
 }
 
 export {
@@ -1208,6 +1271,15 @@ function notifyRestartResult(result) {
         title: 'H.A.L.O. restart failed',
         message: String(result.output || result.error || 'unknown error').slice(0, 500),
       });
+      const ws = String(readEnvFile().WORKSPACE_ID || 'default').trim() || 'default';
+      import('./supportChat.js')
+        .then(({ flagTenantError }) =>
+          flagTenantError(ws, {
+            title: 'H.A.L.O. restart failed',
+            message: String(result.output || result.error || 'unknown error').slice(0, 400),
+          })
+        )
+        .catch(() => {});
     }
   } catch {
     /* ignore notify failures */

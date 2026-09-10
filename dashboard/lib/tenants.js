@@ -47,6 +47,16 @@ function rowToTenant(row) {
     role: String(row.role || 'user'),
     subscriptionStatus: String(row.subscription_status || 'trial'),
     trialLeadLimit: Number(row.trial_lead_limit) || 50,
+    userUnreadSupport: row.user_unread_support === true,
+    supportAttention: row.support_attention === true,
+    supportAttentionAt: row.support_attention_at || null,
+    errorAttention: row.error_attention === true,
+    errorAttentionAt: row.error_attention_at || null,
+    errorAttentionUntil: row.error_attention_until || null,
+    errorAttentionReason: String(row.error_attention_reason || '').trim(),
+    stripeCustomerId: String(row.stripe_customer_id || '').trim(),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
   };
 }
 
@@ -165,5 +175,6 @@ export function tenantPublic(tenant) {
     role: tenant.role,
     subscriptionStatus: tenant.subscriptionStatus,
     trialLeadLimit: tenant.trialLeadLimit,
+    userUnreadSupport: tenant.userUnreadSupport === true,
   };
 }

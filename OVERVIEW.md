@@ -7,7 +7,7 @@ Company behind outreach copy remains WAFFi.
 
 > **Agent knowledge base.** Read this first after any idle period.  
 > Keep this file updated whenever behavior, env flags, dashboard UI, or deploy paths change.  
-> Last updated: 2026-08-28 (Stage B jitter + auto-dialog UI, analytics chart, Brain regions catalog, connect-invites input fix, WAFFi footer, ENRICH_ONLY→ice send, portrait-only dashboard).
+> Last updated: 2026-09-08 (support chat + attention flags, FAQ Contact support drawer, Resend/Telegram alerts).
 
 ---
 
@@ -600,12 +600,51 @@ Standalone: [`run-connect-once.js`](run-connect-once.js) (lock owner `C`), [`run
 | Conversation | [`conversationAgent.js`](conversationAgent.js), [`notionNotes.js`](notionNotes.js) |
 | Session | [`sessionHealth.js`](sessionHealth.js) |
 | Locks / A due | [`cycleLock.js`](cycleLock.js), [`stageAState.js`](stageAState.js) |
-| Dashboard | [`dashboard/server.js`](dashboard/server.js), [`dashboard/lib/ops.js`](dashboard/lib/ops.js), [`dashboard/lib/analytics.js`](dashboard/lib/analytics.js), [`dashboard/public/app.js`](dashboard/public/app.js), [`dashboard/public/index.html`](dashboard/public/index.html) |
+| Dashboard | [`dashboard/server.js`](dashboard/server.js), [`dashboard/lib/ops.js`](dashboard/lib/ops.js), [`dashboard/lib/analytics.js`](dashboard/lib/analytics.js), [`dashboard/lib/supportChat.js`](dashboard/lib/supportChat.js), [`dashboard/public/app.js`](dashboard/public/app.js), [`dashboard/public/index.html`](dashboard/public/index.html) |
+| Support chat SQL | [`sql/halo_support_chat.sql`](sql/halo_support_chat.sql) |
 | Compose | [`docker-compose.ionos.yml`](docker-compose.ionos.yml) |
 
 ---
 
-## 14. Maintenance rule for this document
+## 13b. Support chat (Supabase)
+
+One thread per cabinet (`workspace_id`). UI: floating headphones FAB (bottom-right) on every dashboard page.
+
+| Piece | Detail |
+|-------|--------|
+| Table | `support_messages` (`workspace_id`, `author` = `user`\|`support`, `body`, `created_at`) |
+| Alerts | **Telegram only** (no email). New user message and cabinet errors include `workspace_id` + `email` |
+| User FAB red dot | `halo_tenants.user_unread_support` — set by DB trigger when support inserts a message; cleared when user opens chat |
+| Live UI | SSE + Supabase Realtime while chat open |
+
+### Enable in Supabase
+
+1. [`sql/halo_support_chat.sql`](sql/halo_support_chat.sql) (tables / attention cols if needed)
+2. [`sql/halo_support_user_unread.sql`](sql/halo_support_user_unread.sql) — FAB unread + trigger
+3. Realtime publication: `support_messages`
+
+### Reply in Table Editor
+
+1. Filter `support_messages` by `workspace_id` from the Telegram alert.
+2. Insert: `author=support`, same `workspace_id`, your `body`.
+3. User sees FAB red dot until they open the chat.
+
+---
+
+## 13c. Multi-cabinet LinkedIn (sequential, ≤3)
+
+| Cabinet | Cookies / Chromium | Who runs stages |
+|---------|-------------------|-----------------|
+| `default` (WAFFi) | Root `cookies.json` + `session_data/` | Long-running `linkedin-agent` (unchanged) |
+| Other cabinets | `halo-tenants/{workspace_id}/` | Dashboard **tenant orchestrator**: one-shot Stage A/B under global browser lock |
+
+Rules:
+- One Chromium at a time (shared `cycle.lock` / `withBrowserLock`).
+- Max **3** cabinets with LinkedIn cookies + stages on (`MAX_LINKEDIN_CABINETS`).
+- Sign-in / cookie paste for a cabinet writes **only** that cabinet’s jar — never overwrites WAFFi when `workspace_id ≠ default`.
+- Env: set `TENANT_DATA_ROOT` + `WORKSPACE_ID` for tenant one-shots.
+
+API: `GET /api/tenants/linkedin` — cabinet list + orchestrator status.
 
 When you change:
 

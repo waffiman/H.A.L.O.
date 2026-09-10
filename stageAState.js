@@ -2,14 +2,16 @@
  * Stage A due tracking (48h acquisition pipeline).
  */
 import fs from 'fs';
-import path from 'path';
+import { stageAStateFile } from './dataRoot.js';
 
-const STATE_PATH = path.join(process.cwd(), 'stage_a_state.json');
+function statePath() {
+  return stageAStateFile();
+}
 
 export function loadStageAState() {
   try {
-    if (fs.existsSync(STATE_PATH)) {
-      return JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
+    if (fs.existsSync(statePath())) {
+      return JSON.parse(fs.readFileSync(statePath(), 'utf8'));
     }
   } catch {
     /* ignore */
@@ -18,7 +20,7 @@ export function loadStageAState() {
 }
 
 export function saveStageAState(state) {
-  fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+  fs.writeFileSync(statePath(), JSON.stringify(state, null, 2));
 }
 
 export function isStageADue(state = loadStageAState()) {
