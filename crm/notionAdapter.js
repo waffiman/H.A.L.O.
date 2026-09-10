@@ -4,7 +4,7 @@
 import { Client } from '@notionhq/client';
 import { notionRichText } from '../messageQuality.js';
 import { canonicalProfileUrl, profileSlugFromUrl } from '../connectionsSync.js';
-import { STATUS_LEAD, STATUS_PROPOSAL_1 } from './constants.js';
+import { STATUS_LEAD } from './constants.js';
 
 function getNotion() {
   return new Client({ auth: process.env.NOTION_TOKEN });
@@ -143,7 +143,7 @@ export async function updateNameAndIceBreaker(
   }
 }
 
-export async function createLead({ url, name = '', status = STATUS_PROPOSAL_1 } = {}) {
+export async function createLead({ url, name = '', status = STATUS_LEAD } = {}) {
   const notion = getNotion();
   const databaseId = getDatabaseId();
   const cleanUrl = canonicalProfileUrl(url);
@@ -197,6 +197,8 @@ export async function listLeadSleepPages({ maxPages = 30 } = {}) {
         url,
         slug,
         name: (page.properties?.Name?.title || []).map((t) => t.plain_text).join('').trim(),
+        msg: notionRichText(page.properties?.['Ice-breaker']),
+        notes: '',
         processingAt: processingAtRaw,
         createdAt: page.created_time || null,
       });
@@ -220,15 +222,21 @@ export async function findLeadSleepByUrls(urls = []) {
 }
 
 export async function promoteLeadSleepToProposal1({ id, url, name = '' }) {
+  // Proposal 1️⃣ removed: accepted leads stay Lead😴 until ice is sent → Conversation 💬.
   const notion = getNotion();
   const cleanUrl = canonicalProfileUrl(url);
   const titleName = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
-  const properties = { Status: { select: { name: STATUS_PROPOSAL_1 } } };
+  const properties = { Status: { select: { name: STATUS_LEAD } } };
   if (cleanUrl) properties.Link = { url: cleanUrl };
   if (titleName.length >= 2) {
     properties.Name = { title: [{ type: 'text', text: { content: titleName } }] };
   }
   await notion.pages.update({ page_id: id, properties });
+  try {
+    await appendNote(id, 'Accepted connection — ready for enrich + ice (Lead😴)');
+  } catch {
+    /* ignore */
+  }
   return { id, url: cleanUrl, slug: profileSlugFromUrl(cleanUrl), name: titleName };
 }
 

@@ -7,8 +7,7 @@ import { readEnvFile } from './env.js';
 
 export const CRM_STATUSES = [
   'Lead😴',
-  'Proposal 1️⃣',
-  'Proposal 2️⃣',
+  'Conversation 💬',
   'Active ✅',
   'Lost❌',
 ];
@@ -50,7 +49,12 @@ function rowToLead(row) {
     messengerApp: String(row.messenger_app || '').trim(),
     messengerValue: String(row.messenger_value || '').trim(),
     processingAt: row.processing_at || null,
-    status: String(row.status || '').trim(),
+    status: (() => {
+      const raw = String(row.status || '').trim();
+      if (raw === 'Proposal 1️⃣' || raw === 'Proposal 1') return 'Lead😴';
+      if (raw === 'Proposal 2️⃣' || raw === 'Proposal 2') return 'Conversation 💬';
+      return raw;
+    })(),
     notes: String(row.notes || ''),
   };
 }

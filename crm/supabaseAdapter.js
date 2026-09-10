@@ -2,7 +2,7 @@
  * Supabase CRM adapter — PostgREST fetch (Node 20 safe).
  */
 import { profileSlugFromUrl, canonicalProfileUrl } from '../connectionsSync.js';
-import { STATUS_LEAD, STATUS_PROPOSAL_1 } from './constants.js';
+import { STATUS_LEAD } from './constants.js';
 import { restDelete, restFetchAll, restInsert, restSelect, restUpdate, workspaceId } from './supabaseRest.js';
 
 function rowToLead(row) {
@@ -87,7 +87,7 @@ export async function updateNameAndIceBreaker(
   await restUpdate('leads', id, patch);
 }
 
-export async function createLead({ url, name = '', status = STATUS_PROPOSAL_1 } = {}) {
+export async function createLead({ url, name = '', status = STATUS_LEAD } = {}) {
   const cleanUrl = canonicalProfileUrl(url);
   if (!cleanUrl) throw new Error(`Invalid LinkedIn URL: ${url}`);
   const slug = profileSlugFromUrl(cleanUrl);
@@ -122,6 +122,8 @@ export async function listLeadSleepPages({ maxPages = 30 } = {}) {
       url: u,
       slug,
       name: String(row.name || '').trim(),
+      msg: String(row.ice_breaker || ''),
+      notes: String(row.notes || ''),
       processingAt: row.processing_at || null,
       createdAt: row.created_at || null,
     });
@@ -142,12 +144,18 @@ export async function findLeadSleepByUrls(urls = []) {
 }
 
 export async function promoteLeadSleepToProposal1({ id, url, name = '' }) {
+  // Proposal 1️⃣ removed: accepted leads stay Lead😴 until ice is sent → Conversation 💬.
   const cleanUrl = canonicalProfileUrl(url);
   const titleName = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
-  const patch = { status: STATUS_PROPOSAL_1 };
+  const patch = { status: STATUS_LEAD };
   if (cleanUrl) patch.link = cleanUrl;
   if (titleName.length >= 2) patch.name = titleName;
   await restUpdate('leads', id, patch);
+  try {
+    await appendNote(id, 'Accepted connection — ready for enrich + ice (Lead😴)');
+  } catch {
+    /* ignore */
+  }
   return { id, url: cleanUrl, slug: profileSlugFromUrl(cleanUrl), name: titleName };
 }
 

@@ -224,7 +224,7 @@ export function formatBookingOffersForPrompt(offers, { meetUrl = '', meetUrlRead
     ...offers.map((o, i) => `${i + 1}. ${o.labelLead} [id=${o.id}]`),
     'Rules:',
     '- Soft "yes to a call" ≠ Active. First propose 1–2 options from the list (use lead TZ labels).',
-    '- If none work, ask which days work; stay Proposal 2️⃣; do NOT invent times.',
+    '- If none work, ask which days work; stay Conversation 💬; do NOT invent times.',
     '- When they clearly accept one listed slot: intent=book, booked_slot_id=<exact id> → Active ✅.',
     '- After accept, the system appends a calendar invite link for the lead (do not invent Meet URLs).',
   ];
@@ -245,13 +245,13 @@ export function enforceBookACallDecision(decision, { offers = [], meetUrl = '', 
   if (intent !== 'book') {
     out.booked_slot_id = '';
     out.bookedOffer = null;
-    if (out.status === 'Active ✅') out.status = 'Proposal 2️⃣';
+    if (out.status === 'Active ✅') out.status = 'Conversation 💬';
     return out;
   }
 
   if (!offer) {
     out.intent = 'continue';
-    out.status = 'Proposal 2️⃣';
+    out.status = 'Conversation 💬';
     out.booked_slot_id = '';
     out.bookedOffer = null;
     out.reason = out.reason

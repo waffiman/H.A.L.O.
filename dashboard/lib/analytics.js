@@ -35,8 +35,10 @@ export function recordCrmSnapshot(counts, { force = false } = {}) {
   const point = {
     t: new Date().toISOString(),
     lead: Number(counts['Lead😴'] || 0),
-    p1: Number(counts['Proposal 1️⃣'] || 0),
-    p2: Number(counts['Proposal 2️⃣'] || 0),
+    conversation: Number(counts['Conversation 💬'] || counts['Proposal 2️⃣'] || 0),
+    // legacy keys kept so older chart points still render
+    p1: 0,
+    p2: Number(counts['Conversation 💬'] || counts['Proposal 2️⃣'] || 0),
     active: Number(counts['Active ✅'] || 0),
     lost: Number(counts['Lost❌'] || 0),
   };
@@ -109,13 +111,15 @@ export function buildAnalyticsSeries(opts = {}) {
       tab,
       range,
       metrics: [
-        { id: 'p2', label: 'Proposal 2️⃣', color: '#9a6dd7' },
+        { id: 'conversation', label: 'Conversation 💬', color: '#9a6dd7' },
         { id: 'active', label: 'Active ✅', color: '#4dab9a' },
-        { id: 'p1', label: 'Proposal 1️⃣', color: '#529cca' },
         { id: 'lead', label: 'Lead😴', color: '#787774' },
         { id: 'lost', label: 'Lost❌', color: '#e03e3e' },
       ],
-      points: crm,
+      points: crm.map((p) => ({
+        ...p,
+        conversation: p.conversation ?? p.p2 ?? 0,
+      })),
       note: crm.length < 2 ? 'Collecting history — open Dashboard periodically to build the chart.' : null,
     };
   }

@@ -12,8 +12,7 @@ create table if not exists public.leads (
   status text not null
     check (status in (
       'Lead😴',
-      'Proposal 1️⃣',
-      'Proposal 2️⃣',
+      'Conversation 💬',
       'Active ✅',
       'Lost❌'
     )),

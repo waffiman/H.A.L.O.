@@ -52,7 +52,7 @@ Return STRICT JSON only (no markdown fences):
   "booked_slot_id": "",
   "reply": "plain text message to send, or empty string if no send",
   "notes_append": "1-3 short bullets for CRM page notes",
-  "status": "Proposal 2️⃣" | "Active ✅" | "Lost❌"
+  "status": "Conversation 💬" | "Active ✅" | "Lost❌"
 }
 Rules:
 - Follow Sales policy (target portrait + primary outcome) for status.
@@ -60,7 +60,7 @@ Rules:
 - For book_a_call: soft yes-to-a-call ≠ Active. Propose only from Booking offers. Set booked_slot_id to an exact id only when they accept that slot. Never invent times. Meet link only if provided in Booking offers.
 - lost / Lost❌ for refusal, wrong person, hostile, unsubscribe, or clear non-fit outside the portrait.
 - When intent is lost: set lost_reason to EXACTLY one enum value above (best single match). Omit or leave empty otherwise.
-- continue / hold stay on Proposal 2️⃣
+- continue / hold stay on Conversation 💬
 - reply must follow the playbook voice; no placeholders
 - Do NOT greet again (no Hi/Hello/Hey). Do NOT sign off (no Cheers/Best/Regards + name).`,
 
@@ -453,10 +453,10 @@ function parseReplyJson(raw) {
   t = t.replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
   const parsed = JSON.parse(t);
   const intent = String(parsed.intent || 'continue').toLowerCase();
-  let status = parsed.status || 'Proposal 2️⃣';
+  let status = parsed.status || 'Conversation 💬';
   if (intent === 'book') status = 'Active ✅';
   if (intent === 'lost') status = 'Lost❌';
-  if (intent === 'continue' || intent === 'hold') status = 'Proposal 2️⃣';
+  if (intent === 'continue' || intent === 'hold') status = 'Conversation 💬';
   const reply = stripMidThreadFormalities(sanitizeIceBreaker(String(parsed.reply || '')));
   const lostReason =
     intent === 'lost' || status === 'Lost❌'

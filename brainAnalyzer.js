@@ -159,7 +159,7 @@ export async function runBrainAnalysis() {
   );
 
   const [p2, lost] = await Promise.all([
-    queryLeadsByStatus('Proposal 2️⃣'),
+    queryLeadsByStatus('Conversation 💬'),
     queryLeadsByStatus('Lost❌'),
   ]);
   const pool = [...p2, ...lost].filter((l) => {

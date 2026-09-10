@@ -6,6 +6,7 @@ import fs from 'fs';
 import { splitMessageForDm, sanitizeIceBreaker } from './messageQuality.js';
 import * as crm from './crmStore.js';
 import { cookiesFile, sessionDataDir, stateJsonFile } from './dataRoot.js';
+import { STATUS_LEAD, STATUS_CONVERSATION, isLeadReadyForIcePipeline } from './crm/constants.js';
 
 dotenv.config({ override: true });
 // Tenant one-shots: load cabinet overrides after root .env (WORKSPACE_ID, stage flags, …)
@@ -378,7 +379,7 @@ async function scrapeInboxConversations(page) {
   return [];
 }
 
-async function updateNotionStatus(id, statusName = 'Proposal 2️⃣', extraProps = {}) {
+async function updateNotionStatus(id, statusName = STATUS_CONVERSATION, extraProps = {}) {
   await crm.updateStatus(id, statusName, extraProps);
 }
 
@@ -2044,8 +2045,8 @@ async function closeBrowser(browser) {
 
 /**
  * Stage A — Acquisition: per-lead pipeline
- *   (backlog P1 drain) then for each new connection up to sync cap:
- *   Notion create → enrich → send ice → Proposal 2️⃣ → advance cursor
+ *   (backlog messageable Lead😴 drain) then for each new connection up to sync cap:
+ *   CRM create → enrich → send ice → Conversation 💬 → advance cursor
  * Stops early if LinkedIn session dies so partial progress is kept.
  */
 async function runStageA() {
@@ -2189,12 +2190,12 @@ async function runStageA() {
       phase1DmOk++;
       try {
         await setProcessingAt(lead);
-        await updateNotionStatus(lead.id, 'Proposal 2️⃣');
+        await updateNotionStatus(lead.id, STATUS_CONVERSATION);
         phase1NotionOk++;
         phase1NamesOk.push(lead.name);
         await appendPageNote(
           lead.id,
-          `mode=ice_breaker | ice sent → Proposal 2️⃣ | full message:\n${String(sendLead.msg || '')}`
+          `mode=ice_breaker | ice sent → Conversation 💬 | full message:\n${String(sendLead.msg || '')}`
         ).catch((e) => console.error('page note:', e.message));
       } catch (notionErr) {
         console.error('Notion status update:', notionErr.message);
@@ -2226,13 +2227,17 @@ async function runStageA() {
       }
     }
 
-    // --- 0a) Acceptance: Lead😴 → Proposal 1️⃣ (start of each Stage A when prospecting on) ---
+    // --- 0a) Acceptance: mark accepted Lead😴 ready for enrich/ice ---
+    let acceptedPromotedIds = [];
     if (sessionAlive() && prospectingEnabled && acceptanceEnabled && !enrichOnlyMode) {
       try {
         const { runStageAAcceptancePhase } = await import('./stageAConnect.js');
         const ar = await runStageAAcceptancePhase(page);
+        acceptedPromotedIds = ar.promotedIds || [];
         if (ar.promoted > 0) {
-          console.log(`[Acceptance] promoted ${ar.promoted} Lead😴 → Proposal 1️⃣`);
+          console.log(
+            `[Acceptance] ${ar.promoted} Lead😴 accepted → ready for enrich + ice (stay Lead😴)`
+          );
         }
         if (ar.sessionDead) {
           console.log('Session dead during acceptance — stopping Stage A.');
@@ -2242,15 +2247,23 @@ async function runStageA() {
       }
     }
 
-    // --- 0b) Drain leftover Proposal 1️⃣ (not limited by SYNC_MAX_NEW) ---
-    console.log('--- Stage A leftover drain: existing Proposal 1️⃣ ---');
+    // --- 0b) Drain messageable Lead😴 (accepted / ice-ready; not limited by SYNC_MAX_NEW) ---
+    console.log('--- Stage A leftover drain: messageable Lead😴 ---');
     let leftoverIceReadyLeft = 0;
     let leftoverSentThisRun = 0;
     {
-      const backlog = (await getLeads('Proposal 1️⃣')).filter(matchesTarget);
+      const readyIds = new Set(acceptedPromotedIds);
+      const backlog = (await getLeads(STATUS_LEAD))
+        .filter(matchesTarget)
+        .filter((l) =>
+          isLeadReadyForIcePipeline(l, {
+            promotedIds: readyIds,
+            hasIce: (msg) => hasRealIceBreaker(msg),
+          })
+        );
       leftoverIceReadyLeft = backlog.filter(isIceReady).length;
       console.log(
-        `Proposal 1️⃣ leftovers: ${backlog.length} (ice-ready: ${leftoverIceReadyLeft})`
+        `Lead😴 messageable: ${backlog.length} (ice-ready: ${leftoverIceReadyLeft})`
       );
       for (const lead of backlog) {
         if (phase1DmOk >= sendCap) {
@@ -2258,7 +2271,9 @@ async function runStageA() {
           break;
         }
         if (!sessionAlive()) {
-          console.log('Session dead during leftover drain — remaining Proposal 1️⃣ stay for next Stage A.');
+          console.log(
+            'Session dead during leftover drain — remaining messageable Lead😴 stay for next Stage A.'
+          );
           break;
         }
         let working = lead;
@@ -2270,7 +2285,7 @@ async function runStageA() {
           await pauseBrowserForEnrich();
           const enriched = await enrichOneLead(lead);
           if (!enriched.ok) {
-            console.log(`Leftover enrich failed — leave as Proposal 1️⃣: ${lead.url}`);
+            console.log(`Leftover enrich failed — leave as Lead😴: ${lead.url}`);
             try {
               await resumeBrowserForSend();
             } catch (_) {}
@@ -2294,9 +2309,17 @@ async function runStageA() {
           break;
         }
       }
-      leftoverIceReadyLeft = (await getLeads('Proposal 1️⃣')).filter(matchesTarget).filter(isIceReady).length;
+      leftoverIceReadyLeft = (await getLeads(STATUS_LEAD))
+        .filter(matchesTarget)
+        .filter((l) =>
+          isLeadReadyForIcePipeline(l, {
+            promotedIds: readyIds,
+            hasIce: (msg) => hasRealIceBreaker(msg),
+          })
+        )
+        .filter(isIceReady).length;
       if (leftoverIceReadyLeft) {
-        console.log(`${leftoverIceReadyLeft} ice-ready leftover(s) still in Proposal 1️⃣.`);
+        console.log(`${leftoverIceReadyLeft} ice-ready leftover(s) still in Lead😴.`);
       }
     }
 
@@ -2306,7 +2329,7 @@ async function runStageA() {
         console.log('Skip connect phase — session inactive.');
       } else if (leftoverIceReadyLeft > 0) {
         console.log(
-          `Skip connect phase — ${leftoverIceReadyLeft} ice-ready leftover(s) in Proposal 1️⃣.`
+          `Skip connect phase — ${leftoverIceReadyLeft} ice-ready leftover(s) in Lead😴.`
         );
       } else if (leftoverSentThisRun > 0) {
         console.log(
@@ -2328,7 +2351,7 @@ async function runStageA() {
       }
     }
 
-    // --- 2) Legacy My Network → Proposal 1️⃣ (only when prospecting OFF) ---
+    // --- 2) Legacy My Network → Lead😴 ready (only when prospecting OFF) ---
     if (process.env.SKIP_SYNC === '1' || enrichOnlyMode) {
       if (enrichOnlyMode) {
         console.log('Stage A sync skipped (ENRICH_ONLY — leftover ice send only).');
@@ -2338,12 +2361,12 @@ async function runStageA() {
     } else if (prospectingEnabled) {
       console.log('Legacy My Network sync skipped — portrait prospecting is enabled.');
     } else if (!legacySyncEnabled) {
-      console.log('Legacy My Network → P1 sync skipped (STAGE_A_LEGACY_SYNC=0).');
+      console.log('Legacy My Network → Lead sync skipped (STAGE_A_LEGACY_SYNC=0).');
     } else if (!sessionAlive()) {
       console.log('Skip new-connection pipeline — session inactive.');
     } else if (leftoverIceReadyLeft > 0) {
       console.log(
-        `Skip new-connection pipeline — ${leftoverIceReadyLeft} ice-ready leftover(s) remain in Proposal 1️⃣.`
+        `Skip new-connection pipeline — ${leftoverIceReadyLeft} ice-ready leftover(s) remain in Lead😴.`
       );
     } else if (leftoverSentThisRun > 0) {
       console.log(
@@ -2452,7 +2475,7 @@ async function runStageA() {
           for (const working of created) {
             const enriched = await enrichOneLead(working);
             if (!enriched.ok) {
-              console.log(`Enrich failed for ${working.slug} — leave as Proposal 1️⃣`);
+              console.log(`Enrich failed for ${working.slug} — leave as Lead😴`);
               working._enrichFailed = true;
               continue;
             }
@@ -2483,7 +2506,7 @@ async function runStageA() {
         } else {
           if (toSend.length && !liveAt) {
             console.log(
-              `Enriched ${toSend.length} lead(s) but skipped DM — session died during scrape. Leftovers stay in Proposal 1️⃣ for next Stage A.`
+              `Enriched ${toSend.length} lead(s) but skipped DM — session died during scrape. Leftovers stay in Lead😴 for next Stage A.`
             );
           }
         }
@@ -2496,7 +2519,7 @@ async function runStageA() {
               type: 'leads',
               severity: 'info',
               title: 'New leads imported to CRM',
-              message: `Stage A pipeline imported ${imported} connection(s); ice→P2 this run: ${phase1NotionOk}.`,
+              message: `Stage A pipeline imported ${imported} connection(s); ice→Conversation this run: ${phase1NotionOk}.`,
             });
           }
           const remainAbove = Math.max(0, (scraped.allAboveCount || 0) - imported);
@@ -2515,11 +2538,19 @@ async function runStageA() {
       }
     }
 
-    leftoverIceReadyLeft = (await getLeads('Proposal 1️⃣')).filter(matchesTarget).filter(isIceReady).length;
+    leftoverIceReadyLeft = (await getLeads(STATUS_LEAD))
+      .filter(matchesTarget)
+      .filter((l) =>
+        isLeadReadyForIcePipeline(l, {
+          promotedIds: new Set(acceptedPromotedIds),
+          hasIce: (msg) => hasRealIceBreaker(msg),
+        })
+      )
+      .filter(isIceReady).length;
     console.log(
-      `[Stage A SUMMARY] imported: ${imported}, ice→P2: ${phase1NotionOk}, DM ok: ${phase1DmOk}, leftover ice-ready left: ${leftoverIceReadyLeft}, cycleCap: ${cycleCap}`
+      `[Stage A SUMMARY] imported: ${imported}, ice→Conversation: ${phase1NotionOk}, DM ok: ${phase1DmOk}, leftover ice-ready left: ${leftoverIceReadyLeft}, cycleCap: ${cycleCap}`
     );
-    if (phase1NamesOk.length) console.log(`Message Sent (Proposal 1) names: ${phase1NamesOk.join('; ')}`);
+    if (phase1NamesOk.length) console.log(`Ice sent (Lead→Conversation) names: ${phase1NamesOk.join('; ')}`);
 
     // Never advance Stage A clock after dead session, leftovers, or sync found nobody to import.
     if (
@@ -2580,10 +2611,10 @@ async function runStageB() {
   if (targetSlug) console.log(`TARGET_LINKEDIN_URL filter: ${targetSlug}`);
 
   // --- Notion-only preflight (no browser) ---
-  let pending = (await getLeads('Proposal 2️⃣')).filter(matchesTarget);
-  console.log(`Proposal 2️⃣: ${pending.length}`);
+  let pending = (await getLeads('Conversation 💬')).filter(matchesTarget);
+  console.log(`Conversation 💬: ${pending.length}`);
   if (pending.length === 0 && targetSlug) {
-    console.log('No Proposal 2️⃣ matches for TARGET — Stage B done.');
+    console.log('No Conversation 💬 matches for TARGET — Stage B done.');
     return;
   }
 
@@ -2765,7 +2796,7 @@ async function runStageB() {
             const crm = await findCrmBySenderName(row.name);
             const status = crm?.status || '';
             const inCrm = Boolean(crm);
-            const isP2 = status === 'Proposal 2️⃣' || (crm && pending.some((l) => l.id === crm.id));
+            const isP2 = status === 'Conversation 💬' || (crm && pending.some((l) => l.id === crm.id));
             const isLost = status === 'Lost❌';
 
             await notify({
@@ -2776,8 +2807,8 @@ async function runStageB() {
               message: [
                 `Unread message from "${row.name}".`,
                 inCrm ? `CRM: ${status || 'unknown status'}.` : 'Not in CRM — no auto-reply.',
-                isP2 ? 'Stage B may reply if this lead is in Proposal 2️⃣.' : '',
-                isLost ? 'Lost lead — reviving to Proposal 2️⃣ (reply next cycle).' : '',
+                isP2 ? 'Stage B may reply if this lead is in Conversation 💬.' : '',
+                isLost ? 'Lost lead — reviving to Conversation 💬 (reply next cycle).' : '',
                 row.preview ? `Preview: ${row.preview}` : '',
                 row.href ? `Thread: ${row.href}` : '',
               ]
@@ -2795,12 +2826,12 @@ async function runStageB() {
               unreadP2ThreadByName.set(String(row.name || '').toLowerCase(), href);
               const match = pending.find((l) => namesMatch(l.name, row.name));
               if (match) unreadP2ThreadById.set(match.id, href);
-              console.log(`  Proposal 2️⃣ — reply handled in P2 loop`);
+              console.log(`  Conversation 💬 — reply handled in P2 loop`);
               continue;
             }
 
             if (isLost && crm) {
-              await updateNotionStatus(crm.id, 'Proposal 2️⃣');
+              await updateNotionStatus(crm.id, 'Conversation 💬');
               await setProcessingAt(crm);
               await appendPageNote(
                 crm.id,
@@ -2813,7 +2844,7 @@ async function runStageB() {
                 unreadP2ThreadById.set(crm.id, href);
                 unreadP2ThreadByName.set(String(row.name || '').toLowerCase(), href);
               }
-              console.log(`  Lost revive → Proposal 2️⃣ — ${crm.name}`);
+              console.log(`  Lost revive → Conversation 💬 — ${crm.name}`);
               await humanRandomDelay(2000, 4000);
               continue;
             }
@@ -2831,8 +2862,8 @@ async function runStageB() {
     }
 
     if (revivedCount > 0) {
-      pending = (await getLeads('Proposal 2️⃣')).filter(matchesTarget);
-      console.log(`Proposal 2️⃣ after revive: ${pending.length}`);
+      pending = (await getLeads('Conversation 💬')).filter(matchesTarget);
+      console.log(`Conversation 💬 after revive: ${pending.length}`);
     }
 
     function collectUnreadP2Leads(leadList) {
@@ -2855,12 +2886,12 @@ async function runStageB() {
       inboxScanned || scanAllP2 ? collectUnreadP2Leads(pending) : [];
 
     console.log(
-      `--- Stage B Proposal 2 inbox --- (${replyQueue.length} unread thread(s); all will be answered this run) ---`
+      `--- Stage B Conversation inbox --- (${replyQueue.length} unread thread(s); all will be answered this run) ---`
     );
     if (!inboxScanned && !scanAllP2) {
       console.log('No inbox scrape this tick — skipping P2 reply loop (nothing unread known).');
     } else if (!replyQueue.length) {
-      console.log('Inbox scanned — no unread Proposal 2️⃣ threads to answer.');
+      console.log('Inbox scanned — no unread Conversation 💬 threads to answer.');
     } else {
       for (const { lead, threadHref } of replyQueue) {
         if (stageBAbort) {
@@ -2942,7 +2973,7 @@ async function runStageB() {
                   .filter(Boolean)
                   .join(' | ')
               ).catch((e) => console.error('note:', e.message));
-              if (decision.status && decision.status !== 'Proposal 2️⃣') {
+              if (decision.status && decision.status !== 'Conversation 💬') {
                 const extra =
                   decision.status === 'Lost❌' && decision.lostReason
                     ? { lostReason: decision.lostReason }
@@ -2972,7 +3003,7 @@ async function runStageB() {
             ).catch(() => {});
             inboxHandled++;
           } else {
-            console.log(`  No send (empty/short reply), stay Proposal 2️⃣ — ${lead.name}`);
+            console.log(`  No send (empty/short reply), stay Conversation 💬 — ${lead.name}`);
           }
         } catch (e) {
           console.error(`Inbox error ${lead.name}:`, e.message);
@@ -2986,7 +3017,7 @@ async function runStageB() {
     } else if (weekendBlock) {
       console.log('Weekend — skipping silence follow-ups until Monday.');
     } else {
-      const p2Fresh = (await getLeads('Proposal 2️⃣')).filter(matchesTarget);
+      const p2Fresh = (await getLeads('Conversation 💬')).filter(matchesTarget);
       const due = p2Fresh.filter(
         (l) =>
           !inboundIds.has(l.id) &&

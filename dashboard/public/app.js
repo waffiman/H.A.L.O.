@@ -63,7 +63,7 @@ let revealed = {};
 let openIntegrationGroups = {};
 /** Profile accordion: 'general' | 'integrations' | 'billing' | '' */
 let openProfileTile = '';
-const CRM_STATUSES = ['Lead😴', 'Proposal 1️⃣', 'Proposal 2️⃣', 'Active ✅', 'Lost❌'];
+const CRM_STATUSES = ['Lead😴', 'Conversation 💬', 'Active ✅', 'Lost❌'];
 const CRM_LOST_REASONS = [
   { id: 'not_interested', label: 'Not interested' },
   { id: 'wrong_person', label: 'Wrong person' },
@@ -560,8 +560,7 @@ function setPageHeader(title, subtitle = '') {
 
 function crmMetricClass(key) {
   if (key.startsWith('Lead')) return 'metric-lead';
-  if (key.startsWith('Proposal 1')) return 'metric-p1';
-  if (key.startsWith('Proposal 2')) return 'metric-p2';
+  if (key.startsWith('Conversation') || key.startsWith('Proposal 2')) return 'metric-p2';
   if (key.startsWith('Active')) return 'metric-active';
   if (key.startsWith('Lost')) return 'metric-lost';
   return '';
@@ -569,8 +568,7 @@ function crmMetricClass(key) {
 
 function crmStatusColor(key) {
   if (key.startsWith('Lead')) return '#9b9a97';
-  if (key.startsWith('Proposal 1')) return '#529cca';
-  if (key.startsWith('Proposal 2')) return '#9a6dd7';
+  if (key.startsWith('Conversation') || key.startsWith('Proposal 2')) return '#9a6dd7';
   if (key.startsWith('Active')) return '#4dab9a';
   if (key.startsWith('Lost')) return '#e03e3e';
   return '#6b7280';
@@ -578,8 +576,7 @@ function crmStatusColor(key) {
 
 function crmStatusShortLabel(key) {
   if (key.startsWith('Lead')) return 'Lead';
-  if (key.startsWith('Proposal 1')) return 'Proposal 1';
-  if (key.startsWith('Proposal 2')) return 'Proposal 2';
+  if (key.startsWith('Conversation') || key.startsWith('Proposal 2')) return 'Chat';
   if (key.startsWith('Active')) return 'Active';
   if (key.startsWith('Lost')) return 'Lost';
   return key;
@@ -1300,7 +1297,11 @@ async function fetchCrmLeads() {
       crmKanban = Object.fromEntries(CRM_STATUSES.map((st) => [st, []]));
       crmKanbanTotals = Object.fromEntries(CRM_STATUSES.map((st) => [st, 0]));
       for (const lead of all) {
-        const st = CRM_STATUSES.includes(lead.status) ? lead.status : 'Lead😴';
+        let st = lead.status;
+        if (st === 'Proposal 1️⃣' || st === 'Proposal 1') st = 'Lead😴';
+        if (st === 'Proposal 2️⃣' || st === 'Proposal 2') st = 'Conversation 💬';
+        st = CRM_STATUSES.includes(st) ? st : 'Lead😴';
+        lead.status = st;
         crmKanban[st].push(lead);
       }
       for (const st of CRM_STATUSES) {
@@ -3698,7 +3699,7 @@ function renderLinkedIn() {
       <div class="li-main-grid">
         <div class="tile tile-stage-a" title="Stage A prospecting">
           <h3>Stage A prospecting</h3>
-          <p class="muted stage-a-flow-hint">Each run: check <strong>Lead😴</strong> accepts → <strong>Proposal 1</strong> → enrich &amp; ice → send <strong>N</strong> invites → <strong>Lead😴</strong>.</p>
+          <p class="muted stage-a-flow-hint">Each run: check <strong>Lead😴</strong> accepts → enrich &amp; ice (still Lead) → <strong>Conversation 💬</strong> → send <strong>N</strong> invites → <strong>Lead😴</strong>.</p>
           <div class="li-stage-a-body">
             <div class="li-stage-a-row">
               <span class="li-stage-a-label">Portrait invites</span>
@@ -4201,12 +4202,11 @@ function renderFaq() {
       id: 'statuses',
       cat: 'CRM',
       q: 'CRM statuses',
-      short: 'Lead to P1 to P2 to Active / Lost',
-      keywords: 'crm status pipeline lead proposal active lost',
+      short: 'Lead → Conversation → Active / Lost',
+      keywords: 'crm status pipeline lead conversation active lost proposal',
       body: `<ul>
-        <li><strong>Lead😴</strong> — invite sent; waiting for them to accept.</li>
-        <li><strong>Proposal 1️⃣</strong> — connected; enrich + ice-breaker ready (or in progress).</li>
-        <li><strong>Proposal 2️⃣</strong> — ice DM already sent; Stage B watches the thread.</li>
+        <li><strong>Lead😴</strong> — invite sent / waiting, or accepted and in enrich+ice (before first DM).</li>
+        <li><strong>Conversation 💬</strong> — ice DM already sent; Stage B watches the thread.</li>
         <li><strong>Active ✅</strong> — sales outcome met (e.g. call booked).</li>
         <li><strong>Lost❌</strong> — dead / declined / silence path.</li>
       </ul>`,
@@ -4239,8 +4239,8 @@ function renderFaq() {
       q: 'How accepts are detected',
       short: 'Profile link first, then My Network',
       keywords: 'acceptance accept connect lead sleep my connections profile link manual lead',
-      body: `<p>Each Stage A opens each <strong>Lead😴</strong> CRM <strong>Link</strong> and reads Connect / Pending / Message on the profile card. Accepted → <strong>Proposal 1️⃣</strong>.</p>
-        <p>If some remain unchecked, My Connections (Recently added) is a fallback (scroll capped). Manual <strong>+ Lead</strong> with only a Link works the same: already connected → P1 next run; Connect still available → invite sent (uses invite budget).</p>`,
+      body: `<p>Each Stage A opens each <strong>Lead😴</strong> CRM <strong>Link</strong> and reads Connect / Pending / Message on the profile card. Accepted → stay <strong>Lead😴</strong> and run enrich + ice, then move to <strong>Conversation 💬</strong>.</p>
+        <p>If some remain unchecked, My Connections (Recently added) is a fallback (scroll capped). Manual <strong>+ Lead</strong> with only a Link works the same: already connected → enrich/ice next run; Connect still available → invite sent (uses invite budget).</p>`,
     },
     {
       id: 'stage-a',
@@ -4251,7 +4251,7 @@ function renderFaq() {
       body: `<ul>
         <li>LinkedIn session must be green.</li>
         <li>Stage A toggle on; LinkedIn channel on; outreach not paused.</li>
-        <li>Lead must be <strong>Proposal 1️⃣</strong> with a real ice-breaker.</li>
+        <li>Lead must be messageable <strong>Lead😴</strong> (accepted) with a real ice-breaker.</li>
         <li>Connection-invite caps and LinkedIn daily limits still apply.</li>
       </ul>`,
     },
@@ -4262,7 +4262,7 @@ function renderFaq() {
       short: 'Unread replies; ads skipped',
       keywords: 'stage b inbox reply silence unread',
       body: `<p>Stage B checks existing chats on your interval. Real lead replies get LLM answers; sponsored threads are skipped.</p>
-        <p>If idle: confirm Stage B is on, session is alive, and there are Proposal 2️⃣ leads with threads.</p>`,
+        <p>If idle: confirm Stage B is on, session is alive, and there are Conversation 💬 leads with threads.</p>`,
     },
     {
       id: 'save-restart',
@@ -4288,7 +4288,7 @@ function renderFaq() {
       short: 'Slots → Active; calendar invite link',
       keywords: 'book a call calendar meet google availability slot active outcome',
       body: `<p>Outcome <strong>Book a call</strong> opens availability (pencil on the card). Paint half-hour blocks you’re free — empty day = free 24h, full day = busy.</p>
-        <p>When a lead wants a call, the brain proposes only precomputed slots in the <strong>lead’s timezone</strong>. Soft “yes to a call” stays Proposal 2️⃣. After they accept a concrete slot → <strong>Active ✅</strong>.</p>
+        <p>When a lead wants a call, the brain proposes only precomputed slots in the <strong>lead’s timezone</strong>. Soft “yes to a call” stays Conversation 💬. After they accept a concrete slot → <strong>Active ✅</strong>.</p>
         <p>Optional <strong>Google Meet room URL</strong> lives in the availability popup (above the week grid). After accept, the lead gets a <em>calendar invite</em> link (Meet is inside the event if you set a room). Telegram / dashboard notice: lead name, time in <strong>your</strong> timezone, and the same add-to-calendar link.</p>
         <p>Dry-run gate: <code>node scripts/test-book-a-call-flow.js</code> (add <code>--live</code> for one real LLM reply).</p>`,
     },
@@ -4312,12 +4312,12 @@ function renderFaq() {
     },
     {
       id: 'apify',
-      cat: 'Integrations',
+      cat: 'Stage A',
       q: 'Apify / enrich',
-      short: 'Agent 1 required; rotate quota',
+      short: 'Included with HALO — no setup',
       keywords: 'apify enrich quota token scrape profile',
-      body: `<p>Stage A enrich uses Apify for profile context, location, email (if available), and ice-breaker inputs.</p>
-        <p>429 / empty dataset: wait, check quota, or add Agent 2/3 tokens.</p>`,
+      body: `<p>Stage A enrich uses a shared Apify pool (HALO platform) for profile context, location, email (if available), and ice-breaker inputs. You do not configure Apify tokens.</p>
+        <p>If enrich fails with quota errors, contact WAFFi support — we rotate additional Apify accounts server-side.</p>`,
     },
     {
       id: 'brain',
@@ -4902,8 +4902,6 @@ const LLM_ROLE_ICONS = {
 };
 
 const INTEGRATION_GROUP_INTRO = {
-  Apify:
-    'Apify enriches LinkedIn profiles in Stage A — role, company, and context for ice-breaker DMs. Each agent handles ~1,000 scrapes; optional agents 2–3 rotate quota when you need more volume.',
   Telegram:
     'Optional push alerts on your phone — uses the shared WAFFi Telegram bot (no bot setup on your side).',
 };
@@ -5025,42 +5023,6 @@ function renderLlmIntegrationsBody(items) {
     <div class="llm-roles-stack">${rolesHtml}</div>
     ${fallbackHtml}
     ${extras.length ? `<div class="llm-extras">${extras.map(secretBlockHtml).join('')}</div>` : ''}`;
-}
-
-function renderApifyIntegrationsBody(items) {
-  const byKey = Object.fromEntries(items.map((it) => [it.key, it]));
-  const agents = [
-    { key: 'APIFY_TOKEN_1', label: 'Agent 1', required: true },
-    { key: 'APIFY_TOKEN_2', label: 'Agent 2', required: false },
-    { key: 'APIFY_TOKEN_3', label: 'Agent 3', required: false },
-  ];
-  const agentsHtml = agents
-    .map((a) => {
-      const api = byKey[a.key];
-      if (!api) return '';
-      const problem = api.problem;
-      return `<article class="llm-role-card llm-role-apify${problem ? ' llm-role-error' : ''}">
-        <header class="llm-role-head">
-          <div class="llm-role-head-copy">
-            <h4 class="llm-role-title">Apify ${a.label}${a.required ? ' <span class="req-star">*</span>' : ' <span class="muted" style="font-weight:500">(optional)</span>'}</h4>
-          </div>
-          ${problem ? llmWarnIcon(problem) : ''}
-        </header>
-        ${problem ? `<div class="secret-problem">${escapeHtml(problem)}</div>` : ''}
-        ${llmKeyField(api, 'API token')}
-      </article>`;
-    })
-    .join('');
-  const actorId = (settings?.apifyActor || APIFY_DEFAULT_ACTOR).trim();
-  const actorUrl = apifyActorStoreUrl(actorId);
-  const actorHtml = `<div class="integ-apify-actor-link">
-      <a class="btn ghost" href="${escapeAttr(actorUrl)}" target="_blank" rel="noopener noreferrer" title="Open the LinkedIn profile scraper on Apify">
-        View Apify actor on apify.com ↗
-      </a>
-      <p class="muted integ-apify-actor-hint">H.A.L.O. uses <code>${escapeHtml(actorId)}</code> to enrich lead profiles in Stage A.</p>
-    </div>`;
-  return `<p class="integ-group-intro muted">${INTEGRATION_GROUP_INTRO.Apify}</p>
-    <div class="llm-roles-stack">${agentsHtml}</div>${actorHtml}`;
 }
 
 function renderSupabaseKeepaliveBlock() {
@@ -5214,7 +5176,7 @@ function renderProfile() {
   openProfileTile = section;
   const titles = {
     general: ['General', 'Account details for this cabinet'],
-    integrations: ['Integrations', 'API keys, LLM, Apify, Telegram'],
+    integrations: ['Integrations', 'API keys, LLM, Telegram'],
     billing: ['Billing', 'Trial, subscription, and Stripe'],
     admin: ['Admin', 'HALO cabinets, leads, and support inbox'],
   };
@@ -5367,7 +5329,7 @@ function renderProfile() {
       view.innerHTML = `
         <div class="profile-tiles" id="profile-tiles">
           ${tileBtn('general', 'General', ICONS.general, 'Account details for this cabinet')}
-          ${tileBtn('integrations', 'Integrations', ICONS.integrations, 'API keys, LLM, Apify, Telegram')}
+          ${tileBtn('integrations', 'Integrations', ICONS.integrations, 'API keys, LLM, Telegram')}
           ${tileBtn('billing', 'Billing', ICONS.billing, 'Trial, subscription, and Stripe')}
           ${showAdmin ? tileBtn('admin', 'Admin', ICONS.admin, 'Cabinets, leads, and support inbox') : ''}
         </div>`;
@@ -5772,7 +5734,7 @@ function buildIntegrationsMarkup() {
     if (item.group === 'Supabase') continue;
     (groups[item.group] ||= []).push(item);
   }
-  const order = ['LLM', 'Apify', 'Telegram'];
+  const order = ['LLM', 'Telegram'];
   const groupNames = [
     ...order.filter((g) => groups[g]),
     ...Object.keys(groups).filter((g) => !order.includes(g) && g !== 'Google Calendar' && g !== 'Supabase'),
@@ -5858,7 +5820,6 @@ function renderIntegrations() {
 
 function renderIntegrationsGroupBody(group, items) {
   if (group === 'LLM') return renderLlmIntegrationsBody(items);
-  if (group === 'Apify') return renderApifyIntegrationsBody(items);
   if (group === 'Telegram') return renderTelegramIntegrationsBody(items);
   if (group === 'Supabase') return renderSupabaseIntegrationsBody(items);
   return items.map(secretBlockHtml).join('');
@@ -5972,15 +5933,6 @@ async function save({ restart = false } = {}) {
       openProfileTile = 'integrations';
       location.hash = '#profile-integrations';
       openIntegrationGroups.LLM = true;
-      render();
-      return;
-    }
-    if (settings.apifyAgent1Configured === false) {
-      toast('Add Apify Agent 1 token in Profile → Integrations → Apify before restarting.', true, 7000);
-      page = 'profile';
-      openProfileTile = 'integrations';
-      location.hash = '#profile-integrations';
-      openIntegrationGroups.Apify = true;
       render();
       return;
     }

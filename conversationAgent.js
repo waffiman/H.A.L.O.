@@ -1,5 +1,5 @@
 /**
- * Stage B helpers: LLM decisions + notes for Proposal 2️⃣ inbox / silence.
+ * Stage B helpers: LLM decisions + notes for Conversation 💬 inbox / silence.
  * Browser navigation stays in index.js (do not fork sendMessageToLead).
  */
 import { generateSalesMessage } from './salesBrain.js';

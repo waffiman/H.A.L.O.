@@ -35,9 +35,9 @@
       title: 'Add your API keys',
       highlight: 'keys',
       bullets: [
-        'Integrations → Notion (2-click connect), LLM, Apify, Telegram.',
+        'Integrations → LLM keys (+ Telegram optional). Apify enrich is included by HALO.',
         'Reveal each field, paste, then Save.',
-        'Missing keys block enrich & notifications.',
+        'Missing LLM keys block message generation.',
       ],
       art: `
         <svg class="ob-svg" viewBox="0 0 200 160" aria-hidden="true">

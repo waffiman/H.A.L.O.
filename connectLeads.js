@@ -7,10 +7,8 @@ import {
 } from './connectionsSync.js';
 import * as crm from './crmStore.js';
 import { connectLedgerSlugs, wasConnectSentRecently } from './connectSentLedger.js';
-import { STATUS_LOST } from './crm/constants.js';
-
-const STATUS_LEAD = 'Lead😴';
-const STATUS_PROPOSAL_1 = 'Proposal 1️⃣';
+import { STATUS_LEAD, STATUS_LOST, STATUS_PROPOSAL_1, leadHasReadyMarker } from './crm/constants.js';
+import { hasRealIceBreaker } from './messageQuality.js';
 
 export async function createLeadSleepPage({ url }) {
   const cleanUrl = canonicalProfileUrl(url);
@@ -91,6 +89,11 @@ export async function expireStaleLeadSleepPages({
 
   for (const lead of leads) {
     const slug = String(lead.slug || profileSlugFromUrl(lead.url) || '').toLowerCase();
+    // Accepted / ice-ready Lead😴 must not expire as "connect not accepted".
+    if (leadHasReadyMarker(lead) || hasRealIceBreaker(lead.msg || lead.ice)) {
+      skipped++;
+      continue;
+    }
     const invited = Boolean(slug && (ledger.has(slug) || wasConnectSentRecently(slug)));
     if (!invited) {
       skipped++;

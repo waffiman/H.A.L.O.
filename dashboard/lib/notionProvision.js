@@ -8,8 +8,7 @@ const NOTION_VERSION = '2022-06-28';
 
 export const HALO_CRM_STATUS_OPTIONS = [
   { name: 'Lead😴', color: 'default' },
-  { name: 'Proposal 1️⃣', color: 'blue' },
-  { name: 'Proposal 2️⃣', color: 'purple' },
+  { name: 'Conversation 💬', color: 'purple' },
   { name: 'Active ✅', color: 'green' },
   { name: 'Lost❌', color: 'red' },
 ];

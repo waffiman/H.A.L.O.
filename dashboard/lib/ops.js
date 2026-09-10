@@ -57,7 +57,7 @@ export function notionConfigured(env = readEnvFile()) {
 
 export { notionOnlyConfigured };
 
-const STATUS_LABELS = ['Lead😴', 'Proposal 1️⃣', 'Proposal 2️⃣', 'Active ✅', 'Lost❌'];
+const STATUS_LABELS = ['Lead😴', 'Conversation 💬', 'Active ✅', 'Lost❌'];
 let countsCache = { at: 0, data: null, ws: null };
 
 export function invalidateNotionCountsCache() {
@@ -783,8 +783,12 @@ export function readBrainLlmHealth() {
   return empty();
 }
 
+/** Shared platform Apify pool (root .env). Users no longer configure this. */
 export function apifyAgent1Configured(env = readEnvFile()) {
-  return Boolean((env.APIFY_TOKEN_1 || '').trim());
+  for (let i = 1; i <= 20; i++) {
+    if (String(env[`APIFY_TOKEN_${i}`] || '').trim()) return true;
+  }
+  return Boolean(String(env.APIFY_TOKEN || '').trim());
 }
 
 export function llmRolesConfigured(env = readEnvFile()) {
@@ -818,9 +822,14 @@ const INTEGRATION_DEFS = [
   { key: 'BRAIN_PREFER_OPENROUTER', label: 'Use OpenRouter before Gemini (legacy)', group: 'LLM', secret: false, hidden: true },
   { key: 'OPENAI_API_KEY', label: 'OpenAI API Key (unused)', group: 'LLM', hidden: true },
   { key: 'OPENAI_MODEL', label: 'OpenAI Model (unused)', group: 'LLM', secret: false, hidden: true },
-  { key: 'APIFY_TOKEN_1', label: 'Apify Agent 1', group: 'Apify', required: true, apifyAgent: 1 },
-  { key: 'APIFY_TOKEN_2', label: 'Apify Agent 2 (optional)', group: 'Apify', apifyAgent: 2 },
-  { key: 'APIFY_TOKEN_3', label: 'Apify Agent 3 (optional)', group: 'Apify', apifyAgent: 3 },
+  { key: 'APIFY_TOKEN_1', label: 'Apify Agent 1', group: 'Apify', required: false, hidden: true, apifyAgent: 1 },
+  { key: 'APIFY_TOKEN_2', label: 'Apify Agent 2', group: 'Apify', hidden: true, apifyAgent: 2 },
+  { key: 'APIFY_TOKEN_3', label: 'Apify Agent 3', group: 'Apify', hidden: true, apifyAgent: 3 },
+  { key: 'APIFY_TOKEN_4', label: 'Apify Agent 4', group: 'Apify', hidden: true, apifyAgent: 4 },
+  { key: 'APIFY_TOKEN_5', label: 'Apify Agent 5', group: 'Apify', hidden: true, apifyAgent: 5 },
+  { key: 'APIFY_TOKEN_6', label: 'Apify Agent 6', group: 'Apify', hidden: true, apifyAgent: 6 },
+  { key: 'APIFY_TOKEN_7', label: 'Apify Agent 7', group: 'Apify', hidden: true, apifyAgent: 7 },
+  { key: 'APIFY_TOKEN_8', label: 'Apify Agent 8', group: 'Apify', hidden: true, apifyAgent: 8 },
   { key: 'APIFY_ACTOR', label: 'Apify Actor ID', group: 'Apify', secret: false, hidden: true },
   { key: 'TELEGRAM_BOT_TOKEN', label: 'Telegram Bot Token', group: 'Telegram', required: false, hidden: true },
   {
@@ -847,7 +856,7 @@ const INTEGRATION_DEFS = [
   { key: 'STRIPE_WEBHOOK_SECRET', label: 'Stripe Webhook Secret', group: 'Stripe', required: false, hidden: true },
 ];
 
-const GROUP_ORDER = ['Supabase', 'LLM', 'Apify', 'Telegram'];
+const GROUP_ORDER = ['Supabase', 'LLM', 'Telegram'];
 
 function integrationProblem(d, env, health = readBrainLlmHealth()) {
   if (d.hidden) return null;
@@ -879,15 +888,6 @@ function buildIntegrationsView(env) {
       value: secret ? '' : raw,
     };
   });
-
-  // Apify: Agent 1 required
-  if (!apifyAgent1Configured(env)) {
-    for (const it of items) {
-      if (it.key === 'APIFY_TOKEN_1') {
-        it.problem = it.problem || 'Required — add Apify Agent 1 token';
-      }
-    }
-  }
 
   // LLM: all three brain roles must have API keys
   if (!llmRolesConfigured(env)) {
@@ -1295,16 +1295,6 @@ export function restartAgent() {
         ok: false,
         error:
           'LLM brain roles incomplete — add Researcher, Copywriter, and Inspector API keys in Integrations → LLM.',
-        runStageA: false,
-        runStageB: false,
-      })
-    );
-  }
-  if (!apifyAgent1Configured(env)) {
-    return Promise.resolve(
-      notifyRestartResult({
-        ok: false,
-        error: 'Apify Agent 1 token missing — add it in Integrations → Apify.',
         runStageA: false,
         runStageB: false,
       })
