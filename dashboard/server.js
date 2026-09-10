@@ -655,10 +655,29 @@ app.post('/api/notifications/read-all', (_req, res) => {
 function resolveSupportWorkspace(req) {
   const own = String(req.tenant?.workspaceId || '').trim();
   const requested = String(req.query?.workspaceId || req.body?.workspaceId || '').trim();
+  const forceSupport =
+    req.body?.asSupport === true ||
+    req.body?.asSupport === '1' ||
+    String(req.query?.asSupport || '') === '1';
   if (!own) return { error: 'Sign in required', status: 401 };
-  if (!requested || requested === own) return { workspaceId: own, asSupport: false };
-  if (!isSupportStaff(req.tenant)) {
-    return { error: 'Only support staff can open another cabinet chat', status: 403 };
+
+  // FAB / user chat: no workspaceId → always post as the signed-in user
+  if (!requested) return { workspaceId: own, asSupport: false };
+
+  // Admin panel always sends workspaceId (including WAFFi's own cabinet).
+  // Replies must be author=support even when requested === own.
+  if (requested === own) {
+    if (forceSupport || isWaffiAdmin(req.tenant)) {
+      if (!isWaffiAdmin(req.tenant)) {
+        return { error: 'Only WAFFi admin can reply as support', status: 403 };
+      }
+      return { workspaceId: own, asSupport: true };
+    }
+    return { workspaceId: own, asSupport: false };
+  }
+
+  if (!isWaffiAdmin(req.tenant)) {
+    return { error: 'Only WAFFi admin can open another cabinet chat', status: 403 };
   }
   return { workspaceId: requested, asSupport: true };
 }

@@ -5506,7 +5506,7 @@ async function sendAdminChatMessage(e) {
   try {
     const data = await api('/api/support/messages', {
       method: 'POST',
-      body: JSON.stringify({ body, workspaceId: ws, image }),
+      body: JSON.stringify({ body, workspaceId: ws, image, asSupport: true }),
     });
     if (input) {
       input.value = '';
