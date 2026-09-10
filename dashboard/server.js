@@ -88,6 +88,8 @@ import {
   getAdminOverview,
   deleteSupportMessage,
   deleteCabinets,
+  getSupportAttachment,
+  MAX_SUPPORT_IMAGE_BYTES,
 } from './lib/supportChat.js';
 import fs from 'fs';
 import path from 'path';
@@ -98,7 +100,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = Number(process.env.PORT || 3080);
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '4mb' }));
 
 /** Telegram Bot API webhook — must not require dashboard Basic auth. */
 app.post('/api/telegram/webhook/:secret?', async (req, res) => {
@@ -749,12 +751,33 @@ app.post('/api/support/messages', async (req, res) => {
       workspaceId: scope.workspaceId,
       author: finalAuthor,
       body: req.body?.body,
+      image: req.body?.image || null,
       tenantEmail: req.tenant.email,
       displayName: full?.displayName || req.tenant.email,
     });
-    res.json({ ok: true, message });
+    res.json({ ok: true, message, maxImageBytes: MAX_SUPPORT_IMAGE_BYTES });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/support/attachment/:id', async (req, res) => {
+  try {
+    const scope = resolveSupportWorkspace(req);
+    if (scope.error) return res.status(scope.status).json({ ok: false, error: scope.error });
+    const file = await getSupportAttachment(req.params.id);
+    if (file.workspaceId !== scope.workspaceId) {
+      return res.status(403).json({ ok: false, error: 'Forbidden' });
+    }
+    res.setHeader('Content-Type', file.mime);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${String(file.name || 'image').replace(/"/g, '')}"`
+    );
+    res.send(file.buffer);
+  } catch (e) {
+    res.status(404).json({ ok: false, error: e.message });
   }
 });
 

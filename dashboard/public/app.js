@@ -4505,6 +4505,92 @@ function pulseSupportFab() {
   window.setTimeout(() => supportFab.classList.remove('is-pressing'), 700);
 }
 
+function supportAttachmentUrl(m, workspaceId = '') {
+  if (!m?.attachment?.url && !m?.id) return '';
+  const base = m.attachment?.url || `/api/support/attachment/${m.id}`;
+  const ws = String(workspaceId || supportWorkspaceId || adminSelectedWs || '').trim();
+  if (!ws) return base;
+  return `${base}${base.includes('?') ? '&' : '?'}workspaceId=${encodeURIComponent(ws)}`;
+}
+
+function supportMessageBodyHtml(m, workspaceId = '') {
+  const text = m.body ? `<div>${escapeHtml(m.body)}</div>` : '';
+  const media = m.attachment
+    ? `<a href="${escapeAttr(supportAttachmentUrl(m, workspaceId))}" target="_blank" rel="noopener noreferrer">
+        <img class="support-bubble-media" src="${escapeAttr(supportAttachmentUrl(m, workspaceId))}" alt="${escapeAttr(m.attachment.name || 'image')}" loading="lazy" />
+      </a>`
+    : '';
+  return `${media}${text}`;
+}
+
+const SUPPORT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+/** @type {{ mime: string, name: string, base64: string, previewUrl: string } | null} */
+let supportPendingImage = null;
+/** @type {{ mime: string, name: string, base64: string, previewUrl: string } | null} */
+let adminPendingImage = null;
+
+function clearSupportPendingImage() {
+  if (supportPendingImage?.previewUrl) URL.revokeObjectURL(supportPendingImage.previewUrl);
+  supportPendingImage = null;
+  const box = document.getElementById('support-attach-preview');
+  if (box) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+  }
+  const input = document.getElementById('support-attach-input');
+  if (input) input.value = '';
+}
+
+function clearAdminPendingImage() {
+  if (adminPendingImage?.previewUrl) URL.revokeObjectURL(adminPendingImage.previewUrl);
+  adminPendingImage = null;
+  const box = document.getElementById('admin-attach-preview');
+  if (box) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+  }
+  const input = document.getElementById('admin-attach-input');
+  if (input) input.value = '';
+}
+
+function renderAttachPreview(hostId, pending, onClear) {
+  const box = document.getElementById(hostId);
+  if (!box) return;
+  if (!pending) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <img src="${escapeAttr(pending.previewUrl)}" alt="" />
+    <span>${escapeHtml(pending.name)} · ${Math.round((pending.base64.length * 0.75) / 1024)} KB</span>
+    <button type="button" class="support-attach-clear" title="Remove attachment" aria-label="Remove attachment">×</button>`;
+  box.querySelector('.support-attach-clear')?.addEventListener('click', onClear);
+}
+
+async function readImageFileAsAttachment(file) {
+  if (!file) return null;
+  if (!String(file.type || '').startsWith('image/')) {
+    throw new Error('Only image files are allowed');
+  }
+  if (file.size > SUPPORT_MAX_IMAGE_BYTES) {
+    throw new Error(`Image too large (max ${Math.round(SUPPORT_MAX_IMAGE_BYTES / (1024 * 1024))} MB)`);
+  }
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return {
+    mime: file.type || 'image/jpeg',
+    name: file.name || 'image',
+    base64: btoa(binary),
+    previewUrl: URL.createObjectURL(file),
+  };
+}
+
 function renderSupportMessages(messages) {
   if (!supportMessagesEl) return;
   const list = Array.isArray(messages) ? messages : [];
@@ -4520,7 +4606,7 @@ function renderSupportMessages(messages) {
       const who = m.author === 'support' ? 'Support' : 'You';
       const cls = m.author === 'support' ? 'support' : 'user';
       return `<div class="support-bubble ${cls}" data-id="${escapeAttr(m.id || '')}">
-        <div>${escapeHtml(m.body || '')}</div>
+        ${supportMessageBodyHtml(m, supportWorkspaceId)}
         <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
       </div>`;
     })
@@ -4538,7 +4624,7 @@ function appendSupportMessage(m) {
   supportMessagesEl.insertAdjacentHTML(
     'beforeend',
     `<div class="support-bubble ${cls}" data-id="${escapeAttr(m.id)}">
-      <div>${escapeHtml(m.body || '')}</div>
+      ${supportMessageBodyHtml(m, supportWorkspaceId)}
       <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
     </div>`
   );
@@ -4630,18 +4716,20 @@ function toggleSupportChat() {
 async function sendSupportChatMessage(e) {
   e?.preventDefault?.();
   const body = String(supportInput?.value || '').trim();
-  if (!body) return;
+  const image = supportPendingImage
+    ? { mime: supportPendingImage.mime, name: supportPendingImage.name, base64: supportPendingImage.base64 }
+    : null;
+  if (!body && !image) return;
   const btn = document.getElementById('btn-support-send');
   if (btn) btn.disabled = true;
   try {
     const data = await api('/api/support/messages', {
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, image }),
     });
-    if (supportInput) {
-      supportInput.value = '';
-      resizeSupportInput();
-    }
+    if (supportInput) supportInput.value = '';
+    resizeSupportInput();
+    clearSupportPendingImage();
     if (data.message) appendSupportMessage(data.message);
   } catch (err) {
     toast(err.message || 'Send failed', true);
@@ -5337,16 +5425,6 @@ function wireAdminMessageDeletes(host) {
   });
 }
 
-function adminMessageHtml(m) {
-  const who = m.author === 'support' ? 'You (support)' : 'User';
-  const cls = m.author === 'support' ? 'support' : 'user';
-  return `<div class="support-bubble ${cls} admin-msg-row" data-id="${escapeAttr(m.id || '')}">
-    <button type="button" class="admin-msg-del" data-admin-del-msg="${escapeAttr(m.id || '')}" title="Delete message" aria-label="Delete message">×</button>
-    <div>${escapeHtml(m.body || '')}</div>
-    <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
-  </div>`;
-}
-
 function renderAdminMessages(host, messages) {
   if (!host) return;
   const list = Array.isArray(messages) ? messages : [];
@@ -5364,32 +5442,73 @@ function renderAdminMessages(host, messages) {
 function updateAdminDeleteButton() {
   const btn = document.getElementById('btn-admin-delete-cabinets');
   if (!btn) return;
-  const n = document.querySelectorAll('#admin-cabinet-list input[data-admin-check]:checked').length;
+  const n = document.querySelectorAll('#admin-list-browse input[data-admin-check]:checked').length;
+  btn.classList.toggle('hidden', n === 0);
   btn.disabled = n === 0;
   btn.textContent = n ? `Delete selected (${n})` : 'Delete selected';
+}
+
+function showAdminCabinetList() {
+  document.getElementById('admin-cabinet-list')?.classList.remove('is-focus-mode');
+  adminSelectedWs = '';
+  stopAdminChatLive();
+  clearAdminPendingImage();
+  const title = document.getElementById('admin-chat-title');
+  const sub = document.getElementById('admin-chat-sub');
+  const box = document.getElementById('admin-chat-messages');
+  if (title) title.textContent = 'Select a cabinet';
+  if (sub) sub.textContent = 'Open a user to view history and reply';
+  if (box) box.innerHTML = '<p class="support-empty">Pick a cabinet on the left to open support chat.</p>';
+}
+
+function fillAdminFocusCard(meta = {}) {
+  const host = document.getElementById('admin-focus-body');
+  if (!host) return;
+  host.innerHTML = `
+    <h3>${escapeHtml(meta.displayName || meta.email || meta.workspaceId || 'Cabinet')}</h3>
+    <div class="admin-focus-meta muted">${escapeHtml(meta.email || '—')}</div>
+    <div class="admin-focus-meta"><code>${escapeHtml(meta.workspaceId || '')}</code></div>
+    <div class="admin-focus-stats">
+      <span class="admin-pill admin-pill-${escapeAttr(String(meta.subscriptionStatus || 'trial'))}">${escapeHtml(formatAdminSubStatus(meta.subscriptionStatus))}</span>
+      <span class="admin-cabinet-leads">${Number(meta.leadCount) || 0} leads</span>
+      ${meta.isDefault ? '<span class="muted">WAFFi</span>' : ''}
+    </div>
+    ${meta.problem ? `<div class="admin-problem">${escapeHtml(meta.problem)}</div>` : ''}
+    ${
+      meta.lastPreview
+        ? `<div class="admin-cabinet-preview muted">Last: ${meta.lastPreview}</div>`
+        : '<div class="muted" style="font-size:0.78rem">No messages yet</div>'
+    }
+  `;
+}
+
+function adminMessageHtml(m) {
+  const who = m.author === 'support' ? 'You (support)' : 'User';
+  const cls = m.author === 'support' ? 'support' : 'user';
+  return `<div class="support-bubble ${cls} admin-msg-row" data-id="${escapeAttr(m.id || '')}">
+    <button type="button" class="admin-msg-del" data-admin-del-msg="${escapeAttr(m.id || '')}" title="Delete message" aria-label="Delete message">×</button>
+    ${supportMessageBodyHtml(m, adminSelectedWs)}
+    <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
+  </div>`;
 }
 
 async function openAdminCabinetChat(workspaceId, meta = {}) {
   const ws = String(workspaceId || '').trim();
   if (!ws) return;
   adminSelectedWs = ws;
+  document.getElementById('admin-cabinet-list')?.classList.add('is-focus-mode');
+  fillAdminFocusCard(meta);
   const title = document.getElementById('admin-chat-title');
   const sub = document.getElementById('admin-chat-sub');
   const box = document.getElementById('admin-chat-messages');
   if (title) title.textContent = meta.displayName || meta.email || ws;
   if (sub) sub.textContent = `${meta.email || '—'} · ${ws}`;
-  document.querySelectorAll('.admin-cabinet-row').forEach((el) => {
-    el.classList.toggle('is-active', el.dataset.ws === ws);
-  });
   stopAdminChatLive();
   try {
     await api('/api/admin/support/mark-read', {
       method: 'POST',
       body: JSON.stringify({ workspaceId: ws }),
     });
-    const row = document.querySelector(`.admin-cabinet-row[data-ws="${CSS.escape(ws)}"]`);
-    row?.querySelector('.admin-unread-dot')?.classList.add('hidden');
-    row?.classList.remove('is-unread');
   } catch {
     /* ignore */
   }
@@ -5416,18 +5535,22 @@ async function sendAdminChatMessage(e) {
   const ws = adminSelectedWs;
   const input = document.getElementById('admin-chat-input');
   const body = String(input?.value || '').trim();
-  if (!ws || !body) return;
+  const image = adminPendingImage
+    ? { mime: adminPendingImage.mime, name: adminPendingImage.name, base64: adminPendingImage.base64 }
+    : null;
+  if (!ws || (!body && !image)) return;
   const btn = document.getElementById('btn-admin-send');
   if (btn) btn.disabled = true;
   try {
     const data = await api('/api/support/messages', {
       method: 'POST',
-      body: JSON.stringify({ body, workspaceId: ws }),
+      body: JSON.stringify({ body, workspaceId: ws, image }),
     });
     if (input) {
       input.value = '';
       resizeSupportInput(input);
     }
+    clearAdminPendingImage();
     if (data.message) {
       const box = document.getElementById('admin-chat-messages');
       if (box && data.message.id && !adminSeenIds.has(data.message.id)) {
@@ -5447,7 +5570,7 @@ async function sendAdminChatMessage(e) {
 }
 
 async function deleteSelectedAdminCabinets(host) {
-  const checked = [...document.querySelectorAll('#admin-cabinet-list input[data-admin-check]:checked')];
+  const checked = [...document.querySelectorAll('#admin-list-browse input[data-admin-check]:checked')];
   const ids = checked.map((el) => el.value).filter(Boolean);
   if (!ids.length) return;
   const labels = checked
@@ -5482,6 +5605,7 @@ async function renderAdminPanel(host) {
   if (!host) return;
   stopAdminChatLive();
   adminSelectedWs = '';
+  clearAdminPendingImage();
   host.innerHTML = '<p class="muted">Loading cabinets…</p>';
   try {
     const data = await api('/api/admin/overview');
@@ -5491,12 +5615,30 @@ async function renderAdminPanel(host) {
         const name = c.displayName || c.email || c.workspaceId;
         const preview = c.lastMessage?.body
           ? escapeHtml(String(c.lastMessage.body).slice(0, 90))
-          : '<span class="muted">No messages yet</span>';
+          : c.lastMessage?.attachment
+            ? '<span class="muted">[image]</span>'
+            : '<span class="muted">No messages yet</span>';
         const problem = c.hasProblem
           ? `<div class="admin-problem">${escapeHtml(c.problem)}</div>`
           : '';
         const locked = c.isDefault === true;
-        return `<div class="admin-cabinet-row${c.unreadFromUser ? ' is-unread' : ''}" data-ws="${escapeAttr(c.workspaceId)}" data-email="${escapeAttr(c.email || '')}" data-name="${escapeAttr(name)}">
+        const meta = encodeURIComponent(
+          JSON.stringify({
+            displayName: name,
+            email: c.email || '',
+            workspaceId: c.workspaceId,
+            subscriptionStatus: c.subscriptionStatus || 'trial',
+            leadCount: Number(c.leadCount) || 0,
+            isDefault: !!c.isDefault,
+            problem: c.problem || '',
+            lastPreview: c.lastMessage?.body
+              ? String(c.lastMessage.body).slice(0, 90)
+              : c.lastMessage?.attachment
+                ? '[image]'
+                : '',
+          })
+        );
+        return `<div class="admin-cabinet-row${c.unreadFromUser ? ' is-unread' : ''}" data-ws="${escapeAttr(c.workspaceId)}" data-email="${escapeAttr(c.email || '')}" data-name="${escapeAttr(name)}" data-meta="${meta}">
           <label class="admin-cabinet-check" title="${locked ? 'WAFFi cabinet cannot be deleted' : 'Select cabinet'}">
             <input type="checkbox" data-admin-check value="${escapeAttr(c.workspaceId)}" ${locked ? 'disabled' : ''} />
           </label>
@@ -5506,11 +5648,6 @@ async function renderAdminPanel(host) {
               <strong>${escapeHtml(name)}</strong>
               <span class="admin-pill admin-pill-${escapeAttr(String(c.subscriptionStatus || 'trial'))}">${escapeHtml(formatAdminSubStatus(c.subscriptionStatus))}</span>
               <span class="admin-cabinet-leads">${Number(c.leadCount) || 0} leads</span>
-            </span>
-            <span class="admin-cabinet-details">
-              <span class="admin-cabinet-meta muted">${escapeHtml(c.email || '')} · <code>${escapeHtml(c.workspaceId)}</code>${c.isDefault ? ' · WAFFi' : ''}</span>
-              <span class="admin-cabinet-preview">${preview}</span>
-              ${problem}
             </span>
           </button>
         </div>`;
@@ -5527,11 +5664,19 @@ async function renderAdminPanel(host) {
         </div>
         <div class="admin-split">
           <div class="admin-list" id="admin-cabinet-list">
-            <div class="admin-list-toolbar">
-              <span class="muted" style="font-size:0.78rem">Cabinets</span>
-              <button type="button" class="btn danger btn-sm" id="btn-admin-delete-cabinets" disabled>Delete selected</button>
+            <div id="admin-list-browse">
+              <div class="admin-list-toolbar">
+                <span class="muted" style="font-size:0.78rem">Cabinets</span>
+                <button type="button" class="btn danger btn-sm hidden" id="btn-admin-delete-cabinets" disabled>Delete selected</button>
+              </div>
+              ${rows || '<p class="muted" style="padding:12px">No cabinets yet.</p>'}
             </div>
-            ${rows || '<p class="muted" style="padding:12px">No cabinets yet.</p>'}
+            <div class="admin-list-focus" id="admin-list-focus">
+              <div class="admin-focus-head">
+                <button type="button" class="btn ghost btn-sm" id="btn-admin-back-list">← All cabinets</button>
+              </div>
+              <div class="admin-focus-body" id="admin-focus-body"></div>
+            </div>
           </div>
           <div class="admin-chat">
             <div class="admin-chat-head">
@@ -5550,7 +5695,16 @@ async function renderAdminPanel(host) {
                   <path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4l.1 6.8L15 12 3.5 13.8l-.1 6.8z"/>
                 </svg>
               </button>
-              <textarea id="admin-chat-input" rows="1" maxlength="4000" placeholder="Reply to this cabinet…" aria-label="Admin reply"></textarea>
+              <div class="support-compose-main">
+                <div id="admin-attach-preview" class="support-attach-preview hidden"></div>
+                <textarea id="admin-chat-input" rows="1" maxlength="4000" placeholder="Reply to this cabinet…" aria-label="Admin reply"></textarea>
+              </div>
+              <label class="support-attach" title="Attach image" aria-label="Attach image">
+                <input type="file" id="admin-attach-input" accept="image/*" hidden />
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path fill="currentColor" d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1z"/>
+                </svg>
+              </label>
             </form>
           </div>
         </div>
@@ -5559,16 +5713,24 @@ async function renderAdminPanel(host) {
     host.querySelectorAll('[data-admin-open]').forEach((el) => {
       el.addEventListener('click', () => {
         const row = el.closest('.admin-cabinet-row');
-        openAdminCabinetChat(el.dataset.adminOpen, {
+        let meta = {
           email: row?.dataset?.email,
           displayName: row?.dataset?.name,
-        });
+          workspaceId: el.dataset.adminOpen,
+        };
+        try {
+          meta = { ...meta, ...JSON.parse(decodeURIComponent(row?.dataset?.meta || '{}')) };
+        } catch {
+          /* ignore */
+        }
+        openAdminCabinetChat(el.dataset.adminOpen, meta);
       });
     });
     host.querySelectorAll('input[data-admin-check]').forEach((el) => {
       el.addEventListener('click', (e) => e.stopPropagation());
       el.addEventListener('change', updateAdminDeleteButton);
     });
+    document.getElementById('btn-admin-back-list')?.addEventListener('click', () => showAdminCabinetList());
     document.getElementById('btn-admin-delete-cabinets')?.addEventListener('click', () =>
       deleteSelectedAdminCabinets(host)
     );
@@ -5581,6 +5743,17 @@ async function renderAdminPanel(host) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendAdminChatMessage(e);
+      }
+    });
+    document.getElementById('admin-attach-input')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        adminPendingImage = await readImageFileAsAttachment(file);
+        renderAttachPreview('admin-attach-preview', adminPendingImage, clearAdminPendingImage);
+      } catch (err) {
+        clearAdminPendingImage();
+        toast(err.message || 'Could not attach image', true);
       }
     });
     resizeSupportInput(input);
@@ -5896,6 +6069,17 @@ async function boot() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendSupportChatMessage(e);
+    }
+  });
+  document.getElementById('support-attach-input')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      supportPendingImage = await readImageFileAsAttachment(file);
+      renderAttachPreview('support-attach-preview', supportPendingImage, clearSupportPendingImage);
+    } catch (err) {
+      clearSupportPendingImage();
+      toast(err.message || 'Could not attach image', true);
     }
   });
   resizeSupportInput();
