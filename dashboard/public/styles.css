@@ -5371,6 +5371,31 @@ select {
   z-index: 2;
   box-shadow: 0 1px 0 rgba(255,255,255,0.04);
 }
+.crm-kanban-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.crm-kanban-title h4 {
+  margin: 0;
+}
+.crm-kanban-head .info-tip {
+  opacity: 0.72;
+}
+.crm-kanban-head .info-tip:hover,
+.crm-kanban-head .info-tip:focus-visible {
+  opacity: 1;
+}
+/* Open below the header so sticky columns don’t clip the tip */
+.crm-kanban-head .info-tip-bubble {
+  bottom: auto;
+  top: calc(100% + 8px);
+  left: 0;
+  transform: none;
+  max-width: min(260px, 70vw);
+  z-index: 50;
+}
 .crm-kanban-col.metric-lead .crm-kanban-head {
   border-top: 3px solid rgba(148,163,184,0.85);
   background: linear-gradient(180deg, rgba(148,163,184,0.22) 0%, rgba(28,36,48,0.97) 52%, #1c2430 100%);

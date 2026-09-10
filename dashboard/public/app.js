@@ -64,6 +64,16 @@ let openIntegrationGroups = {};
 /** Profile accordion: 'general' | 'integrations' | 'billing' | '' */
 let openProfileTile = '';
 const CRM_STATUSES = ['Lead😴', 'Conversation 💬', 'Active ✅', 'Lost❌'];
+const CRM_STATUS_HINTS = {
+  'Lead😴':
+    'Invite sent and waiting to accept — or already accepted and still in enrich / ice-breaker before the first DM.',
+  'Conversation 💬':
+    'Ice-breaker already sent. Stage B watches replies and continues the thread here.',
+  'Active ✅':
+    'Sales outcome met (for example a call booked). Keep for won deals and handoff.',
+  'Lost❌':
+    'Closed out — not interested, silence follow-up, connect never accepted, or similar.',
+};
 const CRM_LOST_REASONS = [
   { id: 'not_interested', label: 'Not interested' },
   { id: 'wrong_person', label: 'Wrong person' },
@@ -1123,7 +1133,10 @@ function crmKanbanHtml() {
     const truncated = !searching && (crmKanban[status] || []).length < totalAll;
     return `<div class="crm-kanban-col ${crmMetricClass(status)}" data-kanban-status="${escapeAttr(status)}">
       <div class="crm-kanban-head">
-        <h4>${escapeHtml(status)}</h4>
+        <div class="crm-kanban-title">
+          <h4>${escapeHtml(status)}</h4>
+          ${infoTip(CRM_STATUS_HINTS[status] || '')}
+        </div>
         <span class="crm-kanban-count" title="${searching ? `${cards.length} match(es)` : `${(crmKanban[status] || []).length} loaded · ${totalAll} total`}">${escapeHtml(countLabel)}</span>
       </div>
       <div class="crm-kanban-cards" data-drop-status="${escapeAttr(status)}">${cards.length
