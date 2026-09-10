@@ -3251,6 +3251,12 @@ select {
   flex-direction: column;
   gap: 6px;
 }
+.support-input-shell {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
 .support-compose textarea {
   flex: 1 1 auto;
   min-width: 0;
@@ -3264,7 +3270,7 @@ select {
   border: 1px solid var(--line);
   background: var(--bg, var(--panel));
   color: var(--ink);
-  padding: 9px 12px;
+  padding: 9px 40px 9px 12px;
   font: inherit;
   font-size: 0.82rem;
   line-height: 1.35;
@@ -3275,10 +3281,11 @@ select {
   border-color: rgba(34, 197, 94, 0.45);
 }
 .support-attach {
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  margin-bottom: 2px;
+  position: absolute;
+  right: 6px;
+  bottom: 5px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1px solid var(--line);
   color: var(--muted);
@@ -3286,8 +3293,9 @@ select {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: transparent;
-  opacity: 0.75;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  opacity: 0.7;
+  z-index: 1;
 }
 .support-attach:hover {
   opacity: 1;

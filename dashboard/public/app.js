@@ -5697,14 +5697,16 @@ async function renderAdminPanel(host) {
               </button>
               <div class="support-compose-main">
                 <div id="admin-attach-preview" class="support-attach-preview hidden"></div>
-                <textarea id="admin-chat-input" rows="1" maxlength="4000" placeholder="Reply to this cabinet…" aria-label="Admin reply"></textarea>
+                <div class="support-input-shell">
+                  <textarea id="admin-chat-input" rows="1" maxlength="4000" placeholder="Reply to this cabinet…" aria-label="Admin reply"></textarea>
+                  <label class="support-attach" title="Attach image" aria-label="Attach image">
+                    <input type="file" id="admin-attach-input" accept="image/*" hidden />
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                      <path fill="currentColor" d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1z"/>
+                    </svg>
+                  </label>
+                </div>
               </div>
-              <label class="support-attach" title="Attach image" aria-label="Attach image">
-                <input type="file" id="admin-attach-input" accept="image/*" hidden />
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <path fill="currentColor" d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1z"/>
-                </svg>
-              </label>
             </form>
           </div>
         </div>
