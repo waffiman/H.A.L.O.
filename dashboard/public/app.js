@@ -1,11 +1,11 @@
 const ICONS = {
-  dashboard: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h8v8H3v-8zm10 7h8v-8h-8v8z"/></svg>',
+  dashboard: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 12 L17.2 8.2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round"/><circle cx="12" cy="12" r="1.55" fill="currentColor"/><path d="M6.2 15.8 A7.2 7.2 0 0 1 17.8 15.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/><path d="M7.1 14.6 A5.8 5.8 0 0 1 12 7.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
   crm: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
   linkedin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 8.5A2 2 0 1 1 6.5 4.5a2 2 0 0 1 0 4zM4.75 10h3.5V20h-3.5V10zM13 10.2c1.4-1.5 3.7-1.6 5.2-.3.8.7 1.3 1.8 1.3 3V20h-3.5v-5.5c0-1-.4-1.7-1.3-1.7-.9 0-1.4.6-1.4 1.7V20H9.8V10h3.4v.2z"/></svg>',
   instagram: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm5 4.5A4.5 4.5 0 1 0 16.5 12 4.5 4.5 0 0 0 12 7.5zm6.25-.75a1.1 1.1 0 1 0 1.1 1.1 1.1 1.1 0 0 0-1.1-1.1zM12 9.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/></svg>',
   facebook: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v6h3v-6h2.6l.4-3H13v-2c0-.6.4-1 1-1z"/></svg>',
   integrations: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>',
-  profile: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="12" cy="9" r="3.1" fill="currentColor"/><path fill="currentColor" d="M6.4 18.1c1.45-2.35 3.35-3.45 5.6-3.45s4.15 1.1 5.6 3.45C16 19.15 14.1 19.75 12 19.75s-4-.6-5.6-1.65z"/></svg>',
+  profile: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.24l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.25.1.54 0 .68-.24l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>',
   billing: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>',
   general: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="12" cy="9" r="3.1" fill="currentColor"/><path fill="currentColor" d="M6.4 18.1c1.45-2.35 3.35-3.45 5.6-3.45s4.15 1.1 5.6 3.45C16 19.15 14.1 19.75 12 19.75s-4-.6-5.6-1.65z"/></svg>',
   admin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 3.18 6 2.67v4.6c0 3.9-2.5 7.54-6 8.86-3.5-1.32-6-4.96-6-8.86v-4.6l6-2.67zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/></svg>',
@@ -23,7 +23,7 @@ const NAV = [
   { id: 'linkedin', label: 'LinkedIn', title: 'LinkedIn channel settings and session' },
   { id: 'instagram', label: 'Instagram', title: 'Instagram channel (coming soon)' },
   { id: 'facebook', label: 'Facebook', title: 'Facebook channel (coming soon)' },
-  { id: 'profile', label: 'Profile', title: 'Account, billing, and integrations' },
+  { id: 'profile', label: 'Settings', title: 'Account, billing, and integrations' },
   { id: 'brain', label: 'Brain', title: 'Sales Brain — master prompt and strategy analysis' },
   { id: 'faq', label: 'FAQ', title: 'Setup guide and quick answers' },
 ];
@@ -60,6 +60,8 @@ const BOOKING_TZ_OPTIONS = [
   'Australia/Sydney',
 ];
 let revealed = {};
+/** LLM key fields: true = show plaintext in the input */
+let secretVisible = {};
 let openIntegrationGroups = {};
 /** Profile accordion: 'general' | 'integrations' | 'billing' | '' */
 let openProfileTile = '';
@@ -557,8 +559,61 @@ function unitSelect(id, unit) {
 const NAV_GROUPS = [
   { label: 'Overview', ids: ['dashboard', 'crm'] },
   { label: 'Channels', ids: ['linkedin', 'instagram', 'facebook'] },
-  { label: 'Settings', ids: ['profile'] },
+  { label: 'Account', ids: ['profile'] },
   { label: 'Help', ids: ['faq'] },
+];
+
+/** Public pricing cards (design). Stripe price IDs wired later. */
+const HALO_BILLING_PLANS = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: '€99',
+    period: 'per month',
+    blurb: 'Solo founders proving LinkedIn outbound',
+    badge: '',
+    features: [
+      '1 LinkedIn seat',
+      'Up to 250 CRM leads',
+      'Stage A + Stage B',
+      'Sales Brain + Book a call',
+      'Shared Apify enrich',
+      'Email support',
+    ],
+  },
+  {
+    id: 'growth',
+    name: 'Growth',
+    price: '€179',
+    period: 'per month',
+    blurb: 'Operators running outreach every week',
+    badge: 'Most popular',
+    popular: true,
+    features: [
+      'Everything in Starter',
+      'Up to 1,000 CRM leads',
+      'Higher Stage A cycle budget',
+      'Priority support (chat)',
+      'Strategy notes / Brain analysis',
+      'Annual billing −20% (soon)',
+    ],
+  },
+  {
+    id: 'scale',
+    name: 'Scale',
+    price: '€329',
+    period: 'per month',
+    blurb: 'Agencies & high-volume desks',
+    badge: '',
+    features: [
+      'Everything in Growth',
+      'Up to 3,000 CRM leads',
+      'Priority enrich capacity',
+      'Faster support SLA',
+      'Onboarding call with WAFFi',
+      'Custom limits on request',
+    ],
+  },
 ];
 function setPageHeader(title, subtitle = '') {
   titleEl.textContent = title;
@@ -602,18 +657,20 @@ function buildCrmSnapshotDonut(counts = {}) {
     cls: crmMetricClass(key),
   }));
   const total = rows.reduce((s, r) => s + r.val, 0);
-  const r = 40;
+  const r = 52;
+  const vb = 132;
+  const cx = vb / 2;
   const c = 2 * Math.PI * r;
   let offset = 0;
   const arcs =
     total === 0
-      ? `<circle class="dash-donut-empty" cx="54" cy="54" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="11"/>`
+      ? `<circle class="dash-donut-empty" cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="14"/>`
       : rows
           .filter((row) => row.val > 0)
           .map((row) => {
             const len = (row.val / total) * c;
             const dash = `${len} ${c - len}`;
-            const el = `<circle class="dash-donut-seg" data-status="${escapeAttr(row.key)}" cx="54" cy="54" r="${r}" fill="none" stroke="${row.color}" stroke-width="11" stroke-dasharray="${dash}" stroke-dashoffset="${-offset}" stroke-linecap="butt" transform="rotate(-90 54 54)"/>`;
+            const el = `<circle class="dash-donut-seg" data-status="${escapeAttr(row.key)}" cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${row.color}" stroke-width="14" stroke-dasharray="${dash}" stroke-dashoffset="${-offset}" stroke-linecap="butt" transform="rotate(-90 ${cx} ${cx})"/>`;
             offset += len;
             return el;
           })
@@ -633,8 +690,8 @@ function buildCrmSnapshotDonut(counts = {}) {
   return `
     <div class="dash-donut-layout" id="dash-crm-donut">
       <div class="dash-donut-visual">
-        <svg class="dash-donut-svg" viewBox="0 0 108 108" width="96" height="96" aria-hidden="true">
-          <circle cx="54" cy="54" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="11"/>
+        <svg class="dash-donut-svg" viewBox="0 0 ${vb} ${vb}" width="148" height="148" aria-hidden="true">
+          <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14"/>
           ${arcs}
         </svg>
         <div class="dash-donut-center">
@@ -642,7 +699,7 @@ function buildCrmSnapshotDonut(counts = {}) {
           <div class="dash-donut-total-label" id="dash-donut-label">leads</div>
         </div>
       </div>
-      <div class="dash-donut-legend">${legend}</div>
+      <div class="dash-donut-legend" aria-label="CRM legend">${legend}</div>
     </div>`;
 }
 
@@ -1756,6 +1813,20 @@ function bindCrmToolbar() {
   const searchInput = document.getElementById('crm-search');
   if (searchInput) {
     searchInput.value = crmSearchQ;
+    const unlock = () => searchInput.removeAttribute('readonly');
+    searchInput.addEventListener('focus', unlock);
+    searchInput.addEventListener('pointerdown', unlock);
+    const scrubAutofill = () => {
+      if (crmSearchQ) return;
+      if (searchInput.value) {
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    };
+    scrubAutofill();
+    setTimeout(scrubAutofill, 50);
+    setTimeout(scrubAutofill, 250);
+    setTimeout(scrubAutofill, 800);
     let searchTimer;
     searchInput.oninput = () => {
       clearTimeout(searchTimer);
@@ -3608,10 +3679,13 @@ function renderCrm() {
         </div>
         <div class="crm-toolbar-right">
           ${crmCardPropsMenuHtml()}
-          <label class="field crm-search-field">
-            <span class="sr-only">Search leads</span>
-            <input type="search" id="crm-search" placeholder="Search name or link…" />
-          </label>
+          <form class="crm-search-form" autocomplete="off" onsubmit="return false;">
+            <input type="text" class="crm-autofill-trap" name="username" tabindex="-1" aria-hidden="true" autocomplete="username" value="" />
+            <label class="field crm-search-field">
+              <span class="sr-only">Search leads</span>
+              <input type="text" id="crm-search" name="halo-crm-filter-q" role="searchbox" placeholder="Search name or link…" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other" readonly />
+            </label>
+          </form>
           <button type="button" class="btn primary btn-sm" id="crm-add-lead" title="Add lead">+ Lead</button>
         </div>
       </div>
@@ -4206,8 +4280,8 @@ function renderFaq() {
       id: 'setup',
       cat: 'Getting started',
       q: 'First-time setup',
-      short: '5-step guided walkthrough',
-      keywords: 'setup onboarding first time start guide linkedin keys',
+      short: 'LinkedIn + LLM keys — that\'s enough',
+      keywords: 'setup onboarding first time start guide linkedin keys llm',
       openSetup: true,
       body: '',
     },
@@ -4216,7 +4290,7 @@ function renderFaq() {
       cat: 'CRM',
       q: 'CRM statuses',
       short: 'Lead → Conversation → Active / Lost',
-      keywords: 'crm status pipeline lead conversation active lost proposal',
+      keywords: 'crm status pipeline lead conversation active lost',
       body: `<ul>
         <li><strong>Lead😴</strong> — invite sent / waiting, or accepted and in enrich+ice (before first DM).</li>
         <li><strong>Conversation 💬</strong> — ice DM already sent; Stage B watches the thread.</li>
@@ -4287,12 +4361,22 @@ function renderFaq() {
         <p><strong>Save and restart</strong> restarts the agent so stages can run immediately.</p>`,
     },
     {
+      id: 'llm-keys',
+      cat: 'Integrations',
+      q: 'Which API keys do I need?',
+      short: 'Three LLM roles — Apify included',
+      keywords: 'llm gemini cohere api key researcher copywriter inspector integrations',
+      body: `<p>Settings → Integrations → <strong>LLM</strong>: Researcher, Copywriter, and Inspector each need an API key (they can share the same key).</p>
+        <p><strong>Apify</strong> profile enrich and shared CRM hosting are provided by HALO — you do not paste Apify or Supabase credentials.</p>
+        <p>Optional: Telegram Chat ID for phone alerts.</p>`,
+    },
+    {
       id: 'telegram',
       cat: 'Integrations',
       q: 'Telegram alerts',
       short: 'Start bot → paste Chat ID',
       keywords: 'telegram bot chat id notify waffi',
-      body: `<p>Open <a href="https://t.me/notioncalen_bot" target="_blank" rel="noopener">@notioncalen_bot</a>, tap <strong>Start</strong>, paste Chat ID under Profile → Integrations → Telegram, then Save.</p>`,
+      body: `<p>Open <a href="https://t.me/notioncalen_bot" target="_blank" rel="noopener">@notioncalen_bot</a>, tap <strong>Start</strong>, paste Chat ID under Settings → Integrations → Telegram, then Save.</p>`,
     },
     {
       id: 'book-a-call',
@@ -4302,26 +4386,15 @@ function renderFaq() {
       keywords: 'book a call calendar meet google availability slot active outcome',
       body: `<p>Outcome <strong>Book a call</strong> opens availability (pencil on the card). Paint half-hour blocks you’re free — empty day = free 24h, full day = busy.</p>
         <p>When a lead wants a call, the brain proposes only precomputed slots in the <strong>lead’s timezone</strong>. Soft “yes to a call” stays Conversation 💬. After they accept a concrete slot → <strong>Active ✅</strong>.</p>
-        <p>Optional <strong>Google Meet room URL</strong> lives in the availability popup (above the week grid). After accept, the lead gets a <em>calendar invite</em> link (Meet is inside the event if you set a room). Telegram / dashboard notice: lead name, time in <strong>your</strong> timezone, and the same add-to-calendar link.</p>
-        <p>Dry-run gate: <code>node scripts/test-book-a-call-flow.js</code> (add <code>--live</code> for one real LLM reply).</p>`,
+        <p>Optional <strong>Google Meet room URL</strong> lives in the availability popup. After accept, the lead gets a calendar invite link.</p>`,
     },
     {
-      id: 'google-calendar',
-      cat: 'Sales Brain',
-      q: 'Google Meet for Book a call',
-      short: 'Meet URL in availability popup',
-      keywords: 'google calendar meet oauth refresh token event room book a call',
-      body: `<p>Brain → Book a call ⚙ → paste your standing <strong>Meet room URL</strong> (optional). No Calendar OAuth.</p>
-        <p>When a lead hits <strong>Active ✅</strong>, Telegram shows their name, the call time in your timezone, and an add-to-calendar link (ICS with reminders when the public dashboard URL is set).</p>`,
-    },
-    {
-      id: 'supabase',
-      cat: 'Integrations',
-      q: 'Supabase paused?',
-      short: 'Free tier sleeps after ~7 days',
-      keywords: 'supabase pause wake keepalive crm empty',
-      body: `<p>If stages are off (or intervals &gt; 7 days), Pause guard sends a read-only wake ping every ~5 days.</p>
-        <p>If CRM looks empty after a long pause, wake the project in Supabase once, then refresh HALO.</p>`,
+      id: 'support',
+      cat: 'Help',
+      q: 'Support chat',
+      short: 'Headphones button → WAFFi replies here',
+      keywords: 'support chat help headphones fab message',
+      body: `<p>Use the headphones button (bottom-right) to message WAFFi support. Replies appear in the same thread — green bubbles are yours; support replies sit on the other side.</p>`,
     },
     {
       id: 'apify',
@@ -4329,8 +4402,8 @@ function renderFaq() {
       q: 'Apify / enrich',
       short: 'Included with HALO — no setup',
       keywords: 'apify enrich quota token scrape profile',
-      body: `<p>Stage A enrich uses a shared Apify pool (HALO platform) for profile context, location, email (if available), and ice-breaker inputs. You do not configure Apify tokens.</p>
-        <p>If enrich fails with quota errors, contact WAFFi support — we rotate additional Apify accounts server-side.</p>`,
+      body: `<p>Stage A enrich uses a shared Apify pool for profile context, location, email (if available), and ice-breaker inputs. You do not configure Apify tokens.</p>
+        <p>If enrich fails with quota errors, contact WAFFi via Support chat.</p>`,
     },
     {
       id: 'brain',
@@ -4339,7 +4412,7 @@ function renderFaq() {
       short: 'Portrait steers · prompts write',
       keywords: 'brain sales portrait outcome prompts learning',
       body: `<p><strong>Sales</strong> (portrait, filters, outcome) steers targeting and Active/Lost.</p>
-        <p>For <strong>Book a call</strong>, see the FAQ tile “Book a call outcome” (slots + optional Meet URL in the availability popup).</p>
+        <p>For <strong>Book a call</strong>, see “Book a call outcome”.</p>
         <p>Prompt files shape wording. Learning notes improve future copy from CRM outcomes.</p>`,
     },
   ];
@@ -4353,7 +4426,10 @@ function renderFaq() {
   view.innerHTML = `
     <div class="faq-page">
       <div class="faq-search-wrap">
-        <input type="search" id="faq-search" class="faq-search" placeholder="Search topics…" autocomplete="off" aria-label="Search FAQ" />
+        <form class="faq-search-form" autocomplete="off" onsubmit="return false;">
+          <input type="text" class="faq-autofill-trap" name="username" tabindex="-1" aria-hidden="true" autocomplete="username" value="" />
+          <input type="text" id="faq-search" class="faq-search" name="halo-faq-filter-q" role="searchbox" placeholder="Search topics…" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other" readonly aria-label="Search FAQ" />
+        </form>
       </div>
       <div class="faq-grid" role="list" id="faq-grid">
         ${tiles.map(tileHtml).join('')}
@@ -4380,8 +4456,11 @@ function renderFaq() {
     const t = byId[id];
     if (!t) return;
     if (t.openSetup) {
-      if (typeof window.haloOpenSetupGuide === 'function') window.haloOpenSetupGuide();
-      else toast('Setup guide loading…', false, 2000);
+      const guide = window.HaloOnboarding;
+      if (guide && typeof guide.reopen === 'function') guide.reopen();
+      else if (guide && typeof guide.open === 'function') guide.open();
+      else if (typeof window.haloOpenSetupGuide === 'function') window.haloOpenSetupGuide();
+      else toast('Setup guide is unavailable — refresh the page.', true, 3500);
       return;
     }
     if (!modal) return;
@@ -4417,6 +4496,21 @@ function renderFaq() {
     });
     empty?.classList.toggle('hidden', visible > 0);
   };
+  if (search) {
+    const unlock = () => search.removeAttribute('readonly');
+    search.addEventListener('focus', unlock);
+    search.addEventListener('pointerdown', unlock);
+    const scrub = () => {
+      if (search.value) {
+        search.value = '';
+        filterTiles();
+      }
+    };
+    scrub();
+    setTimeout(scrub, 50);
+    setTimeout(scrub, 250);
+    setTimeout(scrub, 800);
+  }
   search?.addEventListener('input', filterTiles);
 
   const onEsc = (e) => {
@@ -4936,14 +5030,29 @@ function llmWarnIcon(title) {
 
 function llmKeyField(api, label = 'API key') {
   if (!api) return '';
-  return `<label class="field" title="${escapeAttr(api.label)}">${label}
+  const val = revealed[api.key] != null ? revealed[api.key] : '';
+  const visible = Boolean(secretVisible[api.key]);
+  const eyeOpen =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2.5A2.5 2.5 0 1 0 12 9a2.5 2.5 0 0 0 0 5z"/></svg>';
+  const eyeOff =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2.1 3.5 3.5 2.1 21.9 20.5 20.5 21.9l-3.1-3.1A12.4 12.4 0 0 1 12 19c-7 0-10-7-10-7a18.7 18.7 0 0 1 4.7-5.3L2.1 3.5zM12 7a5 5 0 0 1 4.9 4.1l-1.6-1.6A2.5 2.5 0 0 0 12.5 8L12 7zm9.3 5s-1.2 2.8-3.7 4.6l-1.5-1.5A12 12 0 0 0 20.3 12H21.3z"/></svg>';
+  const copyIcon =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+  return `<label class="field llm-key-field" title="${escapeAttr(api.label)}">${label}
     <div class="llm-input-row">
-      <input type="password" data-set="${escapeAttr(api.key)}" placeholder="${api.set ? '•••••••• (set)' : 'Paste key'}" autocomplete="off" />
-      <button type="button" class="btn ghost btn-sm" data-reveal="${escapeAttr(api.key)}" title="Show">${revealed[api.key] ? 'Hide' : 'Show'}</button>
-      <button type="button" class="btn ghost btn-sm" data-copy="${escapeAttr(api.key)}" title="Copy">Copy</button>
-      <button type="button" class="btn danger btn-sm" data-remove="${escapeAttr(api.key)}" title="Remove">×</button>
+      <input
+        type="${visible ? 'text' : 'password'}"
+        data-set="${escapeAttr(api.key)}"
+        data-llm-secret="1"
+        ${api.set ? 'data-llm-needs-hydrate="1"' : ''}
+        value="${escapeAttr(val)}"
+        placeholder="${api.set && !val ? 'Key saved — paste to replace' : 'Paste API key'}"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button type="button" class="btn ghost btn-sm llm-icon-btn" data-llm-reveal="${escapeAttr(api.key)}" title="${visible ? 'Hide key' : 'Show key'}" aria-label="${visible ? 'Hide key' : 'Show key'}">${visible ? eyeOff : eyeOpen}</button>
+      <button type="button" class="btn ghost btn-sm llm-icon-btn" data-copy="${escapeAttr(api.key)}" title="Copy key" aria-label="Copy key">${copyIcon}</button>
     </div>
-    ${revealed[api.key] != null ? `<div class="val">${escapeHtml(revealed[api.key] || '')}</div>` : api.set ? `<div class="val muted">${escapeHtml(api.masked || '••••')}</div>` : ''}
   </label>`;
 }
 
@@ -4995,7 +5104,7 @@ function renderLlmIntegrationsBody(items) {
         <span class="llm-role-ico" aria-hidden="true">${LLM_ROLE_ICONS[role.id] || ''}</span>
         <div class="llm-role-head-copy">
           <h4 class="llm-role-title">${escapeHtml(role.title)} ${llmInfoIcon(role.hint)}</h4>
-          <p class="llm-role-sub muted">Primary brain role · API key required</p>
+          <p class="llm-role-sub muted">API key + model</p>
         </div>
         ${problem ? llmWarnIcon(problem) : ''}
       </header>
@@ -5032,10 +5141,43 @@ function renderLlmIntegrationsBody(items) {
   ]);
   const extras = items.filter((it) => !hiddenKeys.has(it.key));
 
-  return `<p class="llm-intro muted">Three roles power every message. Each needs its own API key (they can be the same value). Automation stays paused until all three are set.</p>
+  return `<p class="llm-intro muted">Paste each role’s API key — it stays in the field (hidden as dots). Show or copy with the icons. Apify enrich &amp; CRM hosting are included.</p>
     <div class="llm-roles-stack">${rolesHtml}</div>
     ${fallbackHtml}
     ${extras.length ? `<div class="llm-extras">${extras.map(secretBlockHtml).join('')}</div>` : ''}`;
+}
+
+async function hydrateLlmSecretsInView(root = view) {
+  const inputs = [...root.querySelectorAll('input[data-llm-secret][data-llm-needs-hydrate][data-set]')];
+  if (!inputs.length) return;
+  await Promise.all(
+    inputs.map(async (input) => {
+      const key = input.dataset.set;
+      if (!key) return;
+      if (revealed[key] != null && revealed[key] !== '') {
+        if (!input.value) input.value = revealed[key];
+        input.removeAttribute('data-llm-needs-hydrate');
+        return;
+      }
+      if (input.value) {
+        revealed[key] = input.value;
+        input.removeAttribute('data-llm-needs-hydrate');
+        return;
+      }
+      try {
+        const data = await api('/api/secrets/reveal', { method: 'POST', body: JSON.stringify({ key }) });
+        const val = data.value || '';
+        if (!val) return;
+        revealed[key] = val;
+        input.value = val;
+        input.type = secretVisible[key] ? 'text' : 'password';
+        input.placeholder = 'Paste API key';
+        input.removeAttribute('data-llm-needs-hydrate');
+      } catch {
+        /* leave placeholder — user can paste */
+      }
+    })
+  );
 }
 
 function renderSupabaseKeepaliveBlock() {
@@ -5173,6 +5315,24 @@ function applyHaloTheme(theme) {
   }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = next === 'light' ? '#f2f4f7' : '#090b0e';
+  const btn = document.getElementById('btn-theme-toggle');
+  if (btn) {
+    const light = next === 'light';
+    btn.dataset.theme = next;
+    btn.title = light ? 'Switch to dark theme' : 'Switch to light theme';
+    btn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+    btn.innerHTML = light ? THEME_ICON_MOON : THEME_ICON_SUN;
+  }
+}
+
+const THEME_ICON_SUN =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><path fill="currentColor" d="M12 2.5a1 1 0 0 1 1 1V5a1 1 0 1 1-2 0V3.5a1 1 0 0 1 1-1zm0 15a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V18.5a1 1 0 0 1 1-1zM3.5 11a1 1 0 0 1 1-1H6a1 1 0 1 1 0 2H4.5a1 1 0 0 1-1-1zm13.5 0a1 1 0 0 1 1-1H19.5a1 1 0 1 1 0 2H18a1 1 0 0 1-1-1zM5.99 5.99a1 1 0 0 1 1.41 0L8.5 7.09A1 1 0 1 1 7.09 8.5L5.99 7.4a1 1 0 0 1 0-1.41zm9.51 9.51a1 1 0 0 1 1.41 0l1.1 1.1a1 1 0 1 1-1.41 1.41l-1.1-1.1a1 1 0 0 1 0-1.41zM18.01 5.99a1 1 0 0 1 0 1.41L16.91 8.5A1 1 0 1 1 15.5 7.09l1.1-1.1a1 1 0 0 1 1.41 0zM8.5 15.5a1 1 0 0 1 0 1.41l-1.1 1.1a1 1 0 1 1-1.41-1.41l1.1-1.1a1 1 0 0 1 1.41 0z"/></svg>';
+const THEME_ICON_MOON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M20.2 14.6A8.2 8.2 0 0 1 9.4 3.8a1 1 0 0 0-1.3-1.2A10 10 0 1 0 21.4 15.9a1 1 0 0 0-1.2-1.3z"/></svg>';
+
+function themeToggleBtnHtml() {
+  const light = getHaloTheme() === 'light';
+  return `<button type="button" class="theme-icon-btn" id="btn-theme-toggle" data-theme="${light ? 'light' : 'dark'}" title="${light ? 'Switch to dark theme' : 'Switch to light theme'}" aria-label="${light ? 'Switch to dark theme' : 'Switch to light theme'}">${light ? THEME_ICON_MOON : THEME_ICON_SUN}</button>`;
 }
 
 function openProfileSection(id) {
@@ -5184,17 +5344,66 @@ function openProfileSection(id) {
   renderProfile();
 }
 
+function billingPlansMarkup({ status, leads, limit, trialEnded }) {
+  const statusLabel = formatAdminSubStatus(status);
+  const leadLine =
+    status === 'active'
+      ? `${leads} leads · paid`
+      : `${leads}/${limit} trial${trialEnded ? ' · ended' : ''}`;
+
+  const cards = HALO_BILLING_PLANS.map((plan) => {
+    const highlight = plan.features[1] || plan.features[0] || '';
+    const feats = plan.features
+      .map((f) => `<li><span class="bill-ck" aria-hidden="true">✓</span>${escapeHtml(f)}</li>`)
+      .join('');
+    return `<article class="bill-card${plan.popular ? ' bill-card-hot' : ''}" data-plan="${escapeAttr(plan.id)}">
+      ${plan.badge ? `<div class="bill-badge">${escapeHtml(plan.badge)}</div>` : ''}
+      <h3 class="bill-name">${escapeHtml(plan.name)}</h3>
+      <div class="bill-price-row">
+        <span class="bill-price">${escapeHtml(plan.price)}</span>
+        <span class="bill-period muted">/mo</span>
+      </div>
+      <p class="bill-highlight muted">${escapeHtml(highlight)}</p>
+      <details class="bill-details">
+        <summary>Details</summary>
+        <ul class="bill-feats">${feats}</ul>
+      </details>
+      <button type="button" class="btn${plan.popular ? '' : ' ghost'} bill-cta" data-plan-cta="${escapeAttr(plan.id)}" title="Choose ${escapeAttr(plan.name)}">
+        Choose
+      </button>
+    </article>`;
+  }).join('');
+
+  return `
+    <div class="bill-wrap">
+      <div class="bill-status-bar">
+        <div class="bill-status-value">
+          <span class="admin-pill admin-pill-${escapeAttr(String(status || 'trial').toLowerCase())}">${escapeHtml(statusLabel)}</span>
+          <span class="muted">${escapeHtml(leadLine)}</span>
+        </div>
+        <button type="button" class="btn ghost btn-sm" id="btn-stripe-portal" title="Stripe Customer Portal">Manage</button>
+      </div>
+      <div class="bill-grid">${cards}</div>
+      <details class="bill-meta">
+        <summary>Trial &amp; billing notes</summary>
+        <p>Trial: 14 days · Growth features · up to 100 leads · no card. After trial, sending pauses until you subscribe.</p>
+        <p id="stripe-billing-hint" class="muted">Checkout wires to Stripe next. Manage works once Stripe is configured.</p>
+      </details>
+      <button type="button" class="btn hidden" id="btn-stripe-checkout" aria-hidden="true">Subscribe</button>
+    </div>`;
+}
+
 function renderProfile() {
   const section = openProfileTile || profileTileFromHash();
   openProfileTile = section;
   const titles = {
     general: ['General', 'Account details for this cabinet'],
     integrations: ['Integrations', 'API keys, LLM, Telegram'],
-    billing: ['Billing', 'Trial, subscription, and Stripe'],
+    billing: ['Billing', 'Plans & subscription'],
     admin: ['Admin', 'HALO cabinets, leads, and support inbox'],
   };
   if (section && titles[section]) setPageHeader(titles[section][0], titles[section][1]);
-  else setPageHeader('Profile', 'Account, billing, and integrations');
+  else setPageHeader('Settings', 'Account, billing, and integrations');
   titleEl.title = section && titles[section] ? titles[section][1] : 'Account, billing, and integrations';
   view.innerHTML = `<div class="card"><p class="muted">Loading account…</p></div>`;
   fetch('/api/auth/me', { credentials: 'same-origin' })
@@ -5214,9 +5423,9 @@ function renderProfile() {
       const showAdmin = me.isWaffiAdmin === true;
 
       const backBtn = `
-        <button type="button" class="profile-back" id="btn-profile-back" aria-label="Back to Profile">
+        <button type="button" class="profile-back" id="btn-profile-back" aria-label="Back to Settings">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M14.7 6.3a1 1 0 0 1 0 1.4L10.4 12l4.3 4.3a1 1 0 1 1-1.4 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.4 0z"/></svg>
-          <span>Back to Profile</span>
+          <span>Back to Settings</span>
         </button>`;
 
       const wireBillingAndLogout = () => {
@@ -5238,6 +5447,12 @@ function renderProfile() {
             toast(e.message, true);
           }
         });
+        document.querySelectorAll('[data-plan-cta]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const plan = btn.getAttribute('data-plan-cta') || 'growth';
+            toast(`“${plan}” checkout wires next — Stripe multi-price coming soon.`, false, 4500);
+          });
+        });
         document.getElementById('btn-logout-cabinet')?.addEventListener('click', async () => {
           await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
           location.href = '/login.html';
@@ -5247,8 +5462,8 @@ function renderProfile() {
             const hint = document.getElementById('stripe-billing-hint');
             if (!hint) return;
             hint.textContent = st.configured
-              ? 'Stripe is configured — Subscribe opens Checkout; Manage opens Customer Portal.'
-              : 'Stripe not configured yet. Add STRIPE_SECRET_KEY + STRIPE_PRICE_ID (+ optional STRIPE_WEBHOOK_SECRET) to VPS .env, then restart dashboard.';
+              ? 'Stripe ready — Manage opens the portal.'
+              : 'Stripe not configured yet.';
           })
           .catch(() => {});
       };
@@ -5270,22 +5485,15 @@ function renderProfile() {
             <div class="tile-compact-head" style="margin:0">
               <div>
                 <h3 style="margin:0;font-size:0.95rem">Appearance</h3>
-                <p class="hint" style="margin:4px 0 0">Light theme for the whole H.A.L.O. dashboard</p>
+                <p class="hint" style="margin:4px 0 0">Dashboard color theme</p>
               </div>
-              ${switchEl('halo-theme-light', getHaloTheme() === 'light', 'Use light theme')}
+              ${themeToggleBtnHtml()}
             </div>
           </div>
           <div style="margin-top:16px">
             <button type="button" class="btn ghost" id="btn-logout-cabinet">Sign out of cabinet</button>
           </div>`;
-        const billingBody = `
-          <p class="muted card-lead">Trial includes ${limit} CRM leads. Status: <strong>${escapeHtml(status)}</strong>${trialEnded ? ' · trial limit reached' : ''}.</p>
-          <p style="margin:10px 0 16px">Leads in this cabinet: <strong>${leads}</strong> / ${status === 'active' ? '∞' : limit}</p>
-          <div class="row" style="gap:10px;flex-wrap:wrap">
-            <button type="button" class="btn" id="btn-stripe-checkout">Subscribe with Stripe</button>
-            <button type="button" class="btn ghost" id="btn-stripe-portal">Manage billing</button>
-          </div>
-          <p class="muted" id="stripe-billing-hint" style="margin-top:12px;font-size:0.82rem">Stripe keys are not required yet — buttons show a clear message until you add them to .env.</p>`;
+        const billingBody = billingPlansMarkup({ status, leads, limit, trialEnded });
         const body =
           section === 'general'
             ? generalBody
@@ -5294,11 +5502,11 @@ function renderProfile() {
               : section === 'admin'
                 ? `<div id="profile-admin-body"><p class="muted">Loading cabinets…</p></div>`
                 : `<div id="profile-integrations-body" class="profile-integrations-page"></div>`;
-        const wide = section === 'integrations' || section === 'admin';
+        const wide = section === 'integrations' || section === 'admin' || section === 'billing';
         view.innerHTML = `
           <div class="profile-page${wide ? ' profile-page-wide' : ''}">
             ${backBtn}
-            <div class="profile-page-card card${wide ? ' profile-page-card-flush' : ''}">${body}</div>
+            <div class="profile-page-card card${wide ? ' profile-page-card-flush' : ''}${section === 'billing' ? ' bill-page-card' : ''}">${body}</div>
           </div>`;
         document.getElementById('btn-profile-back')?.addEventListener('click', () => openProfileSection(''));
         if (section === 'integrations') {
@@ -5311,11 +5519,12 @@ function renderProfile() {
           renderAdminPanel(document.getElementById('profile-admin-body'));
         } else {
           wireBillingAndLogout();
-          const themeSw = document.getElementById('halo-theme-light');
-          if (themeSw) {
-            themeSw.onchange = () => {
-              applyHaloTheme(themeSw.checked ? 'light' : 'dark');
-              toast(themeSw.checked ? 'Light theme on' : 'Dark theme on');
+          const themeBtn = document.getElementById('btn-theme-toggle');
+          if (themeBtn) {
+            themeBtn.onclick = () => {
+              const next = getHaloTheme() === 'light' ? 'dark' : 'light';
+              applyHaloTheme(next);
+              toast(next === 'light' ? 'Light theme on' : 'Dark theme on');
             };
           }
         }
@@ -5343,7 +5552,7 @@ function renderProfile() {
         <div class="profile-tiles" id="profile-tiles">
           ${tileBtn('general', 'General', ICONS.general, 'Account details for this cabinet')}
           ${tileBtn('integrations', 'Integrations', ICONS.integrations, 'API keys, LLM, Telegram')}
-          ${tileBtn('billing', 'Billing', ICONS.billing, 'Trial, subscription, and Stripe')}
+          ${tileBtn('billing', 'Billing', ICONS.billing, 'Plans, trial, and subscription')}
           ${showAdmin ? tileBtn('admin', 'Admin', ICONS.admin, 'Cabinets, leads, and support inbox') : ''}
         </div>`;
 
@@ -5799,12 +6008,59 @@ function wireIntegrationsUi(root = view) {
       }
     };
   });
+  root.querySelectorAll('[data-llm-reveal]').forEach((btn) => {
+    btn.onclick = async () => {
+      const key = btn.dataset.llmReveal;
+      const input = root.querySelector(`input[data-set="${CSS.escape(key)}"]`);
+      try {
+        if (secretVisible[key]) {
+          secretVisible[key] = false;
+          if (input) {
+            revealed[key] = input.value;
+            input.type = 'password';
+          }
+          btn.title = 'Show key';
+          btn.setAttribute('aria-label', 'Show key');
+          btn.innerHTML =
+            '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2.5A2.5 2.5 0 1 0 12 9a2.5 2.5 0 0 0 0 5z"/></svg>';
+          return;
+        }
+        if (revealed[key] == null || revealed[key] === '') {
+          const data = await api('/api/secrets/reveal', { method: 'POST', body: JSON.stringify({ key }) });
+          revealed[key] = data.value || '';
+          if (input) input.value = revealed[key];
+        }
+        secretVisible[key] = true;
+        if (input) {
+          input.type = 'text';
+          input.value = revealed[key] || input.value;
+        }
+        btn.title = 'Hide key';
+        btn.setAttribute('aria-label', 'Hide key');
+        btn.innerHTML =
+          '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2.1 3.5 3.5 2.1 21.9 20.5 20.5 21.9l-3.1-3.1A12.4 12.4 0 0 1 12 19c-7 0-10-7-10-7a18.7 18.7 0 0 1 4.7-5.3L2.1 3.5zM12 7a5 5 0 0 1 4.9 4.1l-1.6-1.6A2.5 2.5 0 0 0 12.5 8L12 7zm9.3 5s-1.2 2.8-3.7 4.6l-1.5-1.5A12 12 0 0 0 20.3 12H21.3z"/></svg>';
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+  });
+  root.querySelectorAll('input[data-llm-secret]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const key = input.dataset.set;
+      if (key) revealed[key] = input.value;
+    });
+  });
+  void hydrateLlmSecretsInView(root);
   root.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.onclick = async () => {
       const key = btn.dataset.copy;
       try {
         let val = revealed[key];
-        if (val == null) {
+        if (val == null || val === '') {
+          const input = root.querySelector(`input[data-set="${CSS.escape(key)}"]`);
+          if (input?.value) val = input.value;
+        }
+        if (val == null || val === '') {
           const data = await api('/api/secrets/reveal', { method: 'POST', body: JSON.stringify({ key }) });
           val = data.value || '';
           revealed[key] = val;
@@ -5825,7 +6081,7 @@ function wireIntegrationsUi(root = view) {
 }
 
 function renderIntegrations() {
-  // Legacy nav target → Profile → Integrations
+  // Legacy nav target → Settings → Integrations
   page = 'profile';
   location.hash = '#profile-integrations';
   renderProfile();
@@ -5941,7 +6197,7 @@ function collectPatch() {
 async function save({ restart = false } = {}) {
   if (restart && settings) {
     if (settings.llmRolesConfigured === false) {
-      toast('Add Researcher, Copywriter, and Inspector API keys in Profile → Integrations → LLM before restarting.', true, 7000);
+      toast('Add Researcher, Copywriter, and Inspector API keys in Settings → Integrations → LLM before restarting.', true, 7000);
       page = 'profile';
       openProfileTile = 'integrations';
       location.hash = '#profile-integrations';
