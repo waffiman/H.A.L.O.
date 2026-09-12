@@ -17,6 +17,14 @@ create table if not exists public.halo_tenants (
   trial_lead_limit int not null default 50,
   stripe_customer_id text not null default '',
   stripe_subscription_id text not null default '',
+  support_attention boolean not null default false,
+  support_attention_at timestamptz,
+  error_attention boolean not null default false,
+  error_attention_at timestamptz,
+  error_attention_until timestamptz,
+  error_attention_reason text not null default '',
+  user_unread_support boolean not null default false,
+  user_unread_support_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

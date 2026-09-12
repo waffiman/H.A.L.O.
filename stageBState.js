@@ -6,16 +6,19 @@
  * Optional STAGE_B_BROWSER_MIN_MS (>0) raises a floor: max(tick, floor).
  */
 import fs from 'fs';
-import path from 'path';
+import { stageBStateFile } from './dataRoot.js';
 
-const STATE_PATH = path.join(process.cwd(), 'stage_b_state.json');
+function statePath() {
+  return stageBStateFile();
+}
+
 /** User-facing minimum Stage B interval (> 5 minutes). */
 export const STAGE_B_MIN_GAP_MS = 6 * 60 * 1000;
 
 export function loadStageBState() {
   try {
-    if (fs.existsSync(STATE_PATH)) {
-      return JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
+    if (fs.existsSync(statePath())) {
+      return JSON.parse(fs.readFileSync(statePath(), 'utf8'));
     }
   } catch {
     /* ignore */
@@ -24,7 +27,7 @@ export function loadStageBState() {
 }
 
 export function saveStageBState(state) {
-  fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+  fs.writeFileSync(statePath(), JSON.stringify(state, null, 2));
 }
 
 export function stageBBaseIntervalMs() {

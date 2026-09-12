@@ -1,27 +1,33 @@
 /**
- * Phase 0.5: Proposal 1️⃣ leads with Link but no Ice-breaker
- * → Apify profile scrape → salesBrain ice_breaker → Notion Name + Ice-breaker + Processing at (UTC)
+ * Phase 0.5: messageable Lead😴 with Link but no Ice-breaker
+ * → Apify profile scrape → salesBrain ice_breaker → CRM Name + Ice-breaker + Processing at (UTC)
  */
 import * as crm from './crmStore.js';
 import { generateSalesMessage } from './salesBrain.js';
 import { hasRealIceBreaker, isTemplateIceBreaker, sanitizeIceBreaker } from './messageQuality.js';
 import { timezoneFromLocation } from './locationTimezone.js';
+import { STATUS_LEAD, isLeadReadyForIcePipeline } from './crm/constants.js';
 
 export { hasRealIceBreaker, isTemplateIceBreaker, sanitizeIceBreaker };
 
-const STATUS_PROPOSAL_1 = 'Proposal 1️⃣';
 const APIFY_ACTOR = process.env.APIFY_ACTOR || 'apimaestro~linkedin-profile-detail';
 const ENRICH_MAX = Number(process.env.ENRICH_MAX_PER_RUN || 10);
 const APIFY_PAUSE_MS = Number(process.env.APIFY_PAUSE_MS || 2500);
 
 function apifyTokens() {
-  const tokens = [
-    process.env.APIFY_TOKEN_1,
-    process.env.APIFY_TOKEN_2,
-    process.env.APIFY_TOKEN_3,
-    process.env.APIFY_TOKEN,
-  ].filter(Boolean);
-  return [...new Set(tokens)];
+  const out = [];
+  const seen = new Set();
+  const add = (raw) => {
+    const v = String(raw || '').trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    out.push(v);
+  };
+  // Shared platform pool: APIFY_TOKEN_1 … APIFY_TOKEN_20 (failover when quota hits)
+  for (let i = 1; i <= 20; i++) add(process.env[`APIFY_TOKEN_${i}`]);
+  add(process.env.APIFY_TOKEN);
+  for (const part of String(process.env.APIFY_TOKENS || '').split(/[,\s]+/)) add(part);
+  return out;
 }
 
 /** LinkedIn URL → username/slug for Apify */
@@ -41,10 +47,10 @@ async function sleep(ms) {
 }
 
 /**
- * Fetch leads in Proposal 1️⃣ that still need Ice-breaker.
+ * Fetch messageable Lead😴 that still need Ice-breaker (accepted / ready marker / ice leftovers).
  */
 export async function getLeadsNeedingEnrich() {
-  const results = await crm.listByStatus(STATUS_PROPOSAL_1);
+  const results = await crm.listByStatus(STATUS_LEAD);
 
   const target = (process.env.TARGET_LINKEDIN_URL || '').trim().toLowerCase();
   const targetSlug = target
@@ -57,10 +63,12 @@ export async function getLeadsNeedingEnrich() {
       name: l.name,
       url: l.url,
       ice: l.msg || '',
+      notes: l.notes || '',
       processingAt: l.processingAt,
     }))
     .filter((l) => {
       if (!l.url.includes('linkedin.com') || hasRealIceBreaker(l.ice)) return false;
+      if (!isLeadReadyForIcePipeline(l, { hasIce: () => false })) return false;
       if (!targetSlug) return true;
       const slug = l.url.replace(/\/+$/, '').split('/in/').pop()?.split(/[/?#]/)[0] || '';
       return slug.toLowerCase() === targetSlug;
@@ -97,7 +105,7 @@ export async function scrapeLinkedInProfile(url) {
   const slug = linkedInSlug(url);
   if (!slug) throw new Error(`Bad LinkedIn URL: ${url}`);
   const tokens = apifyTokens();
-  if (tokens.length === 0) throw new Error('No APIFY_TOKEN_1 / APIFY_TOKEN_2 in env');
+  if (tokens.length === 0) throw new Error('No shared Apify tokens in env (APIFY_TOKEN_1…)');
 
   let lastErr;
   for (let i = 0; i < tokens.length; i++) {
@@ -181,7 +189,7 @@ export function preferFullerPersonName(existingName, incomingName) {
 }
 
 /**
- * Enrich must not overwrite Name already set in CRM (e.g. after accept → Proposal 1️⃣).
+ * Enrich must not overwrite Name already set in CRM (e.g. after accept → Lead ready).
  * Returns nameForNotion=null when CRM name should be kept; ice-breaker still uses CRM name.
  */
 export function resolveEnrichDisplayName(crmName, apifyName) {
@@ -213,7 +221,7 @@ export async function updateNotionNameAndIceBreaker(
 }
 
 /**
- * Enrich a single Proposal 1️⃣ lead (Apify + LLM ice-breaker).
+ * Enrich a single messageable Lead😴 (Apify + LLM ice-breaker).
  * @returns {{ ok: boolean, lead?: object, error?: string }}
  */
 export async function enrichOneLead(lead) {
@@ -281,12 +289,12 @@ export async function enrichOneLead(lead) {
 }
 
 /**
- * Enrich all Proposal 1️⃣ leads missing a real Ice-breaker (capped per run).
+ * Enrich all messageable Lead😴 missing a real Ice-breaker (capped per run).
  */
 export async function enrichProposal1Leads() {
   console.log('--- Phase 0.5: Apify enrich + LLM Ice-breaker ---');
   if (apifyTokens().length === 0) {
-    console.error('Phase 0.5 skipped: set APIFY_TOKEN_1 / APIFY_TOKEN_2');
+    console.error('Phase 0.5 skipped: no shared Apify tokens (APIFY_TOKEN_1…)');
     return { ok: 0, failed: 0, skipped: 0 };
   }
   if (!process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {

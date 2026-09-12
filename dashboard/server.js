@@ -35,7 +35,7 @@ import {
   tenantPublic,
   ensureSessionSecret,
 } from './lib/tenantAuth.js';
-import { getTenantByEmail, countLeadsForWorkspace, createTenant, assertTrialAllowsNewLead } from './lib/tenants.js';
+import { getTenantByEmail, countLeadsForWorkspace, createTenant, assertTrialAllowsNewLead, waffiWorkspaceId } from './lib/tenants.js';
 import { readEnvFile } from './lib/env.js';
 import { ensureTenantRuntime, allocateWorkspaceId } from './lib/tenantRuntime.js';
 import { browserLockStatus } from './lib/browserQueue.js';
@@ -55,6 +55,12 @@ import {
   startSupabaseKeepaliveScheduler,
 } from './lib/supabaseKeepalive.js';
 import {
+  startTenantOrchestrator,
+  tenantOrchestratorStatus,
+  listLinkedInCabinets,
+  MAX_LINKEDIN_CABINETS,
+} from './lib/tenantOrchestrator.js';
+import {
   handleTelegramWebhook,
   registerTelegramWebhook,
   getBotAvatarCached,
@@ -71,6 +77,22 @@ import {
   startDashboardLinkedInLogin,
   startRepairWorkerSync,
 } from './lib/sessionRepair.js';
+import {
+  listMessages,
+  sendMessage,
+  markUserSupportRead,
+  markStaffSupportRead,
+  getUserUnreadSupport,
+  flagTenantError,
+  attachSupportRealtime,
+  isSupportStaff,
+  isWaffiAdmin,
+  getAdminOverview,
+  deleteSupportMessage,
+  deleteCabinets,
+  getSupportAttachment,
+  MAX_SUPPORT_IMAGE_BYTES,
+} from './lib/supportChat.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -119,7 +141,7 @@ app.post(
   }
 );
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '4mb' }));
 
 /** Telegram Bot API webhook — must not require dashboard Basic auth. */
 app.post('/api/telegram/webhook/:secret?', async (req, res) => {
@@ -433,6 +455,7 @@ app.get('/api/auth/me', async (req, res) => {
       tenant: full ? tenantPublic(full) : tenantPublic(req.tenant),
       leadCount: leads,
       via: req.tenant.via || 'session',
+      isWaffiAdmin: isWaffiAdmin(full || req.tenant),
       automation: lock.held
         ? { busy: true, owner: lock.owner, workspaceId: lock.workspaceId }
         : { busy: false },
@@ -508,13 +531,18 @@ app.post('/api/billing/portal', async (req, res) => {
   }
 });
 
+function waffiWorkspaceIdFallback() {
+  return waffiWorkspaceId();
+}
+
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'outreach-dashboard' });
 });
 
 app.get('/api/settings', (req, res) => {
   try {
-    const view = buildSettingsView();
+    const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+    const view = buildSettingsView(ws);
     const isOwner = req.tenant?.role === 'owner';
     res.json({ ok: true, settings: isOwner ? view : redactSettingsForTenant(view) });
   } catch (e) {
@@ -524,7 +552,8 @@ app.get('/api/settings', (req, res) => {
 
 app.post('/api/settings', requireOwner, (req, res) => {
   try {
-    const settings = applyDashboardPatch(req.body || {});
+    const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+    const settings = applyDashboardPatch(req.body || {}, ws);
     res.json({ ok: true, settings });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
@@ -541,7 +570,8 @@ app.post('/api/settings/switches', requireOwner, (req, res) => {
     if (typeof body.stageBEnabled === 'boolean') patch.stageBEnabled = body.stageBEnabled;
     if (body._masterSource === true) patch._masterSource = true;
     if (body.channels && typeof body.channels === 'object') patch.channels = body.channels;
-    const settings = applyDashboardPatch(patch);
+    const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+    const settings = applyDashboardPatch(patch, ws);
     res.json({ ok: true, settings });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
@@ -743,6 +773,241 @@ app.post('/api/notifications/read-all', requireOwner, (_req, res) => {
   res.json(markAllNotificationsRead());
 });
 
+function resolveSupportWorkspace(req) {
+  const own = String(req.tenant?.workspaceId || '').trim();
+  const requested = String(req.query?.workspaceId || req.body?.workspaceId || '').trim();
+  const forceSupport =
+    req.body?.asSupport === true ||
+    req.body?.asSupport === '1' ||
+    String(req.query?.asSupport || '') === '1';
+  if (!own) return { error: 'Sign in required', status: 401 };
+
+  // FAB / user chat: no workspaceId → always post as the signed-in user
+  if (!requested) return { workspaceId: own, asSupport: false };
+
+  // Admin panel always sends workspaceId (including WAFFi's own cabinet).
+  // Replies must be author=support even when requested === own.
+  if (requested === own) {
+    if (forceSupport || isWaffiAdmin(req.tenant)) {
+      if (!isWaffiAdmin(req.tenant)) {
+        return { error: 'Only WAFFi admin can reply as support', status: 403 };
+      }
+      return { workspaceId: own, asSupport: true };
+    }
+    return { workspaceId: own, asSupport: false };
+  }
+
+  if (!isWaffiAdmin(req.tenant)) {
+    return { error: 'Only WAFFi admin can open another cabinet chat', status: 403 };
+  }
+  return { workspaceId: requested, asSupport: true };
+}
+
+function requireWaffiAdmin(req) {
+  if (!req.tenant?.workspaceId) return { error: 'Sign in required', status: 401 };
+  if (!isWaffiAdmin(req.tenant)) {
+    return { error: 'Admin panel is only available on the WAFFi cabinet', status: 403 };
+  }
+  return null;
+}
+
+app.get('/api/admin/overview', async (req, res) => {
+  try {
+    const denied = requireWaffiAdmin(req);
+    if (denied) return res.status(denied.status).json({ ok: false, error: denied.error });
+    const overview = await getAdminOverview();
+    res.json(overview);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/admin/support/mark-read', async (req, res) => {
+  try {
+    const denied = requireWaffiAdmin(req);
+    if (denied) return res.status(denied.status).json({ ok: false, error: denied.error });
+    const ws = String(req.body?.workspaceId || '').trim();
+    if (!ws) return res.status(400).json({ ok: false, error: 'workspaceId required' });
+    await markStaffSupportRead(ws);
+    res.json({ ok: true, workspaceId: ws });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/admin/support/messages/:id', async (req, res) => {
+  try {
+    const denied = requireWaffiAdmin(req);
+    if (denied) return res.status(denied.status).json({ ok: false, error: denied.error });
+    const out = await deleteSupportMessage(req.params.id);
+    res.json(out);
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/admin/cabinets/delete', async (req, res) => {
+  try {
+    const denied = requireWaffiAdmin(req);
+    if (denied) return res.status(denied.status).json({ ok: false, error: denied.error });
+    const ids = Array.isArray(req.body?.workspaceIds) ? req.body.workspaceIds : [];
+    const out = await deleteCabinets(ids);
+    res.json(out);
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/support/status', async (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) {
+      return res.status(401).json({ ok: false, error: 'Sign in required' });
+    }
+    const unread = await getUserUnreadSupport(req.tenant.workspaceId);
+    res.json({ ok: true, unreadFromSupport: unread });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/support/messages', async (req, res) => {
+  try {
+    const scope = resolveSupportWorkspace(req);
+    if (scope.error) return res.status(scope.status).json({ ok: false, error: scope.error });
+    const messages = await listMessages(scope.workspaceId);
+    res.json({ ok: true, workspaceId: scope.workspaceId, messages });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/support/messages', async (req, res) => {
+  try {
+    const scope = resolveSupportWorkspace(req);
+    if (scope.error) return res.status(scope.status).json({ ok: false, error: scope.error });
+    const finalAuthor = scope.asSupport ? 'support' : 'user';
+    const full = await getTenantByEmail(req.tenant.email).catch(() => null);
+    const message = await sendMessage({
+      workspaceId: scope.workspaceId,
+      author: finalAuthor,
+      body: req.body?.body,
+      image: req.body?.image || null,
+      tenantEmail: req.tenant.email,
+      displayName: full?.displayName || req.tenant.email,
+    });
+    res.json({ ok: true, message, maxImageBytes: MAX_SUPPORT_IMAGE_BYTES });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/support/attachment/:id', async (req, res) => {
+  try {
+    const scope = resolveSupportWorkspace(req);
+    if (scope.error) return res.status(scope.status).json({ ok: false, error: scope.error });
+    const file = await getSupportAttachment(req.params.id);
+    if (file.workspaceId !== scope.workspaceId) {
+      return res.status(403).json({ ok: false, error: 'Forbidden' });
+    }
+    res.setHeader('Content-Type', file.mime);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${String(file.name || 'image').replace(/"/g, '')}"`
+    );
+    res.send(file.buffer);
+  } catch (e) {
+    res.status(404).json({ ok: false, error: e.message });
+  }
+});
+
+/** User opened chat — clear FAB red dot. */
+app.post('/api/support/mark-read', async (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) {
+      return res.status(401).json({ ok: false, error: 'Sign in required' });
+    }
+    await markUserSupportRead(req.tenant.workspaceId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/support/report-error', async (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) {
+      return res.status(401).json({ ok: false, error: 'Sign in required' });
+    }
+    let ws = req.tenant.workspaceId;
+    if (req.body?.workspaceId && isSupportStaff(req.tenant)) {
+      ws = String(req.body.workspaceId).trim() || ws;
+    }
+    const out = await flagTenantError(ws, {
+      title: req.body?.title || 'Reported error',
+      message: req.body?.message || '',
+    });
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/** Live chat updates — Realtime push while panel is open (no background poll). */
+app.get('/api/support/stream', async (req, res) => {
+  try {
+    const scope = resolveSupportWorkspace(req);
+    if (scope.error) return res.status(scope.status).json({ ok: false, error: scope.error });
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+    const messages = await listMessages(scope.workspaceId);
+    res.write(`data: ${JSON.stringify({ type: 'snapshot', messages, workspaceId: scope.workspaceId })}\n\n`);
+
+    const cleanup = attachSupportRealtime(scope.workspaceId, (evt) => {
+      try {
+        res.write(`data: ${JSON.stringify(evt)}\n\n`);
+      } catch {
+        /* closed */
+      }
+    });
+
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`: ping\n\n`);
+      } catch {
+        /* closed */
+      }
+    }, 25000);
+
+    const close = () => {
+      clearInterval(heartbeat);
+      cleanup();
+      try {
+        res.end();
+      } catch {
+        /* ignore */
+      }
+    };
+    req.on('close', close);
+    req.on('aborted', close);
+  } catch (e) {
+    if (!res.headersSent) res.status(500).json({ ok: false, error: e.message });
+    else {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'error', error: e.message })}\n\n`);
+        res.end();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+});
+
 app.post('/api/secrets/reveal', requireOwner, (req, res) => {
   try {
     const key = String(req.body?.key || '');
@@ -829,7 +1094,8 @@ app.get('/api/linkedin/repair/link', requireOwner, (_req, res) => {
 app.post('/api/linkedin/session/login', requireOwner, (req, res) => {
   try {
     const { username, password } = req.body || {};
-    const result = startDashboardLinkedInLogin(username, password);
+    const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+    const result = startDashboardLinkedInLogin(username, password, ws);
     res.json(result);
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
@@ -853,6 +1119,23 @@ app.get('/api/linkedin/session/login/status', (req, res) => {
 app.get('/api/supabase/keepalive', requireOwner, (_req, res) => {
   try {
     res.json({ ok: true, keepalive: getSupabaseKeepaliveStatus() });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/tenants/linkedin', async (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) {
+      return res.status(401).json({ ok: false, error: 'Sign in required' });
+    }
+    const cabinets = await listLinkedInCabinets();
+    res.json({
+      ok: true,
+      maxCabinets: MAX_LINKEDIN_CABINETS,
+      cabinets,
+      orchestrator: tenantOrchestratorStatus(),
+    });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -902,6 +1185,7 @@ if (secretBoot.created) {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`outreach-dashboard listening on :${PORT}`);
   startSupabaseKeepaliveScheduler();
+  startTenantOrchestrator();
   registerTelegramWebhook().catch((e) => console.warn('[telegram] webhook init:', e.message || e));
   warmBotAvatarCache().catch((e) => console.warn('[telegram] avatar warm:', e.message || e));
 });

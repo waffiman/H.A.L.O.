@@ -1,13 +1,14 @@
 const ICONS = {
-  dashboard: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h8v8H3v-8zm10 7h8v-8h-8v8z"/></svg>',
+  dashboard: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 12 L17.2 8.2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round"/><circle cx="12" cy="12" r="1.55" fill="currentColor"/><path d="M6.2 15.8 A7.2 7.2 0 0 1 17.8 15.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/><path d="M7.1 14.6 A5.8 5.8 0 0 1 12 7.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
   crm: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
   linkedin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 8.5A2 2 0 1 1 6.5 4.5a2 2 0 0 1 0 4zM4.75 10h3.5V20h-3.5V10zM13 10.2c1.4-1.5 3.7-1.6 5.2-.3.8.7 1.3 1.8 1.3 3V20h-3.5v-5.5c0-1-.4-1.7-1.3-1.7-.9 0-1.4.6-1.4 1.7V20H9.8V10h3.4v.2z"/></svg>',
   instagram: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm5 4.5A4.5 4.5 0 1 0 16.5 12 4.5 4.5 0 0 0 12 7.5zm6.25-.75a1.1 1.1 0 1 0 1.1 1.1 1.1 1.1 0 0 0-1.1-1.1zM12 9.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/></svg>',
   facebook: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v6h3v-6h2.6l.4-3H13v-2c0-.6.4-1 1-1z"/></svg>',
   integrations: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>',
-  profile: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="12" cy="9" r="3.1" fill="currentColor"/><path fill="currentColor" d="M6.4 18.1c1.45-2.35 3.35-3.45 5.6-3.45s4.15 1.1 5.6 3.45C16 19.15 14.1 19.75 12 19.75s-4-.6-5.6-1.65z"/></svg>',
+  profile: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.24l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.25.1.54 0 .68-.24l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>',
   billing: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>',
   general: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="12" cy="9" r="3.1" fill="currentColor"/><path fill="currentColor" d="M6.4 18.1c1.45-2.35 3.35-3.45 5.6-3.45s4.15 1.1 5.6 3.45C16 19.15 14.1 19.75 12 19.75s-4-.6-5.6-1.65z"/></svg>',
+  admin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 3.18 6 2.67v4.6c0 3.9-2.5 7.54-6 8.86-3.5-1.32-6-4.96-6-8.86v-4.6l6-2.67zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/></svg>',
   brain: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M11.5 3C10.12 3 8.9 3.73 8.18 4.84 6.86 5.17 5.75 6.38 5.75 7.85c0 .52.14 1.01.39 1.43C4.68 10.42 4.25 11.38 4.25 12.42c0 2.07 1.68 3.75 3.75 3.75.35 0 .68-.05 1-.14.61.81 1.57 1.29 2.62 1.29 1.05 0 2.01-.48 2.62-1.29.32.09.65.14 1 .14 2.07 0 3.75-1.68 3.75-3.75 0-1.04-.43-2-.89-2.64.25-.42.39-.91.39-1.43 0-1.47-1.11-2.68-2.43-3.01C14.1 3.73 12.88 3 11.5 3zm0 2c.55 0 1.04.28 1.33.71-.4-.15-.82-.23-1.26-.23-1.05 0-1.98.55-2.5 1.38-.22-.36-.57-.61-.99-.73.28-.72 1-1.23 1.84-1.23h1.58zm1 0h1.58c.84 0 1.56.51 1.84 1.23-.42.12-.77.37-.99.73-.52-.83-1.45-1.38-2.5-1.38-.44 0-.86.08-1.26.23.29-.43.78-.71 1.33-.71zM8.5 11a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm7 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm-3.5 2.75c.97 0 1.75.78 1.75 1.75 0 .2-.03.39-.09.57-.44-.32-.98-.5-1.56-.5-.58 0-1.12.18-1.56.5-.06-.18-.09-.37-.09-.57 0-.97.78-1.75 1.75-1.75z"/></svg>',
   /** Transparent-bg Notion mark (from user asset); inverted via CSS on dark UI */
   notionImg: '<img src="/notion-icon.png" alt="" class="notion-btn-icon" width="14" height="14" />',
@@ -22,7 +23,7 @@ const NAV = [
   { id: 'linkedin', label: 'LinkedIn', title: 'LinkedIn channel settings and session' },
   { id: 'instagram', label: 'Instagram', title: 'Instagram channel (coming soon)' },
   { id: 'facebook', label: 'Facebook', title: 'Facebook channel (coming soon)' },
-  { id: 'profile', label: 'Profile', title: 'Account, billing, and integrations' },
+  { id: 'profile', label: 'Settings', title: 'Account, billing, and integrations' },
   { id: 'brain', label: 'Brain', title: 'Sales Brain — master prompt and strategy analysis' },
   { id: 'faq', label: 'FAQ', title: 'Setup guide and quick answers' },
 ];
@@ -30,6 +31,8 @@ const NAV = [
 let settings = null;
 let counts = null;
 let page = 'dashboard';
+/** @type {{ email?: string, workspaceId?: string, role?: string, displayName?: string, userUnreadSupport?: boolean } | null} */
+let haloMe = null;
 /** Working copy of Book-a-call weekly schedule (Sales Brain). */
 let brainBookingDraft = null;
 const BOOKING_WEEK_DAYS = [
@@ -57,10 +60,22 @@ const BOOKING_TZ_OPTIONS = [
   'Australia/Sydney',
 ];
 let revealed = {};
+/** LLM key fields: true = show plaintext in the input */
+let secretVisible = {};
 let openIntegrationGroups = {};
 /** Profile accordion: 'general' | 'integrations' | 'billing' | '' */
 let openProfileTile = '';
-const CRM_STATUSES = ['Lead😴', 'Proposal 1️⃣', 'Proposal 2️⃣', 'Active ✅', 'Lost❌'];
+const CRM_STATUSES = ['Lead😴', 'Conversation 💬', 'Active ✅', 'Lost❌'];
+const CRM_STATUS_HINTS = {
+  'Lead😴':
+    'Invite sent and waiting to accept — or already accepted and still in enrich / ice-breaker before the first DM.',
+  'Conversation 💬':
+    'Ice-breaker already sent. Stage B watches replies and continues the thread here.',
+  'Active ✅':
+    'Sales outcome met (for example a call booked). Keep for won deals and handoff.',
+  'Lost❌':
+    'Closed out — not interested, silence follow-up, connect never accepted, or similar.',
+};
 const CRM_LOST_REASONS = [
   { id: 'not_interested', label: 'Not interested' },
   { id: 'wrong_person', label: 'Wrong person' },
@@ -544,10 +559,62 @@ function unitSelect(id, unit) {
 const NAV_GROUPS = [
   { label: 'Overview', ids: ['dashboard', 'crm'] },
   { label: 'Channels', ids: ['linkedin', 'instagram', 'facebook'] },
-  { label: 'Settings', ids: ['profile'] },
+  { label: 'Account', ids: ['profile'] },
   { label: 'Help', ids: ['faq'] },
 ];
 
+/** Public pricing cards (design). Stripe price IDs wired later. */
+const HALO_BILLING_PLANS = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: '€99',
+    period: 'per month',
+    blurb: 'Solo founders proving LinkedIn outbound',
+    badge: '',
+    features: [
+      '1 LinkedIn seat',
+      'Up to 250 CRM leads',
+      'Stage A + Stage B',
+      'Sales Brain + Book a call',
+      'Shared Apify enrich',
+      'Email support',
+    ],
+  },
+  {
+    id: 'growth',
+    name: 'Growth',
+    price: '€179',
+    period: 'per month',
+    blurb: 'Operators running outreach every week',
+    badge: 'Most popular',
+    popular: true,
+    features: [
+      'Everything in Starter',
+      'Up to 1,000 CRM leads',
+      'Higher Stage A cycle budget',
+      'Priority support (chat)',
+      'Strategy notes / Brain analysis',
+      'Annual billing −20% (soon)',
+    ],
+  },
+  {
+    id: 'scale',
+    name: 'Scale',
+    price: '€329',
+    period: 'per month',
+    blurb: 'Agencies & high-volume desks',
+    badge: '',
+    features: [
+      'Everything in Growth',
+      'Up to 3,000 CRM leads',
+      'Priority enrich capacity',
+      'Faster support SLA',
+      'Onboarding call with WAFFi',
+      'Custom limits on request',
+    ],
+  },
+];
 function setPageHeader(title, subtitle = '') {
   titleEl.textContent = title;
   if (subtitleEl) {
@@ -558,8 +625,7 @@ function setPageHeader(title, subtitle = '') {
 
 function crmMetricClass(key) {
   if (key.startsWith('Lead')) return 'metric-lead';
-  if (key.startsWith('Proposal 1')) return 'metric-p1';
-  if (key.startsWith('Proposal 2')) return 'metric-p2';
+  if (key.startsWith('Conversation') || key.startsWith('Proposal 2')) return 'metric-p2';
   if (key.startsWith('Active')) return 'metric-active';
   if (key.startsWith('Lost')) return 'metric-lost';
   return '';
@@ -567,8 +633,7 @@ function crmMetricClass(key) {
 
 function crmStatusColor(key) {
   if (key.startsWith('Lead')) return '#9b9a97';
-  if (key.startsWith('Proposal 1')) return '#529cca';
-  if (key.startsWith('Proposal 2')) return '#9a6dd7';
+  if (key.startsWith('Conversation') || key.startsWith('Proposal 2')) return '#9a6dd7';
   if (key.startsWith('Active')) return '#4dab9a';
   if (key.startsWith('Lost')) return '#e03e3e';
   return '#6b7280';
@@ -576,8 +641,7 @@ function crmStatusColor(key) {
 
 function crmStatusShortLabel(key) {
   if (key.startsWith('Lead')) return 'Lead';
-  if (key.startsWith('Proposal 1')) return 'Proposal 1';
-  if (key.startsWith('Proposal 2')) return 'Proposal 2';
+  if (key.startsWith('Conversation') || key.startsWith('Proposal 2')) return 'Chat';
   if (key.startsWith('Active')) return 'Active';
   if (key.startsWith('Lost')) return 'Lost';
   return key;
@@ -593,18 +657,20 @@ function buildCrmSnapshotDonut(counts = {}) {
     cls: crmMetricClass(key),
   }));
   const total = rows.reduce((s, r) => s + r.val, 0);
-  const r = 40;
+  const r = 52;
+  const vb = 132;
+  const cx = vb / 2;
   const c = 2 * Math.PI * r;
   let offset = 0;
   const arcs =
     total === 0
-      ? `<circle class="dash-donut-empty" cx="54" cy="54" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="11"/>`
+      ? `<circle class="dash-donut-empty" cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="14"/>`
       : rows
           .filter((row) => row.val > 0)
           .map((row) => {
             const len = (row.val / total) * c;
             const dash = `${len} ${c - len}`;
-            const el = `<circle class="dash-donut-seg" data-status="${escapeAttr(row.key)}" cx="54" cy="54" r="${r}" fill="none" stroke="${row.color}" stroke-width="11" stroke-dasharray="${dash}" stroke-dashoffset="${-offset}" stroke-linecap="butt" transform="rotate(-90 54 54)"/>`;
+            const el = `<circle class="dash-donut-seg" data-status="${escapeAttr(row.key)}" cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${row.color}" stroke-width="14" stroke-dasharray="${dash}" stroke-dashoffset="${-offset}" stroke-linecap="butt" transform="rotate(-90 ${cx} ${cx})"/>`;
             offset += len;
             return el;
           })
@@ -624,8 +690,8 @@ function buildCrmSnapshotDonut(counts = {}) {
   return `
     <div class="dash-donut-layout" id="dash-crm-donut">
       <div class="dash-donut-visual">
-        <svg class="dash-donut-svg" viewBox="0 0 108 108" width="96" height="96" aria-hidden="true">
-          <circle cx="54" cy="54" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="11"/>
+        <svg class="dash-donut-svg" viewBox="0 0 ${vb} ${vb}" width="148" height="148" aria-hidden="true">
+          <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14"/>
           ${arcs}
         </svg>
         <div class="dash-donut-center">
@@ -633,7 +699,7 @@ function buildCrmSnapshotDonut(counts = {}) {
           <div class="dash-donut-total-label" id="dash-donut-label">leads</div>
         </div>
       </div>
-      <div class="dash-donut-legend">${legend}</div>
+      <div class="dash-donut-legend" aria-label="CRM legend">${legend}</div>
     </div>`;
 }
 
@@ -1124,7 +1190,10 @@ function crmKanbanHtml() {
     const truncated = !searching && (crmKanban[status] || []).length < totalAll;
     return `<div class="crm-kanban-col ${crmMetricClass(status)}" data-kanban-status="${escapeAttr(status)}">
       <div class="crm-kanban-head">
-        <h4>${escapeHtml(status)}</h4>
+        <div class="crm-kanban-title">
+          <h4>${escapeHtml(status)}</h4>
+          ${infoTip(CRM_STATUS_HINTS[status] || '')}
+        </div>
         <span class="crm-kanban-count" title="${searching ? `${cards.length} match(es)` : `${(crmKanban[status] || []).length} loaded · ${totalAll} total`}">${escapeHtml(countLabel)}</span>
       </div>
       <div class="crm-kanban-cards" data-drop-status="${escapeAttr(status)}">${cards.length
@@ -1298,7 +1367,11 @@ async function fetchCrmLeads() {
       crmKanban = Object.fromEntries(CRM_STATUSES.map((st) => [st, []]));
       crmKanbanTotals = Object.fromEntries(CRM_STATUSES.map((st) => [st, 0]));
       for (const lead of all) {
-        const st = CRM_STATUSES.includes(lead.status) ? lead.status : 'Lead😴';
+        let st = lead.status;
+        if (st === 'Proposal 1️⃣' || st === 'Proposal 1') st = 'Lead😴';
+        if (st === 'Proposal 2️⃣' || st === 'Proposal 2') st = 'Conversation 💬';
+        st = CRM_STATUSES.includes(st) ? st : 'Lead😴';
+        lead.status = st;
         crmKanban[st].push(lead);
       }
       for (const st of CRM_STATUSES) {
@@ -1740,6 +1813,20 @@ function bindCrmToolbar() {
   const searchInput = document.getElementById('crm-search');
   if (searchInput) {
     searchInput.value = crmSearchQ;
+    const unlock = () => searchInput.removeAttribute('readonly');
+    searchInput.addEventListener('focus', unlock);
+    searchInput.addEventListener('pointerdown', unlock);
+    const scrubAutofill = () => {
+      if (crmSearchQ) return;
+      if (searchInput.value) {
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    };
+    scrubAutofill();
+    setTimeout(scrubAutofill, 50);
+    setTimeout(scrubAutofill, 250);
+    setTimeout(scrubAutofill, 800);
     let searchTimer;
     searchInput.oninput = () => {
       clearTimeout(searchTimer);
@@ -1861,6 +1948,7 @@ function renderNav() {
     </button>`;
       })
       .join('');
+    if (!items) return '';
     return `<div class="nav-group"><div class="nav-group-label">${g.label}</div>${items}</div>`;
   }).join('');
   navEl.querySelectorAll('[data-page]').forEach((btn) => {
@@ -1869,7 +1957,7 @@ function renderNav() {
       if (page === 'profile') {
         openProfileTile = '';
         const h = (location.hash || '').replace(/^#/, '');
-        if (/^(profile-)?(general|integrations|billing)$/.test(h)) {
+        if (/^(profile-)?(general|integrations|billing|admin)$/.test(h)) {
           history.replaceState(null, '', location.pathname + location.search);
         }
       }
@@ -3591,10 +3679,13 @@ function renderCrm() {
         </div>
         <div class="crm-toolbar-right">
           ${crmCardPropsMenuHtml()}
-          <label class="field crm-search-field">
-            <span class="sr-only">Search leads</span>
-            <input type="search" id="crm-search" placeholder="Search name or link…" />
-          </label>
+          <form class="crm-search-form" autocomplete="off" onsubmit="return false;">
+            <input type="text" class="crm-autofill-trap" name="username" tabindex="-1" aria-hidden="true" autocomplete="username" value="" />
+            <label class="field crm-search-field">
+              <span class="sr-only">Search leads</span>
+              <input type="text" id="crm-search" name="halo-crm-filter-q" role="searchbox" placeholder="Search name or link…" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other" readonly />
+            </label>
+          </form>
           <button type="button" class="btn primary btn-sm" id="crm-add-lead" title="Add lead">+ Lead</button>
         </div>
       </div>
@@ -3695,7 +3786,7 @@ function renderLinkedIn() {
       <div class="li-main-grid">
         <div class="tile tile-stage-a" title="Stage A prospecting">
           <h3>Stage A prospecting</h3>
-          <p class="muted stage-a-flow-hint">Each run: check <strong>Lead😴</strong> accepts → <strong>Proposal 1</strong> → enrich &amp; ice → send <strong>N</strong> invites → <strong>Lead😴</strong>.</p>
+          <p class="muted stage-a-flow-hint">Each run: check <strong>Lead😴</strong> accepts → enrich &amp; ice (still Lead) → <strong>Conversation 💬</strong> → send <strong>N</strong> invites → <strong>Lead😴</strong>.</p>
           <div class="li-stage-a-body">
             <div class="li-stage-a-row">
               <span class="li-stage-a-label">Portrait invites</span>
@@ -4189,8 +4280,8 @@ function renderFaq() {
       id: 'setup',
       cat: 'Getting started',
       q: 'First-time setup',
-      short: '5-step guided walkthrough',
-      keywords: 'setup onboarding first time start guide linkedin keys',
+      short: 'LinkedIn + LLM keys — that\'s enough',
+      keywords: 'setup onboarding first time start guide linkedin keys llm',
       openSetup: true,
       body: '',
     },
@@ -4198,12 +4289,11 @@ function renderFaq() {
       id: 'statuses',
       cat: 'CRM',
       q: 'CRM statuses',
-      short: 'Lead to P1 to P2 to Active / Lost',
-      keywords: 'crm status pipeline lead proposal active lost',
+      short: 'Lead → Conversation → Active / Lost',
+      keywords: 'crm status pipeline lead conversation active lost',
       body: `<ul>
-        <li><strong>Lead😴</strong> — invite sent; waiting for them to accept.</li>
-        <li><strong>Proposal 1️⃣</strong> — connected; enrich + ice-breaker ready (or in progress).</li>
-        <li><strong>Proposal 2️⃣</strong> — ice DM already sent; Stage B watches the thread.</li>
+        <li><strong>Lead😴</strong> — invite sent / waiting, or accepted and in enrich+ice (before first DM).</li>
+        <li><strong>Conversation 💬</strong> — ice DM already sent; Stage B watches the thread.</li>
         <li><strong>Active ✅</strong> — sales outcome met (e.g. call booked).</li>
         <li><strong>Lost❌</strong> — dead / declined / silence path.</li>
       </ul>`,
@@ -4236,8 +4326,8 @@ function renderFaq() {
       q: 'How accepts are detected',
       short: 'Profile link first, then My Network',
       keywords: 'acceptance accept connect lead sleep my connections profile link manual lead',
-      body: `<p>Each Stage A opens each <strong>Lead😴</strong> CRM <strong>Link</strong> and reads Connect / Pending / Message on the profile card. Accepted → <strong>Proposal 1️⃣</strong>.</p>
-        <p>If some remain unchecked, My Connections (Recently added) is a fallback (scroll capped). Manual <strong>+ Lead</strong> with only a Link works the same: already connected → P1 next run; Connect still available → invite sent (uses invite budget).</p>`,
+      body: `<p>Each Stage A opens each <strong>Lead😴</strong> CRM <strong>Link</strong> and reads Connect / Pending / Message on the profile card. Accepted → stay <strong>Lead😴</strong> and run enrich + ice, then move to <strong>Conversation 💬</strong>.</p>
+        <p>If some remain unchecked, My Connections (Recently added) is a fallback (scroll capped). Manual <strong>+ Lead</strong> with only a Link works the same: already connected → enrich/ice next run; Connect still available → invite sent (uses invite budget).</p>`,
     },
     {
       id: 'stage-a',
@@ -4248,7 +4338,7 @@ function renderFaq() {
       body: `<ul>
         <li>LinkedIn session must be green.</li>
         <li>Stage A toggle on; LinkedIn channel on; outreach not paused.</li>
-        <li>Lead must be <strong>Proposal 1️⃣</strong> with a real ice-breaker.</li>
+        <li>Lead must be messageable <strong>Lead😴</strong> (accepted) with a real ice-breaker.</li>
         <li>Connection-invite caps and LinkedIn daily limits still apply.</li>
       </ul>`,
     },
@@ -4259,7 +4349,7 @@ function renderFaq() {
       short: 'Unread replies; ads skipped',
       keywords: 'stage b inbox reply silence unread',
       body: `<p>Stage B checks existing chats on your interval. Real lead replies get LLM answers; sponsored threads are skipped.</p>
-        <p>If idle: confirm Stage B is on, session is alive, and there are Proposal 2️⃣ leads with threads.</p>`,
+        <p>If idle: confirm Stage B is on, session is alive, and there are Conversation 💬 leads with threads.</p>`,
     },
     {
       id: 'save-restart',
@@ -4271,12 +4361,22 @@ function renderFaq() {
         <p><strong>Save and restart</strong> restarts the agent so stages can run immediately.</p>`,
     },
     {
+      id: 'llm-keys',
+      cat: 'Integrations',
+      q: 'Which API keys do I need?',
+      short: 'Three LLM roles — Apify included',
+      keywords: 'llm gemini cohere api key researcher copywriter inspector integrations',
+      body: `<p>Settings → Integrations → <strong>LLM</strong>: Researcher, Copywriter, and Inspector each need an API key (they can share the same key).</p>
+        <p><strong>Apify</strong> profile enrich and shared CRM hosting are provided by HALO — you do not paste Apify or Supabase credentials.</p>
+        <p>Optional: Telegram Chat ID for phone alerts.</p>`,
+    },
+    {
       id: 'telegram',
       cat: 'Integrations',
       q: 'Telegram alerts',
       short: 'Start bot → paste Chat ID',
       keywords: 'telegram bot chat id notify waffi',
-      body: `<p>Open <a href="https://t.me/notioncalen_bot" target="_blank" rel="noopener">@notioncalen_bot</a>, tap <strong>Start</strong>, paste Chat ID under Profile → Integrations → Telegram, then Save.</p>`,
+      body: `<p>Open <a href="https://t.me/notioncalen_bot" target="_blank" rel="noopener">@notioncalen_bot</a>, tap <strong>Start</strong>, paste Chat ID under Settings → Integrations → Telegram, then Save.</p>`,
     },
     {
       id: 'book-a-call',
@@ -4285,36 +4385,25 @@ function renderFaq() {
       short: 'Slots → Active; calendar invite link',
       keywords: 'book a call calendar meet google availability slot active outcome',
       body: `<p>Outcome <strong>Book a call</strong> opens availability (pencil on the card). Paint half-hour blocks you’re free — empty day = free 24h, full day = busy.</p>
-        <p>When a lead wants a call, the brain proposes only precomputed slots in the <strong>lead’s timezone</strong>. Soft “yes to a call” stays Proposal 2️⃣. After they accept a concrete slot → <strong>Active ✅</strong>.</p>
-        <p>Optional <strong>Google Meet room URL</strong> lives in the availability popup (above the week grid). After accept, the lead gets a <em>calendar invite</em> link (Meet is inside the event if you set a room). Telegram / dashboard notice: lead name, time in <strong>your</strong> timezone, and the same add-to-calendar link.</p>
-        <p>Dry-run gate: <code>node scripts/test-book-a-call-flow.js</code> (add <code>--live</code> for one real LLM reply).</p>`,
+        <p>When a lead wants a call, the brain proposes only precomputed slots in the <strong>lead’s timezone</strong>. Soft “yes to a call” stays Conversation 💬. After they accept a concrete slot → <strong>Active ✅</strong>.</p>
+        <p>Optional <strong>Google Meet room URL</strong> lives in the availability popup. After accept, the lead gets a calendar invite link.</p>`,
     },
     {
-      id: 'google-calendar',
-      cat: 'Sales Brain',
-      q: 'Google Meet for Book a call',
-      short: 'Meet URL in availability popup',
-      keywords: 'google calendar meet oauth refresh token event room book a call',
-      body: `<p>Brain → Book a call ⚙ → paste your standing <strong>Meet room URL</strong> (optional). No Calendar OAuth.</p>
-        <p>When a lead hits <strong>Active ✅</strong>, Telegram shows their name, the call time in your timezone, and an add-to-calendar link (ICS with reminders when the public dashboard URL is set).</p>`,
-    },
-    {
-      id: 'supabase',
-      cat: 'Integrations',
-      q: 'Supabase paused?',
-      short: 'Free tier sleeps after ~7 days',
-      keywords: 'supabase pause wake keepalive crm empty',
-      body: `<p>If stages are off (or intervals &gt; 7 days), Pause guard sends a read-only wake ping every ~5 days.</p>
-        <p>If CRM looks empty after a long pause, wake the project in Supabase once, then refresh HALO.</p>`,
+      id: 'support',
+      cat: 'Help',
+      q: 'Support chat',
+      short: 'Headphones button → WAFFi replies here',
+      keywords: 'support chat help headphones fab message',
+      body: `<p>Use the headphones button (bottom-right) to message WAFFi support. Replies appear in the same thread — green bubbles are yours; support replies sit on the other side.</p>`,
     },
     {
       id: 'apify',
-      cat: 'Integrations',
+      cat: 'Stage A',
       q: 'Apify / enrich',
-      short: 'Agent 1 required; rotate quota',
+      short: 'Included with HALO — no setup',
       keywords: 'apify enrich quota token scrape profile',
-      body: `<p>Stage A enrich uses Apify for profile context, location, email (if available), and ice-breaker inputs.</p>
-        <p>429 / empty dataset: wait, check quota, or add Agent 2/3 tokens.</p>`,
+      body: `<p>Stage A enrich uses a shared Apify pool for profile context, location, email (if available), and ice-breaker inputs. You do not configure Apify tokens.</p>
+        <p>If enrich fails with quota errors, contact WAFFi via Support chat.</p>`,
     },
     {
       id: 'brain',
@@ -4323,7 +4412,7 @@ function renderFaq() {
       short: 'Portrait steers · prompts write',
       keywords: 'brain sales portrait outcome prompts learning',
       body: `<p><strong>Sales</strong> (portrait, filters, outcome) steers targeting and Active/Lost.</p>
-        <p>For <strong>Book a call</strong>, see the FAQ tile “Book a call outcome” (slots + optional Meet URL in the availability popup).</p>
+        <p>For <strong>Book a call</strong>, see “Book a call outcome”.</p>
         <p>Prompt files shape wording. Learning notes improve future copy from CRM outcomes.</p>`,
     },
   ];
@@ -4337,7 +4426,10 @@ function renderFaq() {
   view.innerHTML = `
     <div class="faq-page">
       <div class="faq-search-wrap">
-        <input type="search" id="faq-search" class="faq-search" placeholder="Search topics…" autocomplete="off" aria-label="Search FAQ" />
+        <form class="faq-search-form" autocomplete="off" onsubmit="return false;">
+          <input type="text" class="faq-autofill-trap" name="username" tabindex="-1" aria-hidden="true" autocomplete="username" value="" />
+          <input type="text" id="faq-search" class="faq-search" name="halo-faq-filter-q" role="searchbox" placeholder="Search topics…" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other" readonly aria-label="Search FAQ" />
+        </form>
       </div>
       <div class="faq-grid" role="list" id="faq-grid">
         ${tiles.map(tileHtml).join('')}
@@ -4364,8 +4456,11 @@ function renderFaq() {
     const t = byId[id];
     if (!t) return;
     if (t.openSetup) {
-      if (typeof window.haloOpenSetupGuide === 'function') window.haloOpenSetupGuide();
-      else toast('Setup guide loading…', false, 2000);
+      const guide = window.HaloOnboarding;
+      if (guide && typeof guide.reopen === 'function') guide.reopen();
+      else if (guide && typeof guide.open === 'function') guide.open();
+      else if (typeof window.haloOpenSetupGuide === 'function') window.haloOpenSetupGuide();
+      else toast('Setup guide is unavailable — refresh the page.', true, 3500);
       return;
     }
     if (!modal) return;
@@ -4401,6 +4496,21 @@ function renderFaq() {
     });
     empty?.classList.toggle('hidden', visible > 0);
   };
+  if (search) {
+    const unlock = () => search.removeAttribute('readonly');
+    search.addEventListener('focus', unlock);
+    search.addEventListener('pointerdown', unlock);
+    const scrub = () => {
+      if (search.value) {
+        search.value = '';
+        filterTiles();
+      }
+    };
+    scrub();
+    setTimeout(scrub, 50);
+    setTimeout(scrub, 250);
+    setTimeout(scrub, 800);
+  }
   search?.addEventListener('input', filterTiles);
 
   const onEsc = (e) => {
@@ -4408,6 +4518,331 @@ function renderFaq() {
   };
   document.addEventListener('keydown', onEsc);
   view._faqCleanup = () => document.removeEventListener('keydown', onEsc);
+}
+
+function formatSupportTime(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function resizeSupportInput(el = supportInput) {
+  if (!el) return;
+  el.style.height = 'auto';
+  const next = Math.min(132, Math.max(38, el.scrollHeight));
+  el.style.height = `${next}px`;
+}
+
+const supportPanel = document.getElementById('support-panel');
+const supportBackdrop = document.getElementById('support-backdrop');
+const supportMessagesEl = document.getElementById('support-messages');
+const supportForm = document.getElementById('support-form');
+const supportInput = document.getElementById('support-input');
+const supportFab = document.getElementById('btn-support-fab');
+const supportFabDot = document.getElementById('support-fab-dot');
+
+let supportOpen = false;
+let supportWorkspaceId = '';
+/** @type {EventSource | null} */
+let supportEs = null;
+let supportPollTimer = null;
+let supportBadgeTimer = null;
+const supportSeenIds = new Set();
+
+function setSupportFabUnread(on) {
+  supportFabDot?.classList.toggle('hidden', !on);
+  if (haloMe) haloMe.userUnreadSupport = !!on;
+}
+
+async function refreshSupportFabBadge() {
+  try {
+    const data = await api('/api/support/status');
+    setSupportFabUnread(data.unreadFromSupport === true);
+  } catch {
+    /* ignore when signed out */
+  }
+}
+
+function stopSupportLive() {
+  if (supportEs) {
+    try {
+      supportEs.close();
+    } catch {
+      /* ignore */
+    }
+    supportEs = null;
+  }
+  if (supportPollTimer) {
+    clearInterval(supportPollTimer);
+    supportPollTimer = null;
+  }
+}
+
+/** Poll while chat is open if EventSource fails — no Supabase Realtime required. */
+function startSupportPollFallback() {
+  if (supportPollTimer || !supportOpen) return;
+  supportPollTimer = setInterval(async () => {
+    if (!supportOpen) return;
+    try {
+      const q = supportWorkspaceId ? `?workspaceId=${encodeURIComponent(supportWorkspaceId)}` : '';
+      const data = await api(`/api/support/messages${q}`);
+      renderSupportMessages(data.messages || []);
+    } catch {
+      /* ignore */
+    }
+  }, 20000);
+}
+
+function pulseSupportFab() {
+  if (!supportFab) return;
+  supportFab.classList.remove('is-pressing');
+  // reflow so re-click restarts animation
+  void supportFab.offsetWidth;
+  supportFab.classList.add('is-pressing');
+  window.setTimeout(() => supportFab.classList.remove('is-pressing'), 700);
+}
+
+function supportAttachmentUrl(m, workspaceId = '') {
+  if (!m?.attachment?.url && !m?.id) return '';
+  const base = m.attachment?.url || `/api/support/attachment/${m.id}`;
+  const ws = String(workspaceId || supportWorkspaceId || adminSelectedWs || '').trim();
+  if (!ws) return base;
+  return `${base}${base.includes('?') ? '&' : '?'}workspaceId=${encodeURIComponent(ws)}`;
+}
+
+function supportMessageBodyHtml(m, workspaceId = '') {
+  const text = m.body ? `<div>${escapeHtml(m.body)}</div>` : '';
+  const media = m.attachment
+    ? `<a href="${escapeAttr(supportAttachmentUrl(m, workspaceId))}" target="_blank" rel="noopener noreferrer">
+        <img class="support-bubble-media" src="${escapeAttr(supportAttachmentUrl(m, workspaceId))}" alt="${escapeAttr(m.attachment.name || 'image')}" loading="lazy" />
+      </a>`
+    : '';
+  return `${media}${text}`;
+}
+
+const SUPPORT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+/** @type {{ mime: string, name: string, base64: string, previewUrl: string } | null} */
+let supportPendingImage = null;
+/** @type {{ mime: string, name: string, base64: string, previewUrl: string } | null} */
+let adminPendingImage = null;
+
+function clearSupportPendingImage() {
+  if (supportPendingImage?.previewUrl) URL.revokeObjectURL(supportPendingImage.previewUrl);
+  supportPendingImage = null;
+  const box = document.getElementById('support-attach-preview');
+  if (box) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+  }
+  const input = document.getElementById('support-attach-input');
+  if (input) input.value = '';
+}
+
+function clearAdminPendingImage() {
+  if (adminPendingImage?.previewUrl) URL.revokeObjectURL(adminPendingImage.previewUrl);
+  adminPendingImage = null;
+  const box = document.getElementById('admin-attach-preview');
+  if (box) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+  }
+  const input = document.getElementById('admin-attach-input');
+  if (input) input.value = '';
+}
+
+function renderAttachPreview(hostId, pending, onClear) {
+  const box = document.getElementById(hostId);
+  if (!box) return;
+  if (!pending) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <img src="${escapeAttr(pending.previewUrl)}" alt="" />
+    <span>${escapeHtml(pending.name)} · ${Math.round((pending.base64.length * 0.75) / 1024)} KB</span>
+    <button type="button" class="support-attach-clear" title="Remove attachment" aria-label="Remove attachment">×</button>`;
+  box.querySelector('.support-attach-clear')?.addEventListener('click', onClear);
+}
+
+async function readImageFileAsAttachment(file) {
+  if (!file) return null;
+  if (!String(file.type || '').startsWith('image/')) {
+    throw new Error('Only image files are allowed');
+  }
+  if (file.size > SUPPORT_MAX_IMAGE_BYTES) {
+    throw new Error(`Image too large (max ${Math.round(SUPPORT_MAX_IMAGE_BYTES / (1024 * 1024))} MB)`);
+  }
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return {
+    mime: file.type || 'image/jpeg',
+    name: file.name || 'image',
+    base64: btoa(binary),
+    previewUrl: URL.createObjectURL(file),
+  };
+}
+
+function renderSupportMessages(messages) {
+  if (!supportMessagesEl) return;
+  const list = Array.isArray(messages) ? messages : [];
+  supportSeenIds.clear();
+  list.forEach((m) => m?.id && supportSeenIds.add(m.id));
+  if (!list.length) {
+    supportMessagesEl.innerHTML =
+      '<p class="support-empty">No messages yet. Ask anything about H.A.L.O. — we reply here.</p>';
+    return;
+  }
+  supportMessagesEl.innerHTML = list
+    .map((m) => {
+      const who = m.author === 'support' ? 'Support' : 'You';
+      const cls = m.author === 'support' ? 'support' : 'user';
+      return `<div class="support-bubble ${cls}" data-id="${escapeAttr(m.id || '')}">
+        ${supportMessageBodyHtml(m, supportWorkspaceId)}
+        <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
+      </div>`;
+    })
+    .join('');
+  supportMessagesEl.scrollTop = supportMessagesEl.scrollHeight;
+}
+
+function appendSupportMessage(m) {
+  if (!m?.id || supportSeenIds.has(m.id) || !supportMessagesEl) return;
+  supportSeenIds.add(m.id);
+  const empty = supportMessagesEl.querySelector('.support-empty');
+  if (empty) empty.remove();
+  const who = m.author === 'support' ? 'Support' : 'You';
+  const cls = m.author === 'support' ? 'support' : 'user';
+  supportMessagesEl.insertAdjacentHTML(
+    'beforeend',
+    `<div class="support-bubble ${cls}" data-id="${escapeAttr(m.id)}">
+      ${supportMessageBodyHtml(m, supportWorkspaceId)}
+      <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
+    </div>`
+  );
+  supportMessagesEl.scrollTop = supportMessagesEl.scrollHeight;
+  if (m.author === 'support' && supportOpen) {
+    api('/api/support/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
+    setSupportFabUnread(false);
+  } else if (m.author === 'support' && !supportOpen) {
+    setSupportFabUnread(true);
+  }
+}
+
+function startSupportLive(workspaceId) {
+  stopSupportLive();
+  const q = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : '';
+  try {
+    supportEs = new EventSource(`/api/support/stream${q}`);
+    supportEs.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        if (data.type === 'snapshot') renderSupportMessages(data.messages || []);
+        else if (data.type === 'message' && data.message) appendSupportMessage(data.message);
+      } catch {
+        /* ignore */
+      }
+    };
+    supportEs.onerror = () => {
+      if (supportEs) {
+        try {
+          supportEs.close();
+        } catch {
+          /* ignore */
+        }
+        supportEs = null;
+      }
+      startSupportPollFallback();
+    };
+  } catch {
+    startSupportPollFallback();
+  }
+}
+
+async function openSupportChat() {
+  const ws = String(haloMe?.workspaceId || '').trim();
+  supportWorkspaceId = ws;
+  const titleEl = document.getElementById('support-title');
+  const subEl = document.getElementById('support-sub');
+  if (titleEl) titleEl.textContent = 'Support';
+  if (subEl) subEl.textContent = 'Chat with WAFFi';
+
+  supportOpen = true;
+  supportPanel?.classList.remove('hidden');
+  supportBackdrop?.classList.remove('hidden');
+  supportFab?.classList.add('is-chat-open');
+  setNotifyOpen(false);
+  setNavOpen(false);
+
+  api('/api/support/mark-read', { method: 'POST', body: '{}' })
+    .then(() => setSupportFabUnread(false))
+    .catch(() => {});
+
+  try {
+    const data = await api('/api/support/messages');
+    renderSupportMessages(data.messages || []);
+  } catch (e) {
+    if (supportMessagesEl) {
+      supportMessagesEl.innerHTML = `<p class="support-empty">${escapeHtml(e.message || 'Failed to load chat')}</p>`;
+    }
+  }
+  startSupportLive(ws);
+  resizeSupportInput();
+  supportInput?.focus();
+}
+
+function closeSupportChat() {
+  supportOpen = false;
+  supportPanel?.classList.add('hidden');
+  supportBackdrop?.classList.add('hidden');
+  supportFab?.classList.remove('is-chat-open');
+  stopSupportLive();
+}
+
+function toggleSupportChat() {
+  pulseSupportFab();
+  if (supportOpen) closeSupportChat();
+  else openSupportChat();
+}
+
+async function sendSupportChatMessage(e) {
+  e?.preventDefault?.();
+  const body = String(supportInput?.value || '').trim();
+  const image = supportPendingImage
+    ? { mime: supportPendingImage.mime, name: supportPendingImage.name, base64: supportPendingImage.base64 }
+    : null;
+  if (!body && !image) return;
+  const btn = document.getElementById('btn-support-send');
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api('/api/support/messages', {
+      method: 'POST',
+      body: JSON.stringify({ body, image }),
+    });
+    if (supportInput) supportInput.value = '';
+    resizeSupportInput();
+    clearSupportPendingImage();
+    if (data.message) appendSupportMessage(data.message);
+  } catch (err) {
+    toast(err.message || 'Send failed', true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function renderComing(name) {
@@ -4574,8 +5009,6 @@ const LLM_ROLE_ICONS = {
 };
 
 const INTEGRATION_GROUP_INTRO = {
-  Apify:
-    'Apify enriches LinkedIn profiles in Stage A — role, company, and context for ice-breaker DMs. Each agent handles ~1,000 scrapes; optional agents 2–3 rotate quota when you need more volume.',
   Telegram:
     'Optional push alerts on your phone — uses the shared WAFFi Telegram bot (no bot setup on your side).',
 };
@@ -4597,14 +5030,29 @@ function llmWarnIcon(title) {
 
 function llmKeyField(api, label = 'API key') {
   if (!api) return '';
-  return `<label class="field" title="${escapeAttr(api.label)}">${label}
+  const val = revealed[api.key] != null ? revealed[api.key] : '';
+  const visible = Boolean(secretVisible[api.key]);
+  const eyeOpen =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2.5A2.5 2.5 0 1 0 12 9a2.5 2.5 0 0 0 0 5z"/></svg>';
+  const eyeOff =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2.1 3.5 3.5 2.1 21.9 20.5 20.5 21.9l-3.1-3.1A12.4 12.4 0 0 1 12 19c-7 0-10-7-10-7a18.7 18.7 0 0 1 4.7-5.3L2.1 3.5zM12 7a5 5 0 0 1 4.9 4.1l-1.6-1.6A2.5 2.5 0 0 0 12.5 8L12 7zm9.3 5s-1.2 2.8-3.7 4.6l-1.5-1.5A12 12 0 0 0 20.3 12H21.3z"/></svg>';
+  const copyIcon =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+  return `<label class="field llm-key-field" title="${escapeAttr(api.label)}">${label}
     <div class="llm-input-row">
-      <input type="password" data-set="${escapeAttr(api.key)}" placeholder="${api.set ? '•••••••• (set)' : 'Paste key'}" autocomplete="off" />
-      <button type="button" class="btn ghost btn-sm" data-reveal="${escapeAttr(api.key)}" title="Show">${revealed[api.key] ? 'Hide' : 'Show'}</button>
-      <button type="button" class="btn ghost btn-sm" data-copy="${escapeAttr(api.key)}" title="Copy">Copy</button>
-      <button type="button" class="btn danger btn-sm" data-remove="${escapeAttr(api.key)}" title="Remove">×</button>
+      <input
+        type="${visible ? 'text' : 'password'}"
+        data-set="${escapeAttr(api.key)}"
+        data-llm-secret="1"
+        ${api.set ? 'data-llm-needs-hydrate="1"' : ''}
+        value="${escapeAttr(val)}"
+        placeholder="${api.set && !val ? 'Key saved — paste to replace' : 'Paste API key'}"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button type="button" class="btn ghost btn-sm llm-icon-btn" data-llm-reveal="${escapeAttr(api.key)}" title="${visible ? 'Hide key' : 'Show key'}" aria-label="${visible ? 'Hide key' : 'Show key'}">${visible ? eyeOff : eyeOpen}</button>
+      <button type="button" class="btn ghost btn-sm llm-icon-btn" data-copy="${escapeAttr(api.key)}" title="Copy key" aria-label="Copy key">${copyIcon}</button>
     </div>
-    ${revealed[api.key] != null ? `<div class="val">${escapeHtml(revealed[api.key] || '')}</div>` : api.set ? `<div class="val muted">${escapeHtml(api.masked || '••••')}</div>` : ''}
   </label>`;
 }
 
@@ -4656,7 +5104,7 @@ function renderLlmIntegrationsBody(items) {
         <span class="llm-role-ico" aria-hidden="true">${LLM_ROLE_ICONS[role.id] || ''}</span>
         <div class="llm-role-head-copy">
           <h4 class="llm-role-title">${escapeHtml(role.title)} ${llmInfoIcon(role.hint)}</h4>
-          <p class="llm-role-sub muted">Primary brain role · API key required</p>
+          <p class="llm-role-sub muted">API key + model</p>
         </div>
         ${problem ? llmWarnIcon(problem) : ''}
       </header>
@@ -4693,46 +5141,43 @@ function renderLlmIntegrationsBody(items) {
   ]);
   const extras = items.filter((it) => !hiddenKeys.has(it.key));
 
-  return `<p class="llm-intro muted">Three roles power every message. Each needs its own API key (they can be the same value). Automation stays paused until all three are set.</p>
+  return `<p class="llm-intro muted">Paste each role’s API key — it stays in the field (hidden as dots). Show or copy with the icons. Apify enrich &amp; CRM hosting are included.</p>
     <div class="llm-roles-stack">${rolesHtml}</div>
     ${fallbackHtml}
     ${extras.length ? `<div class="llm-extras">${extras.map(secretBlockHtml).join('')}</div>` : ''}`;
 }
 
-function renderApifyIntegrationsBody(items) {
-  const byKey = Object.fromEntries(items.map((it) => [it.key, it]));
-  const agents = [
-    { key: 'APIFY_TOKEN_1', label: 'Agent 1', required: true },
-    { key: 'APIFY_TOKEN_2', label: 'Agent 2', required: false },
-    { key: 'APIFY_TOKEN_3', label: 'Agent 3', required: false },
-  ];
-  const agentsHtml = agents
-    .map((a) => {
-      const api = byKey[a.key];
-      if (!api) return '';
-      const problem = api.problem;
-      return `<article class="llm-role-card llm-role-apify${problem ? ' llm-role-error' : ''}">
-        <header class="llm-role-head">
-          <div class="llm-role-head-copy">
-            <h4 class="llm-role-title">Apify ${a.label}${a.required ? ' <span class="req-star">*</span>' : ' <span class="muted" style="font-weight:500">(optional)</span>'}</h4>
-          </div>
-          ${problem ? llmWarnIcon(problem) : ''}
-        </header>
-        ${problem ? `<div class="secret-problem">${escapeHtml(problem)}</div>` : ''}
-        ${llmKeyField(api, 'API token')}
-      </article>`;
+async function hydrateLlmSecretsInView(root = view) {
+  const inputs = [...root.querySelectorAll('input[data-llm-secret][data-llm-needs-hydrate][data-set]')];
+  if (!inputs.length) return;
+  await Promise.all(
+    inputs.map(async (input) => {
+      const key = input.dataset.set;
+      if (!key) return;
+      if (revealed[key] != null && revealed[key] !== '') {
+        if (!input.value) input.value = revealed[key];
+        input.removeAttribute('data-llm-needs-hydrate');
+        return;
+      }
+      if (input.value) {
+        revealed[key] = input.value;
+        input.removeAttribute('data-llm-needs-hydrate');
+        return;
+      }
+      try {
+        const data = await api('/api/secrets/reveal', { method: 'POST', body: JSON.stringify({ key }) });
+        const val = data.value || '';
+        if (!val) return;
+        revealed[key] = val;
+        input.value = val;
+        input.type = secretVisible[key] ? 'text' : 'password';
+        input.placeholder = 'Paste API key';
+        input.removeAttribute('data-llm-needs-hydrate');
+      } catch {
+        /* leave placeholder — user can paste */
+      }
     })
-    .join('');
-  const actorId = (settings?.apifyActor || APIFY_DEFAULT_ACTOR).trim();
-  const actorUrl = apifyActorStoreUrl(actorId);
-  const actorHtml = `<div class="integ-apify-actor-link">
-      <a class="btn ghost" href="${escapeAttr(actorUrl)}" target="_blank" rel="noopener noreferrer" title="Open the LinkedIn profile scraper on Apify">
-        View Apify actor on apify.com ↗
-      </a>
-      <p class="muted integ-apify-actor-hint">H.A.L.O. uses <code>${escapeHtml(actorId)}</code> to enrich lead profiles in Stage A.</p>
-    </div>`;
-  return `<p class="integ-group-intro muted">${INTEGRATION_GROUP_INTRO.Apify}</p>
-    <div class="llm-roles-stack">${agentsHtml}</div>${actorHtml}`;
+  );
 }
 
 function renderSupabaseKeepaliveBlock() {
@@ -4847,6 +5292,7 @@ function profileTileFromHash() {
   if (hash === 'integrations' || hash === 'profile-integrations') return 'integrations';
   if (hash === 'billing' || hash === 'profile-billing') return 'billing';
   if (hash === 'general' || hash === 'profile-general') return 'general';
+  if (hash === 'admin' || hash === 'profile-admin') return 'admin';
   return '';
 }
 
@@ -4869,15 +5315,82 @@ function applyHaloTheme(theme) {
   }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = next === 'light' ? '#f2f4f7' : '#090b0e';
+  const btn = document.getElementById('btn-theme-toggle');
+  if (btn) {
+    const light = next === 'light';
+    btn.dataset.theme = next;
+    btn.title = light ? 'Switch to dark theme' : 'Switch to light theme';
+    btn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+    btn.innerHTML = light ? THEME_ICON_MOON : THEME_ICON_SUN;
+  }
+}
+
+const THEME_ICON_SUN =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><path fill="currentColor" d="M12 2.5a1 1 0 0 1 1 1V5a1 1 0 1 1-2 0V3.5a1 1 0 0 1 1-1zm0 15a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V18.5a1 1 0 0 1 1-1zM3.5 11a1 1 0 0 1 1-1H6a1 1 0 1 1 0 2H4.5a1 1 0 0 1-1-1zm13.5 0a1 1 0 0 1 1-1H19.5a1 1 0 1 1 0 2H18a1 1 0 0 1-1-1zM5.99 5.99a1 1 0 0 1 1.41 0L8.5 7.09A1 1 0 1 1 7.09 8.5L5.99 7.4a1 1 0 0 1 0-1.41zm9.51 9.51a1 1 0 0 1 1.41 0l1.1 1.1a1 1 0 1 1-1.41 1.41l-1.1-1.1a1 1 0 0 1 0-1.41zM18.01 5.99a1 1 0 0 1 0 1.41L16.91 8.5A1 1 0 1 1 15.5 7.09l1.1-1.1a1 1 0 0 1 1.41 0zM8.5 15.5a1 1 0 0 1 0 1.41l-1.1 1.1a1 1 0 1 1-1.41-1.41l1.1-1.1a1 1 0 0 1 1.41 0z"/></svg>';
+const THEME_ICON_MOON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M20.2 14.6A8.2 8.2 0 0 1 9.4 3.8a1 1 0 0 0-1.3-1.2A10 10 0 1 0 21.4 15.9a1 1 0 0 0-1.2-1.3z"/></svg>';
+
+function themeToggleBtnHtml() {
+  const light = getHaloTheme() === 'light';
+  return `<button type="button" class="theme-icon-btn" id="btn-theme-toggle" data-theme="${light ? 'light' : 'dark'}" title="${light ? 'Switch to dark theme' : 'Switch to light theme'}" aria-label="${light ? 'Switch to dark theme' : 'Switch to light theme'}">${light ? THEME_ICON_MOON : THEME_ICON_SUN}</button>`;
 }
 
 function openProfileSection(id) {
   openProfileTile = id || '';
   if (id) location.hash = `profile-${id}`;
-  else if (/^#?(profile-)?(general|integrations|billing)$/.test(location.hash || '')) {
+  else if (/^#?(profile-)?(general|integrations|billing|admin)$/.test(location.hash || '')) {
     history.replaceState(null, '', location.pathname + location.search);
   }
   renderProfile();
+}
+
+function billingPlansMarkup({ status, leads, limit, trialEnded }) {
+  const statusLabel = formatAdminSubStatus(status);
+  const leadLine =
+    status === 'active'
+      ? `${leads} leads · paid`
+      : `${leads}/${limit} trial${trialEnded ? ' · ended' : ''}`;
+
+  const cards = HALO_BILLING_PLANS.map((plan) => {
+    const highlight = plan.features[1] || plan.features[0] || '';
+    const feats = plan.features
+      .map((f) => `<li><span class="bill-ck" aria-hidden="true">✓</span>${escapeHtml(f)}</li>`)
+      .join('');
+    return `<article class="bill-card${plan.popular ? ' bill-card-hot' : ''}" data-plan="${escapeAttr(plan.id)}">
+      ${plan.badge ? `<div class="bill-badge">${escapeHtml(plan.badge)}</div>` : ''}
+      <h3 class="bill-name">${escapeHtml(plan.name)}</h3>
+      <div class="bill-price-row">
+        <span class="bill-price">${escapeHtml(plan.price)}</span>
+        <span class="bill-period muted">/mo</span>
+      </div>
+      <p class="bill-highlight muted">${escapeHtml(highlight)}</p>
+      <details class="bill-details">
+        <summary>Details</summary>
+        <ul class="bill-feats">${feats}</ul>
+      </details>
+      <button type="button" class="btn${plan.popular ? '' : ' ghost'} bill-cta" data-plan-cta="${escapeAttr(plan.id)}" title="Choose ${escapeAttr(plan.name)}">
+        Choose
+      </button>
+    </article>`;
+  }).join('');
+
+  return `
+    <div class="bill-wrap">
+      <div class="bill-status-bar">
+        <div class="bill-status-value">
+          <span class="admin-pill admin-pill-${escapeAttr(String(status || 'trial').toLowerCase())}">${escapeHtml(statusLabel)}</span>
+          <span class="muted">${escapeHtml(leadLine)}</span>
+        </div>
+        <button type="button" class="btn ghost btn-sm" id="btn-stripe-portal" title="Stripe Customer Portal">Manage</button>
+      </div>
+      <div class="bill-grid">${cards}</div>
+      <details class="bill-meta">
+        <summary>Trial &amp; billing notes</summary>
+        <p>Trial: 14 days · Growth features · up to 100 leads · no card. After trial, sending pauses until you subscribe.</p>
+        <p id="stripe-billing-hint" class="muted">Checkout wires to Stripe next. Manage works once Stripe is configured.</p>
+      </details>
+      <button type="button" class="btn hidden" id="btn-stripe-checkout" aria-hidden="true">Subscribe</button>
+    </div>`;
 }
 
 function renderProfile() {
@@ -4885,11 +5398,12 @@ function renderProfile() {
   openProfileTile = section;
   const titles = {
     general: ['General', 'Account details for this cabinet'],
-    integrations: ['Integrations', 'API keys, LLM, Apify, Telegram'],
-    billing: ['Billing', 'Trial, subscription, and Stripe'],
+    integrations: ['Integrations', 'API keys, LLM, Telegram'],
+    billing: ['Billing', 'Plans & subscription'],
+    admin: ['Admin', 'HALO cabinets, leads, and support inbox'],
   };
   if (section && titles[section]) setPageHeader(titles[section][0], titles[section][1]);
-  else setPageHeader('Profile', 'Account, billing, and integrations');
+  else setPageHeader('Settings', 'Account, billing, and integrations');
   titleEl.title = section && titles[section] ? titles[section][1] : 'Account, billing, and integrations';
   view.innerHTML = `<div class="card"><p class="muted">Loading account…</p></div>`;
   fetch('/api/auth/me', { credentials: 'same-origin' })
@@ -4906,11 +5420,12 @@ function renderProfile() {
       const trialEnded = me.trialEnded === true;
       const integProblem = settings?.integrationsHasProblem === true;
       const displayName = String(t.displayName || '').trim();
+      const showAdmin = me.isWaffiAdmin === true;
 
       const backBtn = `
-        <button type="button" class="profile-back" id="btn-profile-back" aria-label="Back to Profile">
+        <button type="button" class="profile-back" id="btn-profile-back" aria-label="Back to Settings">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M14.7 6.3a1 1 0 0 1 0 1.4L10.4 12l4.3 4.3a1 1 0 1 1-1.4 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.4 0z"/></svg>
-          <span>Back to Profile</span>
+          <span>Back to Settings</span>
         </button>`;
 
       const wireBillingAndLogout = () => {
@@ -4932,6 +5447,12 @@ function renderProfile() {
             toast(e.message, true);
           }
         });
+        document.querySelectorAll('[data-plan-cta]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const plan = btn.getAttribute('data-plan-cta') || 'growth';
+            toast(`“${plan}” checkout wires next — Stripe multi-price coming soon.`, false, 4500);
+          });
+        });
         document.getElementById('btn-logout-cabinet')?.addEventListener('click', async () => {
           await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
           location.href = '/login.html';
@@ -4941,13 +5462,17 @@ function renderProfile() {
             const hint = document.getElementById('stripe-billing-hint');
             if (!hint) return;
             hint.textContent = st.configured
-              ? 'Stripe is configured — Subscribe opens Checkout; Manage opens Customer Portal.'
-              : 'Stripe not configured yet. Add STRIPE_SECRET_KEY + STRIPE_PRICE_ID (+ optional STRIPE_WEBHOOK_SECRET) to VPS .env, then restart dashboard.';
+              ? 'Stripe ready — Manage opens the portal.'
+              : 'Stripe not configured yet.';
           })
           .catch(() => {});
       };
 
-      if (section === 'general' || section === 'integrations' || section === 'billing') {
+      if (section === 'general' || section === 'integrations' || section === 'billing' || section === 'admin') {
+        if (section === 'admin' && !showAdmin) {
+          view.innerHTML = `<div class="card"><p class="muted">Admin is only available on the WAFFi cabinet.</p></div>`;
+          return;
+        }
         const generalBody = `
           <div class="grid-2" style="gap:12px">
             <div><span class="muted">Name</span><div>${escapeHtml(displayName || '—')}</div></div>
@@ -4960,32 +5485,28 @@ function renderProfile() {
             <div class="tile-compact-head" style="margin:0">
               <div>
                 <h3 style="margin:0;font-size:0.95rem">Appearance</h3>
-                <p class="hint" style="margin:4px 0 0">Light theme for the whole H.A.L.O. dashboard</p>
+                <p class="hint" style="margin:4px 0 0">Dashboard color theme</p>
               </div>
-              ${switchEl('halo-theme-light', getHaloTheme() === 'light', 'Use light theme')}
+              ${themeToggleBtnHtml()}
             </div>
           </div>
           <div style="margin-top:16px">
             <button type="button" class="btn ghost" id="btn-logout-cabinet">Sign out of cabinet</button>
           </div>`;
-        const billingBody = `
-          <p class="muted card-lead">Trial includes ${limit} CRM leads. Status: <strong>${escapeHtml(status)}</strong>${trialEnded ? ' · trial limit reached' : ''}.</p>
-          <p style="margin:10px 0 16px">Leads in this cabinet: <strong>${leads}</strong> / ${status === 'active' ? '∞' : limit}</p>
-          <div class="row" style="gap:10px;flex-wrap:wrap">
-            <button type="button" class="btn" id="btn-stripe-checkout">Subscribe with Stripe</button>
-            <button type="button" class="btn ghost" id="btn-stripe-portal">Manage billing</button>
-          </div>
-          <p class="muted" id="stripe-billing-hint" style="margin-top:12px;font-size:0.82rem">Stripe keys are not required yet — buttons show a clear message until you add them to .env.</p>`;
+        const billingBody = billingPlansMarkup({ status, leads, limit, trialEnded });
         const body =
           section === 'general'
             ? generalBody
             : section === 'billing'
               ? billingBody
-              : `<div id="profile-integrations-body"></div>`;
+              : section === 'admin'
+                ? `<div id="profile-admin-body"><p class="muted">Loading cabinets…</p></div>`
+                : `<div id="profile-integrations-body" class="profile-integrations-page"></div>`;
+        const wide = section === 'integrations' || section === 'admin' || section === 'billing';
         view.innerHTML = `
-          <div class="profile-page">
+          <div class="profile-page${wide ? ' profile-page-wide' : ''}">
             ${backBtn}
-            <div class="profile-page-card card">${body}</div>
+            <div class="profile-page-card card${wide ? ' profile-page-card-flush' : ''}${section === 'billing' ? ' bill-page-card' : ''}">${body}</div>
           </div>`;
         document.getElementById('btn-profile-back')?.addEventListener('click', () => openProfileSection(''));
         if (section === 'integrations') {
@@ -4994,23 +5515,26 @@ function renderProfile() {
             host.innerHTML = buildIntegrationsMarkup();
             wireIntegrationsUi(host);
           }
+        } else if (section === 'admin') {
+          renderAdminPanel(document.getElementById('profile-admin-body'));
         } else {
           wireBillingAndLogout();
-          const themeSw = document.getElementById('halo-theme-light');
-          if (themeSw) {
-            themeSw.onchange = () => {
-              applyHaloTheme(themeSw.checked ? 'light' : 'dark');
-              toast(themeSw.checked ? 'Light theme on' : 'Dark theme on');
+          const themeBtn = document.getElementById('btn-theme-toggle');
+          if (themeBtn) {
+            themeBtn.onclick = () => {
+              const next = getHaloTheme() === 'light' ? 'dark' : 'light';
+              applyHaloTheme(next);
+              toast(next === 'light' ? 'Light theme on' : 'Dark theme on');
             };
           }
         }
         return;
       }
 
-      const tileBtn = (id, label, icon, hint) => {
+      const tileBtn = (id, label, icon, hint, extraWarn = false) => {
         const warn =
-          id === 'integrations' && integProblem
-            ? `<span class="integ-warn profile-tile-warn" title="Credentials need attention"><svg class="integ-warn-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path fill="#fff" d="M12 7.25a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1zm0 9.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg></span>`
+          (id === 'integrations' && integProblem) || extraWarn
+            ? `<span class="integ-warn profile-tile-warn" title="Needs attention"><svg class="integ-warn-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path fill="#fff" d="M12 7.25a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1zm0 9.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg></span>`
             : '';
         return `
         <button type="button" class="profile-tile profile-tile-link" data-profile-tile="${id}">
@@ -5027,8 +5551,9 @@ function renderProfile() {
       view.innerHTML = `
         <div class="profile-tiles" id="profile-tiles">
           ${tileBtn('general', 'General', ICONS.general, 'Account details for this cabinet')}
-          ${tileBtn('integrations', 'Integrations', ICONS.integrations, 'API keys, LLM, Apify, Telegram')}
-          ${tileBtn('billing', 'Billing', ICONS.billing, 'Trial, subscription, and Stripe')}
+          ${tileBtn('integrations', 'Integrations', ICONS.integrations, 'API keys, LLM, Telegram')}
+          ${tileBtn('billing', 'Billing', ICONS.billing, 'Plans, trial, and subscription')}
+          ${showAdmin ? tileBtn('admin', 'Admin', ICONS.admin, 'Cabinets, leads, and support inbox') : ''}
         </div>`;
 
       view.querySelectorAll('[data-profile-tile]').forEach((el) => {
@@ -5040,13 +5565,401 @@ function renderProfile() {
     });
 }
 
+let adminSelectedWs = '';
+let adminPollTimer = null;
+const adminSeenIds = new Set();
+
+function stopAdminChatLive() {
+  if (adminPollTimer) {
+    clearInterval(adminPollTimer);
+    adminPollTimer = null;
+  }
+}
+
+function formatAdminSubStatus(status) {
+  const s = String(status || 'trial').toLowerCase();
+  if (s === 'active') return 'Active';
+  if (s === 'past_due') return 'Past due';
+  if (s === 'canceled') return 'Canceled';
+  return 'Trial';
+}
+
+function wireAdminMessageDeletes(host) {
+  if (!host) return;
+  host.querySelectorAll('[data-admin-del-msg]').forEach((btn) => {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = btn.getAttribute('data-admin-del-msg');
+      if (!id) return;
+      if (!window.confirm('Delete this message permanently from Supabase?')) return;
+      try {
+        await api(`/api/admin/support/messages/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        adminSeenIds.delete(id);
+        btn.closest('.admin-msg-row')?.remove();
+        if (host && !host.querySelector('.admin-msg-row')) {
+          host.innerHTML = '<p class="support-empty">No messages yet in this cabinet thread.</p>';
+        }
+      } catch (err) {
+        toast(err.message || 'Delete failed', true);
+      }
+    });
+  });
+}
+
+function renderAdminMessages(host, messages) {
+  if (!host) return;
+  const list = Array.isArray(messages) ? messages : [];
+  adminSeenIds.clear();
+  list.forEach((m) => m?.id && adminSeenIds.add(m.id));
+  if (!list.length) {
+    host.innerHTML = '<p class="support-empty">No messages yet in this cabinet thread.</p>';
+    return;
+  }
+  host.innerHTML = list.map((m) => adminMessageHtml(m)).join('');
+  host.scrollTop = host.scrollHeight;
+  wireAdminMessageDeletes(host);
+}
+
+function updateAdminDeleteButton() {
+  const btn = document.getElementById('btn-admin-delete-cabinets');
+  if (!btn) return;
+  const n = document.querySelectorAll('#admin-list-browse input[data-admin-check]:checked').length;
+  btn.classList.toggle('hidden', n === 0);
+  btn.disabled = n === 0;
+  btn.textContent = n ? `Delete selected (${n})` : 'Delete selected';
+}
+
+function showAdminCabinetList() {
+  document.getElementById('admin-cabinet-list')?.classList.remove('is-focus-mode');
+  adminSelectedWs = '';
+  stopAdminChatLive();
+  clearAdminPendingImage();
+  const title = document.getElementById('admin-chat-title');
+  const sub = document.getElementById('admin-chat-sub');
+  const box = document.getElementById('admin-chat-messages');
+  if (title) title.textContent = 'Select a cabinet';
+  if (sub) sub.textContent = 'Open a user to view history and reply';
+  if (box) box.innerHTML = '<p class="support-empty">Pick a cabinet on the left to open support chat.</p>';
+}
+
+function fillAdminFocusCard(meta = {}) {
+  const host = document.getElementById('admin-focus-body');
+  if (!host) return;
+  host.innerHTML = `
+    <h3>${escapeHtml(meta.displayName || meta.email || meta.workspaceId || 'Cabinet')}</h3>
+    <div class="admin-focus-meta muted">${escapeHtml(meta.email || '—')}</div>
+    <div class="admin-focus-meta"><code>${escapeHtml(meta.workspaceId || '')}</code></div>
+    <div class="admin-focus-stats">
+      <span class="admin-pill admin-pill-${escapeAttr(String(meta.subscriptionStatus || 'trial'))}">${escapeHtml(formatAdminSubStatus(meta.subscriptionStatus))}</span>
+      <span class="admin-cabinet-leads">${Number(meta.leadCount) || 0} leads</span>
+      ${meta.isDefault ? '<span class="muted">WAFFi</span>' : ''}
+    </div>
+    ${meta.problem ? `<div class="admin-problem">${escapeHtml(meta.problem)}</div>` : ''}
+    ${
+      meta.lastPreview
+        ? `<div class="admin-cabinet-preview muted">Last: ${meta.lastPreview}</div>`
+        : '<div class="muted" style="font-size:0.78rem">No messages yet</div>'
+    }
+  `;
+}
+
+function adminMessageHtml(m) {
+  const who = m.author === 'support' ? 'You (support)' : 'User';
+  const cls = m.author === 'support' ? 'support' : 'user';
+  return `<div class="support-bubble ${cls} admin-msg-row" data-id="${escapeAttr(m.id || '')}">
+    <button type="button" class="admin-msg-del" data-admin-del-msg="${escapeAttr(m.id || '')}" title="Delete message" aria-label="Delete message">×</button>
+    ${supportMessageBodyHtml(m, adminSelectedWs)}
+    <span class="s-meta">${escapeHtml(who)} · ${escapeHtml(formatSupportTime(m.createdAt))}</span>
+  </div>`;
+}
+
+async function openAdminCabinetChat(workspaceId, meta = {}) {
+  const ws = String(workspaceId || '').trim();
+  if (!ws) return;
+  adminSelectedWs = ws;
+  document.getElementById('admin-cabinet-list')?.classList.add('is-focus-mode');
+  fillAdminFocusCard(meta);
+  const title = document.getElementById('admin-chat-title');
+  const sub = document.getElementById('admin-chat-sub');
+  const box = document.getElementById('admin-chat-messages');
+  if (title) title.textContent = meta.displayName || meta.email || ws;
+  if (sub) sub.textContent = `${meta.email || '—'} · ${ws}`;
+  stopAdminChatLive();
+  try {
+    await api('/api/admin/support/mark-read', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId: ws }),
+    });
+  } catch {
+    /* ignore */
+  }
+  try {
+    const data = await api(`/api/support/messages?workspaceId=${encodeURIComponent(ws)}`);
+    renderAdminMessages(box, data.messages || []);
+  } catch (e) {
+    if (box) box.innerHTML = `<p class="support-empty">${escapeHtml(e.message || 'Failed to load chat')}</p>`;
+  }
+  adminPollTimer = setInterval(async () => {
+    if (!adminSelectedWs) return;
+    try {
+      const data = await api(`/api/support/messages?workspaceId=${encodeURIComponent(adminSelectedWs)}`);
+      renderAdminMessages(box, data.messages || []);
+    } catch {
+      /* ignore */
+    }
+  }, 8000);
+  document.getElementById('admin-chat-input')?.focus();
+}
+
+async function sendAdminChatMessage(e) {
+  e?.preventDefault?.();
+  const ws = adminSelectedWs;
+  const input = document.getElementById('admin-chat-input');
+  const body = String(input?.value || '').trim();
+  const image = adminPendingImage
+    ? { mime: adminPendingImage.mime, name: adminPendingImage.name, base64: adminPendingImage.base64 }
+    : null;
+  if (!ws || (!body && !image)) return;
+  const btn = document.getElementById('btn-admin-send');
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api('/api/support/messages', {
+      method: 'POST',
+      body: JSON.stringify({ body, workspaceId: ws, image, asSupport: true }),
+    });
+    if (input) {
+      input.value = '';
+      resizeSupportInput(input);
+    }
+    clearAdminPendingImage();
+    if (data.message) {
+      const box = document.getElementById('admin-chat-messages');
+      if (box && data.message.id && !adminSeenIds.has(data.message.id)) {
+        adminSeenIds.add(data.message.id);
+        const empty = box.querySelector('.support-empty');
+        if (empty) empty.remove();
+        box.insertAdjacentHTML('beforeend', adminMessageHtml(data.message));
+        wireAdminMessageDeletes(box);
+        box.scrollTop = box.scrollHeight;
+      }
+    }
+  } catch (err) {
+    toast(err.message || 'Send failed', true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function deleteSelectedAdminCabinets(host) {
+  const checked = [...document.querySelectorAll('#admin-list-browse input[data-admin-check]:checked')];
+  const ids = checked.map((el) => el.value).filter(Boolean);
+  if (!ids.length) return;
+  const labels = checked
+    .map((el) => el.closest('.admin-cabinet-row')?.dataset?.name || el.value)
+    .slice(0, 8)
+    .join(', ');
+  const more = ids.length > 8 ? ` (+${ids.length - 8} more)` : '';
+  if (
+    !window.confirm(
+      `Permanently delete ${ids.length} cabinet(s)?\n\n${labels}${more}\n\nThis removes the tenant, all their leads, and support chat history. WAFFi (default) cannot be deleted.`
+    )
+  ) {
+    return;
+  }
+  try {
+    const out = await api('/api/admin/cabinets/delete', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceIds: ids }),
+    });
+    toast(`Deleted ${out.deleted?.length || ids.length} cabinet(s)`);
+    if (ids.includes(adminSelectedWs)) {
+      adminSelectedWs = '';
+      stopAdminChatLive();
+    }
+    await renderAdminPanel(host);
+  } catch (err) {
+    toast(err.message || 'Delete failed', true);
+  }
+}
+
+async function renderAdminPanel(host) {
+  if (!host) return;
+  stopAdminChatLive();
+  adminSelectedWs = '';
+  clearAdminPendingImage();
+  host.innerHTML = '<p class="muted">Loading cabinets…</p>';
+  try {
+    const data = await api('/api/admin/overview');
+    const cabinets = data.cabinets || [];
+    const rows = cabinets
+      .map((c) => {
+        const name = c.displayName || c.email || c.workspaceId;
+        const preview = c.lastMessage?.body
+          ? escapeHtml(String(c.lastMessage.body).slice(0, 90))
+          : c.lastMessage?.attachment
+            ? '<span class="muted">[image]</span>'
+            : '<span class="muted">No messages yet</span>';
+        const problem = c.hasProblem
+          ? `<div class="admin-problem">${escapeHtml(c.problem)}</div>`
+          : '';
+        const locked = c.isDefault === true;
+        const meta = encodeURIComponent(
+          JSON.stringify({
+            displayName: name,
+            email: c.email || '',
+            workspaceId: c.workspaceId,
+            subscriptionStatus: c.subscriptionStatus || 'trial',
+            leadCount: Number(c.leadCount) || 0,
+            isDefault: !!c.isDefault,
+            problem: c.problem || '',
+            lastPreview: c.lastMessage?.body
+              ? String(c.lastMessage.body).slice(0, 90)
+              : c.lastMessage?.attachment
+                ? '[image]'
+                : '',
+          })
+        );
+        return `<div class="admin-cabinet-row${c.unreadFromUser ? ' is-unread' : ''}" data-ws="${escapeAttr(c.workspaceId)}" data-email="${escapeAttr(c.email || '')}" data-name="${escapeAttr(name)}" data-meta="${meta}">
+          <label class="admin-cabinet-check" title="${locked ? 'WAFFi cabinet cannot be deleted' : 'Select cabinet'}">
+            <input type="checkbox" data-admin-check value="${escapeAttr(c.workspaceId)}" ${locked ? 'disabled' : ''} />
+          </label>
+          <button type="button" class="admin-cabinet-hit" data-admin-open="${escapeAttr(c.workspaceId)}">
+            <span class="admin-unread-dot${c.unreadFromUser ? '' : ' hidden'}" aria-hidden="true"></span>
+            <span class="admin-cabinet-compact">
+              <strong>${escapeHtml(name)}</strong>
+              <span class="admin-pill admin-pill-${escapeAttr(String(c.subscriptionStatus || 'trial'))}">${escapeHtml(formatAdminSubStatus(c.subscriptionStatus))}</span>
+              <span class="admin-cabinet-leads">${Number(c.leadCount) || 0} leads</span>
+            </span>
+          </button>
+        </div>`;
+      })
+      .join('');
+
+    host.innerHTML = `
+      <div class="admin-panel">
+        <div class="admin-stats">
+          <div class="admin-stat"><span class="muted">Cabinets</span><strong>${Number(data.totalCabinets) || 0}</strong></div>
+          <div class="admin-stat"><span class="muted">Total leads</span><strong>${Number(data.totalLeads) || 0}</strong></div>
+          <div class="admin-stat"><span class="muted">Unread chats</span><strong>${Number(data.unreadThreads) || 0}</strong></div>
+          <div class="admin-stat"><span class="muted">Problems</span><strong>${Number(data.problemCabinets) || 0}</strong></div>
+        </div>
+        <div class="admin-split">
+          <div class="admin-list" id="admin-cabinet-list">
+            <div id="admin-list-browse">
+              <div class="admin-list-toolbar">
+                <span class="muted" style="font-size:0.78rem">Cabinets</span>
+                <button type="button" class="btn danger btn-sm hidden" id="btn-admin-delete-cabinets" disabled>Delete selected</button>
+              </div>
+              ${rows || '<p class="muted" style="padding:12px">No cabinets yet.</p>'}
+            </div>
+            <div class="admin-list-focus" id="admin-list-focus">
+              <div class="admin-focus-head">
+                <button type="button" class="btn ghost btn-sm" id="btn-admin-back-list">← All cabinets</button>
+              </div>
+              <div class="admin-focus-body" id="admin-focus-body"></div>
+            </div>
+          </div>
+          <div class="admin-chat">
+            <div class="admin-chat-head">
+              <div>
+                <strong id="admin-chat-title">Select a cabinet</strong>
+                <div class="muted admin-chat-sub" id="admin-chat-sub">Open a user to view history and reply</div>
+              </div>
+              <button type="button" class="btn ghost btn-sm" id="btn-admin-refresh">Refresh</button>
+            </div>
+            <div id="admin-chat-messages" class="admin-chat-messages support-messages">
+              <p class="support-empty">Pick a cabinet on the left to open support chat.</p>
+            </div>
+            <form id="admin-chat-form" class="support-compose admin-compose" autocomplete="off">
+              <button type="submit" class="support-send" id="btn-admin-send" title="Send reply" aria-label="Send reply">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4l.1 6.8L15 12 3.5 13.8l-.1 6.8z"/>
+                </svg>
+              </button>
+              <div class="support-compose-main">
+                <div id="admin-attach-preview" class="support-attach-preview hidden"></div>
+                <div class="support-input-shell">
+                  <textarea id="admin-chat-input" rows="1" maxlength="4000" placeholder="Reply to this cabinet…" aria-label="Admin reply"></textarea>
+                  <label class="support-attach" title="Attach image" aria-label="Attach image">
+                    <input type="file" id="admin-attach-input" accept="image/*" hidden />
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                      <path fill="currentColor" d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1z"/>
+                    </svg>
+                  </label>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>`;
+
+    host.querySelectorAll('[data-admin-open]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const row = el.closest('.admin-cabinet-row');
+        let meta = {
+          email: row?.dataset?.email,
+          displayName: row?.dataset?.name,
+          workspaceId: el.dataset.adminOpen,
+        };
+        try {
+          meta = { ...meta, ...JSON.parse(decodeURIComponent(row?.dataset?.meta || '{}')) };
+        } catch {
+          /* ignore */
+        }
+        openAdminCabinetChat(el.dataset.adminOpen, meta);
+      });
+    });
+    host.querySelectorAll('input[data-admin-check]').forEach((el) => {
+      el.addEventListener('click', (e) => e.stopPropagation());
+      el.addEventListener('change', updateAdminDeleteButton);
+    });
+    document.getElementById('btn-admin-back-list')?.addEventListener('click', () => showAdminCabinetList());
+    document.getElementById('btn-admin-delete-cabinets')?.addEventListener('click', () =>
+      deleteSelectedAdminCabinets(host)
+    );
+    document.getElementById('btn-admin-refresh')?.addEventListener('click', () => renderAdminPanel(host));
+    const form = document.getElementById('admin-chat-form');
+    const input = document.getElementById('admin-chat-input');
+    form?.addEventListener('submit', sendAdminChatMessage);
+    input?.addEventListener('input', () => resizeSupportInput(input));
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendAdminChatMessage(e);
+      }
+    });
+    document.getElementById('admin-attach-input')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        adminPendingImage = await readImageFileAsAttachment(file);
+        renderAttachPreview('admin-attach-preview', adminPendingImage, clearAdminPendingImage);
+      } catch (err) {
+        clearAdminPendingImage();
+        toast(err.message || 'Could not attach image', true);
+      }
+    });
+    resizeSupportInput(input);
+    updateAdminDeleteButton();
+  } catch (e) {
+    host.innerHTML = `<p class="muted">${escapeHtml(e.message || 'Failed to load admin overview')}</p>`;
+  }
+}
+
 function buildIntegrationsMarkup() {
   const groups = {};
-  for (const item of settings?.integrations || []) (groups[item.group] ||= []).push(item);
-  const order = ['Supabase', 'LLM', 'Apify', 'Telegram'];
+  for (const item of settings?.integrations || []) {
+    // Shared HALO Supabase — tenants do not connect their own project
+    if (item.group === 'Supabase') continue;
+    (groups[item.group] ||= []).push(item);
+  }
+  const order = ['LLM', 'Telegram'];
   const groupNames = [
     ...order.filter((g) => groups[g]),
-    ...Object.keys(groups).filter((g) => !order.includes(g) && g !== 'Google Calendar'),
+    ...Object.keys(groups).filter((g) => !order.includes(g) && g !== 'Google Calendar' && g !== 'Supabase'),
   ];
 
   const warnIcon =
@@ -5056,31 +5969,23 @@ function buildIntegrationsMarkup() {
     .map((group) => {
       const items = groups[group] || [];
       const hasProblem = items.some((it) => it.problem);
-      const open = openIntegrationGroups[group] === true || (openIntegrationGroups[group] == null && hasProblem);
       const body = renderIntegrationsGroupBody(group, items);
       return `
-      <details class="integ-accordion ${hasProblem ? 'has-problem' : ''}" data-group="${escapeAttr(group)}" ${open ? 'open' : ''}>
-        <summary class="integ-summary" title="${escapeAttr(group)} credentials">
-          <span class="integ-summary-left">
-            <span class="integ-chevron" aria-hidden="true"></span>
+      <section class="integ-section ${hasProblem ? 'has-problem' : ''}" data-group="${escapeAttr(group)}">
+        <div class="integ-section-head">
+          <span class="integ-section-left">
             <span class="integ-group-title">${escapeHtml(group)}</span>
             <span class="muted integ-count">${items.length}</span>
           </span>
           ${hasProblem ? `<span class="integ-warn" title="One or more credentials need attention">${warnIcon}</span>` : ''}
-        </summary>
+        </div>
         <div class="integ-body">${body}</div>
-      </details>`;
+      </section>`;
     })
     .join('');
 }
 
 function wireIntegrationsUi(root = view) {
-  root.querySelectorAll('details.integ-accordion').forEach((el) => {
-    el.addEventListener('toggle', () => {
-      openIntegrationGroups[el.dataset.group] = el.open;
-    });
-  });
-
   root.querySelector('#btn-supabase-connect-open')?.addEventListener('click', () => {
     if (root.querySelector('#btn-supabase-connect-open')?.disabled) return;
     window.HaloSupabaseConnect?.openConnect();
@@ -5103,12 +6008,59 @@ function wireIntegrationsUi(root = view) {
       }
     };
   });
+  root.querySelectorAll('[data-llm-reveal]').forEach((btn) => {
+    btn.onclick = async () => {
+      const key = btn.dataset.llmReveal;
+      const input = root.querySelector(`input[data-set="${CSS.escape(key)}"]`);
+      try {
+        if (secretVisible[key]) {
+          secretVisible[key] = false;
+          if (input) {
+            revealed[key] = input.value;
+            input.type = 'password';
+          }
+          btn.title = 'Show key';
+          btn.setAttribute('aria-label', 'Show key');
+          btn.innerHTML =
+            '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2.5A2.5 2.5 0 1 0 12 9a2.5 2.5 0 0 0 0 5z"/></svg>';
+          return;
+        }
+        if (revealed[key] == null || revealed[key] === '') {
+          const data = await api('/api/secrets/reveal', { method: 'POST', body: JSON.stringify({ key }) });
+          revealed[key] = data.value || '';
+          if (input) input.value = revealed[key];
+        }
+        secretVisible[key] = true;
+        if (input) {
+          input.type = 'text';
+          input.value = revealed[key] || input.value;
+        }
+        btn.title = 'Hide key';
+        btn.setAttribute('aria-label', 'Hide key');
+        btn.innerHTML =
+          '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2.1 3.5 3.5 2.1 21.9 20.5 20.5 21.9l-3.1-3.1A12.4 12.4 0 0 1 12 19c-7 0-10-7-10-7a18.7 18.7 0 0 1 4.7-5.3L2.1 3.5zM12 7a5 5 0 0 1 4.9 4.1l-1.6-1.6A2.5 2.5 0 0 0 12.5 8L12 7zm9.3 5s-1.2 2.8-3.7 4.6l-1.5-1.5A12 12 0 0 0 20.3 12H21.3z"/></svg>';
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+  });
+  root.querySelectorAll('input[data-llm-secret]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const key = input.dataset.set;
+      if (key) revealed[key] = input.value;
+    });
+  });
+  void hydrateLlmSecretsInView(root);
   root.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.onclick = async () => {
       const key = btn.dataset.copy;
       try {
         let val = revealed[key];
-        if (val == null) {
+        if (val == null || val === '') {
+          const input = root.querySelector(`input[data-set="${CSS.escape(key)}"]`);
+          if (input?.value) val = input.value;
+        }
+        if (val == null || val === '') {
           const data = await api('/api/secrets/reveal', { method: 'POST', body: JSON.stringify({ key }) });
           val = data.value || '';
           revealed[key] = val;
@@ -5129,7 +6081,7 @@ function wireIntegrationsUi(root = view) {
 }
 
 function renderIntegrations() {
-  // Legacy nav target → Profile → Integrations
+  // Legacy nav target → Settings → Integrations
   page = 'profile';
   location.hash = '#profile-integrations';
   renderProfile();
@@ -5137,7 +6089,6 @@ function renderIntegrations() {
 
 function renderIntegrationsGroupBody(group, items) {
   if (group === 'LLM') return renderLlmIntegrationsBody(items);
-  if (group === 'Apify') return renderApifyIntegrationsBody(items);
   if (group === 'Telegram') return renderTelegramIntegrationsBody(items);
   if (group === 'Supabase') return renderSupabaseIntegrationsBody(items);
   return items.map(secretBlockHtml).join('');
@@ -5246,20 +6197,11 @@ function collectPatch() {
 async function save({ restart = false } = {}) {
   if (restart && settings) {
     if (settings.llmRolesConfigured === false) {
-      toast('Add Researcher, Copywriter, and Inspector API keys in Profile → Integrations → LLM before restarting.', true, 7000);
+      toast('Add Researcher, Copywriter, and Inspector API keys in Settings → Integrations → LLM before restarting.', true, 7000);
       page = 'profile';
       openProfileTile = 'integrations';
       location.hash = '#profile-integrations';
       openIntegrationGroups.LLM = true;
-      render();
-      return;
-    }
-    if (settings.apifyAgent1Configured === false) {
-      toast('Add Apify Agent 1 token in Profile → Integrations → Apify before restarting.', true, 7000);
-      page = 'profile';
-      openProfileTile = 'integrations';
-      location.hash = '#profile-integrations';
-      openIntegrationGroups.Apify = true;
       render();
       return;
     }
@@ -5341,6 +6283,29 @@ async function boot() {
   if (notifyBackdrop) notifyBackdrop.onclick = () => setNotifyOpen(false);
   const closeBtn = document.getElementById('btn-notify-close');
   if (closeBtn) closeBtn.onclick = () => setNotifyOpen(false);
+  document.getElementById('btn-support-close')?.addEventListener('click', () => closeSupportChat());
+  supportBackdrop?.addEventListener('click', () => closeSupportChat());
+  supportFab?.addEventListener('click', () => toggleSupportChat());
+  supportForm?.addEventListener('submit', sendSupportChatMessage);
+  supportInput?.addEventListener('input', () => resizeSupportInput());
+  supportInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendSupportChatMessage(e);
+    }
+  });
+  document.getElementById('support-attach-input')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      supportPendingImage = await readImageFileAsAttachment(file);
+      renderAttachPreview('support-attach-preview', supportPendingImage, clearSupportPendingImage);
+    } catch (err) {
+      clearSupportPendingImage();
+      toast(err.message || 'Could not attach image', true);
+    }
+  });
+  resizeSupportInput();
   const menuBtn = document.getElementById('btn-menu');
   const navBackdrop = document.getElementById('nav-backdrop');
   const navClose = document.getElementById('btn-nav-close');
@@ -5351,6 +6316,7 @@ async function boot() {
     if (e.key === 'Escape') {
       setNavOpen(false);
       setNotifyOpen(false);
+      closeSupportChat();
     }
   });
   window.addEventListener('resize', () => {
@@ -5398,15 +6364,19 @@ async function boot() {
     updateBell();
     try {
       const me = await fetch('/api/auth/me', { credentials: 'same-origin' }).then((r) => r.json());
-      if (me?.ok && me.trialEnded) {
-        let ban = document.getElementById('halo-trial-banner');
-        if (!ban) {
-          ban = document.createElement('div');
-          ban.id = 'halo-trial-banner';
-          ban.style.cssText =
-            'position:sticky;top:0;z-index:50;background:#7f1d1d;color:#fecaca;padding:10px 16px;text-align:center;font-size:0.88rem;border-bottom:1px solid #991b1b';
-          ban.textContent = `Trial ended (${me.leadCount}/${me.tenant?.trialLeadLimit || 50} leads). New leads blocked until upgrade.`;
-          document.body.prepend(ban);
+      if (me?.ok) {
+        haloMe = me.tenant || null;
+        setSupportFabUnread(me.tenant?.userUnreadSupport === true);
+        if (me.trialEnded) {
+          let ban = document.getElementById('halo-trial-banner');
+          if (!ban) {
+            ban = document.createElement('div');
+            ban.id = 'halo-trial-banner';
+            ban.style.cssText =
+              'position:sticky;top:0;z-index:50;background:#7f1d1d;color:#fecaca;padding:10px 16px;text-align:center;font-size:0.88rem;border-bottom:1px solid #991b1b';
+            ban.textContent = `Trial ended (${me.leadCount}/${me.tenant?.trialLeadLimit || 50} leads). New leads blocked until upgrade.`;
+            document.body.prepend(ban);
+          }
         }
       }
     } catch {
@@ -5416,6 +6386,11 @@ async function boot() {
     if (pageParam && NAV.some((n) => n.id === pageParam)) page = pageParam;
     render();
     setInterval(refreshNotifications, 30000);
+    refreshSupportFabBadge().catch(() => {});
+    if (supportBadgeTimer) clearInterval(supportBadgeTimer);
+    supportBadgeTimer = setInterval(() => {
+      if (!supportOpen) refreshSupportFabBadge().catch(() => {});
+    }, 60000);
   } catch (e) {
     view.innerHTML = `<div class="coming">Failed to load: ${escapeHtml(e.message)}</div>`;
   }

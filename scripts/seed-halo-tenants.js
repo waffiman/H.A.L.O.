@@ -1,5 +1,5 @@
 /**
- * Seed WAFFi owner + 2 empty tester cabinets.
+ * Seed WAFFi owner cabinet only.
  * Run inside outreach-dashboard with APP_ROOT=/app-data (compose) or env from container.
  */
 import fs from 'fs';
@@ -73,12 +73,10 @@ async function main() {
 
   const sb = createClient(url, key, { auth: { persistSession: false } });
 
-  // Probe table
   const { error: probe } = await sb.from('halo_tenants').select('id', { head: true, count: 'exact' }).limit(1);
   if (probe) throw new Error(`halo_tenants missing? ${probe.message}`);
 
   const waffiPass = (env.DASHBOARD_PASSWORD || process.env.DASHBOARD_PASSWORD || '').trim();
-  const testerPass = (process.env.TESTER_PASS || 'HaloTest2026!').trim();
   const waffiEmail = (process.env.WAFFI_EMAIL || 'wafficompany@gmail.com').trim().toLowerCase();
 
   if (!waffiPass) throw new Error('DASHBOARD_PASSWORD missing for WAFFi seed');
@@ -98,37 +96,12 @@ async function main() {
     { forceWorkspaceId: true }
   );
 
-  await ensure(sb, {
-    email: 'colleague1@halo.local',
-    password_hash: hashPassword(testerPass),
-    workspace_id: 'tester_colleague_1',
-    display_name: 'Colleague 1',
-    company: 'HALO Trial',
-    role: 'user',
-    subscription_status: 'trial',
-    trial_lead_limit: 50,
-  });
-
-  await ensure(sb, {
-    email: 'colleague2@halo.local',
-    password_hash: hashPassword(testerPass),
-    workspace_id: 'tester_colleague_2',
-    display_name: 'Colleague 2',
-    company: 'HALO Trial',
-    role: 'user',
-    subscription_status: 'trial',
-    trial_lead_limit: 50,
-  });
-
-  // Lead isolation check
-  for (const ws of ['default', 'tester_colleague_1', 'tester_colleague_2']) {
-    const { count, error } = await sb
-      .from('leads')
-      .select('*', { count: 'exact', head: true })
-      .eq('workspace_id', ws);
-    if (error) throw new Error(error.message);
-    console.log('leads', ws, count || 0);
-  }
+  const { count, error } = await sb
+    .from('leads')
+    .select('*', { count: 'exact', head: true })
+    .eq('workspace_id', 'default');
+  if (error) throw new Error(error.message);
+  console.log('leads default', count || 0);
   console.log('SEED_OK');
 }
 

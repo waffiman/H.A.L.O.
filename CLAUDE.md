@@ -9,11 +9,12 @@ built by WAFFi. A Playwright agent drives a real LinkedIn session through a two-
 pipeline; an Express dashboard is the control plane. Everything runs as Docker
 containers on an IONOS VPS (`/root/cold-outreach-agent`), not on a PaaS.
 
-- **Stage A (acquisition)** — promote accepted invites → drain `Proposal 1️⃣`
+- **Stage A (acquisition)** — promote accepted invites → drain `Lead😴`
   (Apify enrich + LLM ice-breaker + DM) → send N connection invites from the Brain
   portrait search. Default interval 48h.
-- **Stage B (conversation)** — scrape the inbox, LLM-reply to unread `Proposal 2️⃣`,
-  revive `Lost❌` leads that wrote back, send silence closings. Default 30m + jitter.
+- **Stage B (conversation)** — scrape the inbox, LLM-reply to unread
+  `Conversation 💬`, revive `Lost❌` leads that wrote back, send silence closings.
+  Default 30m + jitter.
 - **Brain** — LLM copy generation (3-role Researcher→Copywriter→Inspector pipeline)
   plus a weekly strategy-analysis tick that rewrites `brain/strategy_notes.md`.
 
@@ -54,8 +55,13 @@ topology (its §14 rule).
 - **State lives in gitignored JSON at the repo root** (`cycle.lock`,
   `*_state.json`, `session_status.json`, `cookies.json`, `notifications.json`).
   Never commit them; `.gitignore` already covers the patterns.
-- **CRM statuses are exactly five** and the emoji are part of the value — import them
-  from `crm/constants.js`, never re-type the literals or invent a sixth status.
+- **CRM statuses are exactly four** — `Lead😴`, `Conversation 💬`, `Active ✅`,
+  `Lost❌` — and the emoji are part of the value. Import them from
+  `crm/constants.js`; never re-type the literals or add a fifth. The old
+  `Proposal 1️⃣` / `Proposal 2️⃣` pair was collapsed into `Lead😴` /
+  `Conversation 💬`; `STATUS_PROPOSAL_1` and `STATUS_PROPOSAL_2` survive only as
+  deprecated aliases for legacy call sites, and `crm/constants.js` has a
+  normalizer that maps old values forward. Prefer the new names in new code.
 - **Always go through `crmStore.js`**, not an adapter directly. `CRM_BACKEND` selects
   Notion (legacy) or Supabase (current default in `.env.example`); both adapters must
   keep the same shape.

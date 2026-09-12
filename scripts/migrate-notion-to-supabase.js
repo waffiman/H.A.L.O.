@@ -10,7 +10,7 @@ import { notionRichText } from '../messageQuality.js';
 
 dotenv.config({ override: true });
 
-const CRM_STATUSES = ['Lead😴', 'Proposal 1️⃣', 'Proposal 2️⃣', 'Active ✅', 'Lost❌'];
+const CRM_STATUSES = ['Lead😴', 'Conversation 💬', 'Active ✅', 'Lost❌'];
 const skipNotes = process.argv.includes('--skip-notes');
 
 function sbHeaders(key, extra = {}) {

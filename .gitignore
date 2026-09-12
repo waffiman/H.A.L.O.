@@ -118,6 +118,10 @@ Thumbs.db
 
 # Local agent / Cursor
 .cursor/
+!.cursor/hooks/
+!.cursor/hooks/**
+!.cursor/hooks.json
+
 agent-transcripts/
 terminals/
 

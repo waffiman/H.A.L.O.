@@ -26,7 +26,7 @@ function simulateDecision(rawJson, offers, meetUrl, calendarAddUrl = '') {
     reason: String(parsed.reason || ''),
     reply: String(parsed.reply || ''),
     notes_append: String(parsed.notes_append || ''),
-    status: parsed.status || 'Proposal 2️⃣',
+    status: parsed.status || 'Conversation 💬',
     booked_slot_id: String(parsed.booked_slot_id || '').trim(),
     text: String(parsed.reply || ''),
   };
@@ -62,12 +62,12 @@ async function main() {
       reason: 'soft interest',
       reply: 'Happy to hop on a call — what times work?',
       booked_slot_id: '',
-      status: 'Proposal 2️⃣',
+      status: 'Conversation 💬',
     }),
     offers,
     ''
   );
-  assert(soft.status === 'Proposal 2️⃣', 'soft yes must stay P2');
+  assert(soft.status === 'Conversation 💬', 'soft yes must stay P2');
   console.log('soft interest →', soft.status);
 
   const badId = simulateDecision(
@@ -81,7 +81,7 @@ async function main() {
     offers,
     'https://meet.google.com/aaa-bbbb-ccc'
   );
-  assert(badId.status === 'Proposal 2️⃣' && badId.intent === 'continue', 'bad slot id must not Active');
+  assert(badId.status === 'Conversation 💬' && badId.intent === 'continue', 'bad slot id must not Active');
   console.log('bad booked_slot_id →', badId.intent, badId.status);
 
   const acceptNoMeet = simulateDecision(

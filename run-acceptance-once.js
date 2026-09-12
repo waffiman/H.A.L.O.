@@ -1,5 +1,5 @@
 /**
- * One-shot acceptance check: scan My Network for accepted Lead😴 → promote to Proposal 1️⃣.
+ * One-shot acceptance check: scan My Network for accepted Lead😴 → ready for enrich/ice.
  * Launch path mirrors ensureLoggedInBrowser() in index.js (plain playwright, no stealth).
  */
 import fs from 'fs';

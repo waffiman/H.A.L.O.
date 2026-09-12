@@ -261,7 +261,7 @@ export function buildSalesReplyBlock(root = process.cwd()) {
     `Primary outcome: ${meta.label} (\`${meta.id}\`).`,
     `Active ✅ ONLY when this outcome is clearly achieved in the thread (${meta.hint}).`,
     'Anyone clearly outside the target portrait (after real engagement), or hard refusal / wrong person / hostile → Lost❌ (pick one lost_reason enum).',
-    'Soft interest, maybe later, or still exploring → continue on Proposal 2️⃣ (not Active).',
+    'Soft interest, maybe later, or still exploring → continue on Conversation 💬 (not Active).',
     'lost_reason enum: not_interested | wrong_person | no_budget | bad_timing | has_solution | competitor | unsubscribe | hostile | non_fit | other',
   ];
   if (outcome === 'book_a_call') {

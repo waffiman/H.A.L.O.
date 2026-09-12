@@ -1,0 +1,13 @@
+#!/bin/sh
+# Auto-push current branch to origin after every successful commit.
+# Installed to .git/hooks/post-commit (also kept in .githooks/ for the repo).
+
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
+if [ -z "$branch" ] || [ "$branch" = "HEAD" ]; then
+  exit 0
+fi
+
+# Don't fail the commit if push fails (network / auth).
+git push -u origin "$branch" >/dev/null 2>&1 || \
+  echo "post-commit: push to origin/$branch failed (commit kept locally)" >&2
+exit 0

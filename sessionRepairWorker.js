@@ -7,12 +7,22 @@ import fs from 'fs';
 import path from 'path';
 import { chromium } from 'playwright';
 import { markSessionOk } from './sessionHealth.js';
+import {
+  cookiesFile,
+  sessionDataDir,
+  sessionRepairDataDir,
+  stateJsonFile,
+  stageBStateFile,
+  dataRoot,
+} from './dataRoot.js';
 
 const ROOT = process.cwd();
 const STATE_PATH = path.join(ROOT, 'session_repair.json');
 const FRAME_PATH = path.join(ROOT, 'session_repair_frame.jpg');
 const INPUT_PATH = path.join(ROOT, 'session_repair_input.jsonl');
-const COOKIES_PATH = path.join(ROOT, 'cookies.json');
+function cookiesPath() {
+  return cookiesFile();
+}
 const TOKEN = process.env.REPAIR_TOKEN || '';
 const MAX_MS = Number(process.env.REPAIR_TIMEOUT_MS || 20 * 60 * 1000);
 
@@ -154,15 +164,15 @@ async function tryHarvest(context, page, { requireLive = true } = {}) {
   const packed = toPlaywrightCookies(await context.cookies());
   const stillLi = packed.find((c) => c.name === 'li_at' && c.value && c.value.length > 20);
   if (!stillLi) return false;
-  fs.writeFileSync(COOKIES_PATH, JSON.stringify(packed, null, 2));
+  fs.writeFileSync(cookiesPath(), JSON.stringify(packed, null, 2));
   // Bind-mounted session_data cannot be renamed (EBUSY) — clear contents instead.
   try {
-    wipeDirContents(path.join(ROOT, 'session_data'));
+    wipeDirContents(sessionDataDir());
   } catch (e) {
     console.error('session_data reset:', e.message);
   }
   try {
-    const statePath = path.join(ROOT, 'state.json');
+    const statePath = stateJsonFile();
     if (fs.existsSync(statePath)) fs.unlinkSync(statePath);
   } catch (e) {
     console.error('state.json wipe:', e.message);
@@ -170,7 +180,7 @@ async function tryHarvest(context, page, { requireLive = true } = {}) {
   try {
     const now = new Date().toISOString();
     fs.writeFileSync(
-      path.join(ROOT, 'stage_b_state.json'),
+      stageBStateFile(),
       JSON.stringify({ lastInboxScanAt: now, lastBrowserAt: now }, null, 2)
     );
   } catch {
@@ -837,7 +847,7 @@ async function runRepair() {
   });
 
   // Fresh login from dashboard must not reuse a dead li_at jar from a prior repair.
-  const userDataDir = path.join(ROOT, 'session_data_repair');
+  const userDataDir = sessionRepairDataDir();
   const forceFresh = process.env.REPAIR_FORCE_FRESH === '1';
   if (forceFresh) {
     console.log('REPAIR_FORCE_FRESH=1 — wiping session_data_repair before login');

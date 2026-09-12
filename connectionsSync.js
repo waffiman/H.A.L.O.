@@ -1,5 +1,7 @@
 /**
- * Phase 0: My Connections → Notion (Status Proposal 1️⃣ + Link only).
+ * Phase 0: My Connections → CRM (Status Lead😴 + ready marker + Link).
+ * Already-connected imports are messageable: enrich + ice run while status stays Lead😴,
+ * then ice send moves them to Conversation 💬.
  *
  * Intake model (CRM-first, grows with your network):
  * - Page sort: Recently added (newest at TOP).
@@ -13,12 +15,13 @@ import { Client } from '@notionhq/client';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { STATUS_LEAD, LEAD_READY_MARKER } from './crm/constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SYNC_STATE_PATH = path.join(process.cwd(), 'connections_sync_state.json');
 const CONNECTIONS_URL = 'https://www.linkedin.com/mynetwork/invite-connect/connections/';
-const STATUS_PROPOSAL_1 = 'Proposal 1️⃣';
+const STATUS_PROPOSAL_1 = STATUS_LEAD;
 
 /** Baseline: everyone above this profile is "new" until cursor advances. */
 const DEFAULT_ANCHOR_URL =
@@ -165,7 +168,16 @@ export async function fetchKnownProfileSlugs(opts) {
 
 export async function createNotionLead({ url, name = '' } = {}) {
   const crm = await import('./crmStore.js');
-  return crm.createLead({ url, name });
+  const row = await crm.createLead({ url, name, status: STATUS_LEAD });
+  try {
+    await crm.appendNote(
+      row.id,
+      `Accepted connection — ${LEAD_READY_MARKER} (Lead😴)`
+    );
+  } catch (e) {
+    console.error('ready marker note:', e.message);
+  }
+  return row;
 }
 
 const DESKTOP_UA =
@@ -829,7 +841,7 @@ export async function syncNewConnections(page, opts = {}) {
         type: 'leads',
         severity: 'info',
         title: 'New leads imported to CRM',
-        message: `Stage A added ${created.length} connection(s) to Notion as Proposal 1️⃣.`,
+        message: `Stage A added ${created.length} connection(s) as Lead😴 (ready for enrich + ice).`,
       });
     }
   } catch (e) {

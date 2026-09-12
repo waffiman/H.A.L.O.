@@ -7,6 +7,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { ensureTenantRuntime } from './tenantRuntime.js';
+import { waffiWorkspaceId } from './tenants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -220,10 +222,14 @@ export function assertSingleAutomation(root = hostAppRoot()) {
 
 /**
  * Dashboard LinkedIn Session tile: start remote Chromium login with email/password.
+ * @param {string} username
+ * @param {string} password
+ * @param {string} [workspaceId]
  */
-export function startDashboardLinkedInLogin(username, password) {
+export function startDashboardLinkedInLogin(username, password, workspaceId = 'default') {
   const user = String(username || '').trim();
   const pass = String(password || '');
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
   if (!user || !pass) throw new Error('Email/phone and password are required');
 
   const prev = readRepairState();
@@ -264,8 +270,9 @@ export function startDashboardLinkedInLogin(username, password) {
     lastSignInError: null,
     error: null,
     credentialErrorAt: null,
+    workspaceId: ws,
   });
-  const started = startRepairWorkerSync(link.token);
+  const started = startRepairWorkerSync(link.token, ws);
   appendRepairInput(link.token, { type: 'signin', username: user, password: pass });
   return {
     ok: true,
@@ -274,11 +281,12 @@ export function startDashboardLinkedInLogin(username, password) {
     repairUrl: link.repairUrl || repairRemoteUrlForToken(link.token),
     reused: link.reused,
     started,
+    workspaceId: ws,
     state: readRepairState(),
   };
 }
 
-export function startRepairWorkerSync(token) {
+export function startRepairWorkerSync(token, workspaceId = 'default') {
   const st = readRepairState();
   if (!st || st.token !== token) throw new Error('Invalid repair token');
   assertSingleAutomation();
@@ -286,7 +294,8 @@ export function startRepairWorkerSync(token) {
   if ((st.status === 'running' || st.status === 'starting') && containerUp) {
     return { ok: true, already: true, state: st };
   }
-  writeRepairState({ status: 'starting', error: null, containerId: null });
+  const ws = String(workspaceId || st.workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  writeRepairState({ status: 'starting', error: null, containerId: null, workspaceId: ws });
 
   const root = hostAppRoot();
   const name = 'linkedin-repair';
@@ -321,6 +330,9 @@ export function startRepairWorkerSync(token) {
     /* ignore */
   }
 
+  const isDefault = ws === waffiWorkspaceId();
+  if (!isDefault) ensureTenantRuntime(ws);
+
   const args = [
     'run',
     '-d',
@@ -335,11 +347,18 @@ export function startRepairWorkerSync(token) {
     // Dashboard email/password login always starts clean — never reuse a dead repair jar.
     '-e',
     'REPAIR_FORCE_FRESH=1',
+    '-e',
+    `WORKSPACE_ID=${ws}`,
     '-v',
     `${root}:/app`,
-    '-v',
-    `${root}/session_data:/app/session_data`,
   ];
+  if (isDefault) {
+    // WAFFi legacy: bind root session_data (unchanged)
+    args.push('-v', `${root}/session_data:/app/session_data`);
+  } else {
+    // Tenant jar under /app/halo-tenants/{ws} (covered by ${root}:/app bind)
+    args.push('-e', `TENANT_DATA_ROOT=/app/halo-tenants/${ws}`);
+  }
   if (nmVol) args.push('-v', `${nmVol}:/app/node_modules`);
   args.push(
     '--shm-size=2gb',
@@ -352,8 +371,13 @@ export function startRepairWorkerSync(token) {
 
   try {
     const id = execFileSync('docker', args, { encoding: 'utf8' }).trim();
-    writeRepairState({ status: 'running', containerId: id, startedAt: new Date().toISOString() });
-    return { ok: true, containerId: id };
+    writeRepairState({
+      status: 'running',
+      containerId: id,
+      startedAt: new Date().toISOString(),
+      workspaceId: ws,
+    });
+    return { ok: true, containerId: id, workspaceId: ws };
   } catch (e) {
     writeRepairState({ status: 'error', error: String(e.message || e) });
     throw e;

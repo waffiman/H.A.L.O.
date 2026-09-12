@@ -36,7 +36,7 @@ async function promoteMatch(lead, row) {
     name: row.name || '',
   });
   const label = row.name ? ` (${row.name})` : ' (name pending — enrich will fill)';
-  console.log(`Accepted → Proposal 1️⃣: ${row.slug || lead.slug}${label}`);
+  console.log(`Accepted → ready for enrich/ice (Lead😴): ${row.slug || lead.slug}${label}`);
 }
 
 /**
@@ -212,7 +212,7 @@ export async function runStageAConnectPhase(page) {
 }
 
 /**
- * Phase 2: promote Lead😴 → Proposal 1️⃣ when connection accepted.
+ * Phase 2: mark accepted Lead😴 as ready for enrich + ice (status stays Lead😴).
  * Primary: open each CRM profile link (no My Network scroll).
  * Fallback: My Connections only for leads we did not resolve via profile this run.
  */
@@ -220,7 +220,7 @@ export async function runStageAAcceptancePhase(page) {
   const leads = await listAllLeadSleepPages();
   if (!leads.length) {
     console.log('Acceptance phase: no Lead😴 pages in CRM.');
-    return { promoted: 0 };
+    return { promoted: 0, promotedIds: [] };
   }
 
   const slugToLead = new Map(
@@ -229,6 +229,7 @@ export async function runStageAAcceptancePhase(page) {
   console.log(`--- Stage A acceptance phase (${slugToLead.size} Lead😴 slug(s)) ---`);
 
   const promotedSlugs = new Set();
+  const promotedIds = [];
   /** Slugs with a definitive profile read this run (connected/pending/not_connected/bad_url). */
   const resolvedSlugs = new Set();
   let promoted = 0;
@@ -261,6 +262,7 @@ export async function runStageAAcceptancePhase(page) {
         try {
           await promoteMatch(lead, { slug, url: probe.url || lead.url, name: probe.name || '' });
           promoted++;
+          if (lead.id) promotedIds.push(lead.id);
           if (slug) promotedSlugs.add(slug);
         } catch (e) {
           console.error(`Promote failed ${slug}:`, e.message);
@@ -272,7 +274,7 @@ export async function runStageAAcceptancePhase(page) {
 
   if (sessionDead) {
     console.log('Acceptance: session dead during profile probes.');
-    return { promoted, sessionDead: true, profileChecked };
+    return { promoted, promotedIds, sessionDead: true, profileChecked };
   }
 
   // My Network only for leads we never got a clear profile status for (cap miss / unknown).
@@ -295,12 +297,19 @@ export async function runStageAAcceptancePhase(page) {
 
     if (scraped.sessionDead) {
       console.log('Acceptance scrape: session dead.');
-      return { promoted, sessionDead: true, profileChecked, scannedCount: scraped.scannedCount };
+      return {
+        promoted,
+        promotedIds,
+        sessionDead: true,
+        profileChecked,
+        scannedCount: scraped.scannedCount,
+      };
     }
     if (scraped.browserCrashed) {
       console.log('Acceptance scrape: Chromium crashed on My Connections.');
       return {
         promoted,
+        promotedIds,
         sessionDead: false,
         browserCrashed: true,
         profileChecked,
@@ -316,6 +325,7 @@ export async function runStageAAcceptancePhase(page) {
       try {
         await promoteMatch(lead, row);
         promoted++;
+        if (lead.id) promotedIds.push(lead.id);
         promotedSlugs.add(row.slug);
       } catch (e) {
         console.error(`Promote failed ${row.slug}:`, e.message);
@@ -328,11 +338,11 @@ export async function runStageAAcceptancePhase(page) {
   console.log(
     `[Acceptance SUMMARY] promoted=${promoted} profileChecked=${profileChecked} scanned=${scannedCount} unresolved=${needFallback.length}`
   );
-  return { promoted, sessionDead: false, matches: promoted, profileChecked, scannedCount };
+  return { promoted, promotedIds, sessionDead: false, matches: promoted, profileChecked, scannedCount };
 }
 
 /**
- * Enrich + ice send for Proposal 1️⃣ (e.g. after acceptance promote). One browser close/reopen cycle.
+ * Enrich + ice send for messageable Lead😴 (accepted / ice-ready). One browser close/reopen cycle.
  */
 export async function runStageAP1EnrichSendPass(ctx) {
   const {
@@ -346,18 +356,28 @@ export async function runStageAP1EnrichSendPass(ctx) {
     sendCap,
     sessionAlive,
     pageRef,
+    promotedIds = [],
   } = ctx;
 
-  const backlog = (await getLeads('Proposal 1️⃣')).filter(matchesTarget);
+  const { STATUS_LEAD, isLeadReadyForIcePipeline } = await import('./crm/constants.js');
+  const readyIds = new Set(promotedIds);
+  const backlog = (await getLeads(STATUS_LEAD))
+    .filter(matchesTarget)
+    .filter((l) =>
+      isLeadReadyForIcePipeline(l, {
+        promotedIds: readyIds,
+        hasIce: (msg) => hasRealIceBreaker(msg),
+      })
+    );
   const needsWork = backlog.filter(
     (l) => !hasRealIceBreaker(l.msg || l.ice) || (l.name && hasRealIceBreaker(l.msg || l.ice))
   );
   if (!needsWork.length) {
-    console.log('P1 enrich/send pass: nothing to do.');
+    console.log('Lead enrich/send pass: nothing to do.');
     return { enriched: 0, sent: 0 };
   }
 
-  console.log(`--- P1 enrich/send pass (${needsWork.length} lead(s)) ---`);
+  console.log(`--- Lead enrich/send pass (${needsWork.length} lead(s)) ---`);
   let sent = 0;
   let enriched = 0;
 
@@ -370,10 +390,17 @@ export async function runStageAP1EnrichSendPass(ctx) {
     }
     await resumeBrowserForSend();
   } else if (toEnrich.length) {
-    console.log('SKIP_ENRICH=1 — skip enrich in P1 pass.');
+    console.log('SKIP_ENRICH=1 — skip enrich in Lead pass.');
   }
 
-  const fresh = (await getLeads('Proposal 1️⃣')).filter(matchesTarget);
+  const fresh = (await getLeads(STATUS_LEAD))
+    .filter(matchesTarget)
+    .filter((l) =>
+      isLeadReadyForIcePipeline(l, {
+        promotedIds: readyIds,
+        hasIce: (msg) => hasRealIceBreaker(msg),
+      })
+    );
   for (const lead of fresh) {
     if (sent >= sendCap) break;
     if (!sessionAlive()) break;
@@ -384,6 +411,6 @@ export async function runStageAP1EnrichSendPass(ctx) {
     if (!sessionAlive()) break;
   }
 
-  console.log(`[P1 pass SUMMARY] enriched=${enriched} iceSent=${sent}`);
+  console.log(`[Lead pass SUMMARY] enriched=${enriched} iceSent=${sent}`);
   return { enriched, sent };
 }
