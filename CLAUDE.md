@@ -99,27 +99,48 @@ These come from production incidents; violating them burns the LinkedIn session.
 
 ## Multi-tenant — read this before touching the dashboard
 
-**The CRM is multi-tenant; the agent is not.** Know which side you are on.
+**The CRM and each cabinet's config are multi-tenant; the agent runtime is
+not.** Know which side you are on.
 
 - **Tenant-scoped (works):** every `/api/crm/*` route passes
   `req.tenant.workspaceId` into the query, and both adapters filter on
-  `workspace_id`. Lead data is genuinely isolated. Keep it that way — never add a
-  CRM query that doesn't take a workspace.
-- **Global / WAFFi-only (by design, enforced):** `.env`, `cookies.json`,
-  `session_data/`, `brain/`, `cycle.lock`, and the single `linkedin-agent`
-  container. `tenantPaths()` in `dashboard/lib/tenantRuntime.js` is currently
-  used **only** by `ensureTenantRuntime` at registration — nothing reads a
-  tenant's `cookies.json` / `brain/` / `tenant.env` yet, so a non-`default`
-  cabinet has a CRM but no outreach automation.
+  `workspace_id`. A cabinet's Brain, prompts, `salesPlaybook.md`, stage flags
+  (`tenant.env`), cookies, `session_status.json` and notifications all resolve
+  under `tenantPaths(ws)` — `cabinetPaths()` in `dashboard/lib/ops.js` is the
+  single place that maps a workspace to those files. Never add a CRM query or a
+  Brain/prompt read that doesn't take a workspace.
+- **Platform-shared (owner-only, enforced):** the root `.env` (integration
+  secrets, Supabase, Stripe, Telegram bot token), `cycle.lock`, and the single
+  `linkedin-agent` container. `restartAgent(ws)` still recreates that one
+  container and writes a global `force_run_once.json` — `ws` only routes the
+  resulting notification.
 
-Because of that split, everything that reads or writes global config is gated to
-`role === 'owner'` by `requireOwner` in `dashboard/server.js`, and non-owners get
-a redacted `GET /api/settings`. **Do not relax those gates to "make the UI work"
-for a tenant** — a non-owner reaching `POST /api/settings` or
-`/api/agent/restart` rewrites WAFFi's production config and recreates the live
-LinkedIn agent. The correct fix is to route the surface through
-`tenantPaths(req.tenant.workspaceId)` and give that tenant its own agent, not to
-drop the check.
+`POST /api/settings` and `/api/settings/switches` are **open to any signed-in
+cabinet**, because everything they write is cabinet-scoped.
+`applyDashboardPatch(body, ws, { isOwner })` refuses integration keys and the
+Notion CRM URL for non-owners, and defensively strips anything matching
+`rootOnlyKeys` before writing. If you add a setting that touches shared state,
+add it to that guard — do not assume the route is gated.
+
+`requireOwner` still guards `/api/agent/restart`, `/api/secrets/reveal`,
+`/api/notion/*`, `/api/supabase/*`, `/api/linkedin/session/login`,
+`/api/linkedin/repair/link`, `/api/analytics/series` and
+`/api/supabase/keepalive`. **Do not relax those** — they reach WAFFi's
+production agent, the shared root `.env`, or platform infrastructure.
+
+A cabinet still has **no outreach automation of its own**: only the WAFFi
+`default` workspace has a running agent. A tenant can configure its cabinet
+fully, but nothing executes Stage A/B for it until per-tenant agent containers
+exist.
+
+New cabinets are seeded by `ensureTenantRuntime` with a **neutral** starter
+prompt — never a copy of WAFFi's master prompt, which names the company and its
+founder. Mode adapters (`prompts/*.md`) are copied from the platform tree and
+are kept brand-neutral for that reason; brand identity belongs in
+`brain/user_prompt.md`.
+
+`buildSettingsView(ws)` and `applyDashboardPatch(...)` are **async** (the
+People-search preview imports `prospectSearch.js` in-process). Await them.
 
 Auth is `dashboard/lib/tenantAuth.js` (scrypt passwords, HMAC session cookies);
 see OVERVIEW.md §9 "Auth & authorization" for the full matrix. Billing is

@@ -28,6 +28,8 @@ export function tenantPaths(workspaceId, appRoot = APP_ROOT) {
       cookies: path.join(appRoot, 'cookies.json'),
       sessionData: path.join(appRoot, 'session_data'),
       brain: path.join(appRoot, 'brain'),
+      prompts: path.join(appRoot, 'prompts'),
+      playbook: path.join(appRoot, 'salesPlaybook.md'),
       envFile: path.join(appRoot, '.env'),
       isLegacy: true,
       workspaceId: ws,
@@ -39,6 +41,8 @@ export function tenantPaths(workspaceId, appRoot = APP_ROOT) {
     cookies: path.join(root, 'cookies.json'),
     sessionData: path.join(root, 'session_data'),
     brain: path.join(root, 'brain'),
+    prompts: path.join(root, 'prompts'),
+    playbook: path.join(root, 'salesPlaybook.md'),
     envFile: path.join(root, 'tenant.env'),
     isLegacy: false,
     workspaceId: ws,
@@ -46,12 +50,71 @@ export function tenantPaths(workspaceId, appRoot = APP_ROOT) {
 }
 
 /** Create empty cabinet folders (idempotent). Does not touch WAFFi legacy tree. */
+/**
+ * Neutral starter for a new cabinet. Deliberately NOT a copy of the WAFFi
+ * master prompt — that file names WAFFi and its founder, and cabinets belong to
+ * other companies.
+ */
+const TENANT_STARTER_PROMPT = `# Sales playbook
+
+You write LinkedIn messages on behalf of the account owner.
+
+## Goal
+Start and advance a real conversation that leads to a short intro call.
+The recipient must believe a human researched them — not a bot.
+
+## Voice
+- Short, specific, human. No corporate filler, no emoji spam.
+- One concrete detail from their profile in the opener.
+- One soft call to action. Never two asks in one message.
+
+## Product
+Describe what you sell here — the Brain uses this to build the angle.
+
+## Rules
+- Never invent facts about the recipient or their company.
+- No pricing in the first message.
+- If they say no, thank them and stop.
+`;
+
+/** Mode adapters a cabinet needs for Stage A/B copy generation. */
+const MODE_PROMPTS = ['ice_breaker', 'reply', 'closing_followup'];
+
+/**
+ * Give a new cabinet its own Brain + prompt files so the dashboard can edit
+ * them without touching the WAFFi tree. Mode adapters are copied from the
+ * platform tree (they are mechanical output contracts); the master prompt is a
+ * neutral starter.
+ */
+function seedTenantBrain(paths, appRoot) {
+  const userPrompt = path.join(paths.brain, 'user_prompt.md');
+  if (!fs.existsSync(userPrompt)) {
+    fs.writeFileSync(userPrompt, TENANT_STARTER_PROMPT, 'utf8');
+  }
+  if (!fs.existsSync(paths.playbook)) {
+    fs.writeFileSync(paths.playbook, TENANT_STARTER_PROMPT, 'utf8');
+  }
+  fs.mkdirSync(paths.prompts, { recursive: true });
+  for (const name of MODE_PROMPTS) {
+    const dest = path.join(paths.prompts, `${name}.md`);
+    if (fs.existsSync(dest)) continue;
+    const src = path.join(appRoot, 'prompts', `${name}.md`);
+    try {
+      if (fs.existsSync(src)) fs.copyFileSync(src, dest);
+    } catch {
+      /* a missing platform adapter is not fatal — readPrompt returns '' */
+    }
+  }
+}
+
 export function ensureTenantRuntime(workspaceId, appRoot = APP_ROOT) {
   const paths = tenantPaths(workspaceId, appRoot);
   if (paths.isLegacy) return paths;
   fs.mkdirSync(paths.root, { recursive: true });
   fs.mkdirSync(paths.sessionData, { recursive: true });
   fs.mkdirSync(paths.brain, { recursive: true });
+  fs.mkdirSync(paths.prompts, { recursive: true });
+  seedTenantBrain(paths, appRoot);
   if (!fs.existsSync(paths.cookies)) {
     fs.writeFileSync(paths.cookies, '[]\n', 'utf8');
   }

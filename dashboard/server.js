@@ -324,34 +324,14 @@ function requireOwner(req, res, next) {
 }
 
 /**
- * Non-owner cabinets keep the settings shape the SPA expects but get none of
- * the WAFFi-global content: prompts, Brain policy, integration keys, LinkedIn
- * session state, infrastructure URLs, host paths, or the ops notification feed.
+ * A cabinet's own Brain, prompts, stage flags, LinkedIn session and
+ * notifications all resolve under tenantPaths(workspaceId), so a non-owner now
+ * sees its own — not WAFFi's. What stays hidden is genuinely platform-shared:
+ * integration keys from the root .env, infrastructure URLs, and host paths.
  */
 function redactSettingsForTenant(view) {
   return {
     ...view,
-    linkedin: { ...(view.linkedin || {}), targetUrl: '' },
-    prompts: { playbook: '', ice_breaker: '', reply: '', closing_followup: '' },
-    brain: {
-      userPrompt: '',
-      strategyNotes: '',
-      analysisEnabled: false,
-      analysisIntervalValue: 0,
-      analysisIntervalUnit: 'days',
-      analysisState: { lastRunAt: null, leadsAnalyzed: 0, lastSummary: '' },
-      portrait: null,
-      linkedInSearch: null,
-      outcome: null,
-      searchUrlOverride: '',
-      booking: null,
-      bookingComplete: false,
-      prospectSearch: null,
-    },
-    telegram: {},
-    googleCalendar: { meetUrl: '', ready: false },
-    session: null,
-    cookies: { present: false },
     integrations: [],
     integrationsHasProblem: false,
     brainLlmHealth: {},
@@ -538,10 +518,10 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'outreach-dashboard' });
 });
 
-app.get('/api/settings', (req, res) => {
+app.get('/api/settings', async (req, res) => {
   try {
     const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
-    const view = buildSettingsView(ws);
+    const view = await buildSettingsView(ws);
     const isOwner = req.tenant?.role === 'owner';
     res.json({ ok: true, settings: isOwner ? view : redactSettingsForTenant(view) });
   } catch (e) {
@@ -549,10 +529,18 @@ app.get('/api/settings', (req, res) => {
   }
 });
 
-app.post('/api/settings', requireOwner, (req, res) => {
+/**
+ * Cabinet-scoped: Brain, prompts, stage flags and cookies all resolve under
+ * tenantPaths(ws), so a tenant edits only its own. applyDashboardPatch refuses
+ * platform-shared config (integration secrets, Notion CRM URL) unless isOwner.
+ */
+app.post('/api/settings', async (req, res) => {
   try {
-    const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
-    const settings = applyDashboardPatch(req.body || {}, ws);
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const ws = req.tenant.workspaceId;
+    const settings = await applyDashboardPatch(req.body || {}, ws, {
+      isOwner: req.tenant.role === 'owner',
+    });
     res.json({ ok: true, settings });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
@@ -560,7 +548,7 @@ app.post('/api/settings', requireOwner, (req, res) => {
 });
 
 /** Auto-save switches only (master / stages / channels) without full form submit */
-app.post('/api/settings/switches', requireOwner, (req, res) => {
+app.post('/api/settings/switches', async (req, res) => {
   try {
     const body = req.body || {};
     const patch = {};
@@ -569,8 +557,11 @@ app.post('/api/settings/switches', requireOwner, (req, res) => {
     if (typeof body.stageBEnabled === 'boolean') patch.stageBEnabled = body.stageBEnabled;
     if (body._masterSource === true) patch._masterSource = true;
     if (body.channels && typeof body.channels === 'object') patch.channels = body.channels;
-    const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
-    const settings = applyDashboardPatch(patch, ws);
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const ws = req.tenant.workspaceId;
+    const settings = await applyDashboardPatch(patch, ws, {
+      isOwner: req.tenant.role === 'owner',
+    });
     res.json({ ok: true, settings });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
@@ -627,7 +618,7 @@ app.post('/api/notion/provision', requireOwner, async (req, res) => {
     const parentPageId = String(req.body?.parentPageId || '').trim();
     const result = await provisionHaloCrm(token, parentPageId);
     invalidateNotionCountsCache();
-    const settings = buildSettingsView();
+    const settings = await buildSettingsView();
     res.json({ ...result, settings });
   } catch (e) {
     const status = e.status === 404 ? 404 : 400;
@@ -743,7 +734,7 @@ app.post('/api/supabase/provision', requireOwner, async (req, res) => {
     const workspaceId = String(req.body?.workspaceId || 'default').trim() || 'default';
     const result = await provisionSupabaseCrm(url, serviceRoleKey, { workspaceId });
     invalidateNotionCountsCache();
-    const settings = buildSettingsView();
+    const settings = await buildSettingsView();
     res.json({ ...result, settings });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
