@@ -68,7 +68,10 @@ export async function setProcessingAt(id, iso = new Date().toISOString()) {
 }
 
 export async function ensureProcessingAt(id, iso = new Date().toISOString()) {
-  const { rows } = await restSelect('leads', { filters: { id: `eq.${id}` } });
+  const { rows } = await restSelect('leads', {
+    filters: { id: `eq.${id}` },
+    select: 'processing_at',
+  });
   if (rows[0]?.processing_at) return;
   await setProcessingAt(id, iso);
 }
@@ -111,7 +114,12 @@ export async function createLeadSleep({ url }) {
 export async function listLeadSleepPages({ maxPages = 30 } = {}) {
   const ws = workspaceId();
   const limit = Math.min(Math.max(maxPages, 1) * 100, 3000);
-  const rows = (await restFetchAll('leads', { workspace_id: ws, status: STATUS_LEAD })).slice(0, limit);
+  const rows = await restFetchAll(
+    'leads',
+    { workspace_id: ws, status: STATUS_LEAD },
+    'created_at.asc',
+    { select: 'id,link,name,processing_at,created_at', max: limit }
+  );
   const out = [];
   for (const row of rows) {
     const u = String(row.link || '');
@@ -137,6 +145,8 @@ export async function findLeadSleepByUrls(urls = []) {
       .map((s) => s.toLowerCase())
   );
   if (!targets.size) return [];
+  // listLeadSleepPages now selects only the columns needed for slug matching,
+  // so scanning Lead rows here is cheap and keeps link-format quirks working.
   const all = await listLeadSleepPages({ maxPages: 30 });
   return all.filter((p) => targets.has(String(p.slug || '').toLowerCase()));
 }
@@ -154,7 +164,12 @@ export async function promoteLeadSleepToProposal1({ id, url, name = '' }) {
 export async function fetchKnownProfileSlugs({ maxPages = 60 } = {}) {
   const ws = workspaceId();
   const limit = Math.min(Math.max(maxPages, 1) * 100, 6000);
-  const rows = (await restFetchAll('leads', { workspace_id: ws })).slice(0, limit);
+  // Only `link` is needed here; this used to pull every column of every lead,
+  // including the full `notes` transcript, just to build a slug set.
+  const rows = await restFetchAll('leads', { workspace_id: ws }, 'created_at.asc', {
+    select: 'link',
+    max: limit,
+  });
   const slugs = new Set();
   for (const row of rows) {
     if (!row.link) continue;
@@ -166,7 +181,7 @@ export async function fetchKnownProfileSlugs({ maxPages = 60 } = {}) {
 }
 
 export async function readNotes(id) {
-  const { rows } = await restSelect('leads', { filters: { id: `eq.${id}` } });
+  const { rows } = await restSelect('leads', { filters: { id: `eq.${id}` }, select: 'notes' });
   return String(rows[0]?.notes || '');
 }
 
@@ -182,14 +197,17 @@ export async function appendNote(id, text) {
 export async function countByStatus() {
   const { CRM_STATUSES } = await import('./constants.js');
   const ws = workspaceId();
+  const totals = await Promise.all(
+    CRM_STATUSES.map((status) =>
+      restSelect('leads', { filters: { workspace_id: ws, status }, count: true }).then(
+        (r) => r.total
+      )
+    )
+  );
   const counts = {};
-  for (const status of CRM_STATUSES) {
-    const { total } = await restSelect('leads', {
-      filters: { workspace_id: ws, status },
-      count: true,
-    });
-    counts[status] = total;
-  }
+  CRM_STATUSES.forEach((status, i) => {
+    counts[status] = totals[i];
+  });
   return { ok: true, counts, cachedAt: new Date().toISOString() };
 }
 
@@ -198,10 +216,9 @@ export async function listLeadsPage({ status, q, page = 1, limit = 50 } = {}) {
   const pageSize = Math.min(Math.max(Number(limit) || 50, 1), 200);
   const pageNum = Math.max(Number(page) || 1, 1);
   const from = (pageNum - 1) * pageSize;
-  const { url, key } = await import('./supabaseRest.js').then(() => ({
-    url: process.env.SUPABASE_URL.replace(/\/$/, ''),
-    key: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  }));
+  const url = String(process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!url || !key) throw new Error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing');
   const params = new URLSearchParams({ select: '*', order: 'updated_at.desc' });
   params.set('workspace_id', `eq.${ws}`);
   if (status) params.set('status', `eq.${status}`);

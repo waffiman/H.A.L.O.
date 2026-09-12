@@ -11,13 +11,16 @@ export const NOTIFICATIONS_PATH = path.join(APP_ROOT, 'notifications.json');
 const TELEGRAM_DEDUP_MS = 6 * 60 * 60 * 1000;
 const NOTIFICATION_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 
+/** Drop items past retention. Sets `data._pruned` when anything was removed. */
 function pruneOld(data) {
   const cutoff = Date.now() - NOTIFICATION_RETENTION_MS;
   const items = Array.isArray(data.items) ? data.items : [];
-  data.items = items.filter((i) => {
+  const kept = items.filter((i) => {
     const t = Date.parse(i.createdAt || i.updatedAt || 0);
     return Number.isFinite(t) && t >= cutoff;
   });
+  data._pruned = kept.length !== items.length;
+  data.items = kept;
   return data;
 }
 
@@ -33,7 +36,9 @@ function load() {
 }
 
 function save(data) {
-  fs.writeFileSync(NOTIFICATIONS_PATH, JSON.stringify(pruneOld(data), null, 2));
+  const pruned = pruneOld(data);
+  const { _pruned, ...persist } = pruned;
+  fs.writeFileSync(NOTIFICATIONS_PATH, JSON.stringify(persist, null, 2));
 }
 
 function uid() {
@@ -69,25 +74,34 @@ export function addNotification(note) {
     createdAt: new Date().toISOString(),
   };
   data.items.unshift(item);
-  save(data);
+  let telegramTarget = null;
   if (!note.skipTelegram) {
     const alreadySent = key
       ? data.items.some(
-          (i) => i.key === key && i.lastTelegramAt && Date.now() - Date.parse(i.lastTelegramAt) < TELEGRAM_DEDUP_MS
+          (i) =>
+            i !== item &&
+            i.key === key &&
+            i.lastTelegramAt &&
+            Date.now() - Date.parse(i.lastTelegramAt) < TELEGRAM_DEDUP_MS
         )
       : false;
     if (!alreadySent) {
       item.lastTelegramAt = new Date().toISOString();
-      save(data);
-      sendTelegramCopy(item).catch(() => {});
+      telegramTarget = item;
     }
   }
+  // Single write covers both the new item and its lastTelegramAt stamp.
+  save(data);
+  if (telegramTarget) sendTelegramCopy(telegramTarget).catch(() => {});
   return item;
 }
 
 export function listNotifications() {
   const data = load();
-  save(data);
+  // Only persist when retention actually dropped something. This is polled every
+  // 30s per open tab and is also called from buildSettingsView and analytics —
+  // it used to rewrite notifications.json on every read.
+  if (data._pruned) save(data);
   const unread = data.items.filter((i) => !i.read).length;
   return { ok: true, items: data.items, unread };
 }
