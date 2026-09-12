@@ -355,7 +355,6 @@ function redactSettingsForTenant(view) {
     integrations: [],
     integrationsHasProblem: false,
     brainLlmHealth: {},
-    notifications: { ok: true, items: [], unread: 0 },
     notionCrmUrl: '',
     supabaseUrl: '',
     supabaseDashboardUrl: '',
@@ -755,22 +754,29 @@ app.get('/api/analytics/series', requireOwner, (req, res) => {
   try {
     const range = String(req.query.range || '30d');
     const tab = String(req.query.tab || 'pipeline');
-    res.json(buildAnalyticsSeries({ range, tab }));
+    const from = req.query.from != null ? String(req.query.from) : '';
+    const to = req.query.to != null ? String(req.query.to) : '';
+    const bucket = req.query.bucket != null ? String(req.query.bucket) : 'auto';
+    const workspaceId = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+    res.json(buildAnalyticsSeries({ range, tab, from, to, bucket, workspaceId }));
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-app.get('/api/notifications', requireOwner, (_req, res) => {
-  res.json(listNotifications());
+app.get('/api/notifications', (req, res) => {
+  const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+  res.json(listNotifications(ws));
 });
 
-app.post('/api/notifications/:id/read', requireOwner, (req, res) => {
-  res.json(markNotificationRead(req.params.id));
+app.post('/api/notifications/:id/read', (req, res) => {
+  const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+  res.json(markNotificationRead(req.params.id, ws));
 });
 
-app.post('/api/notifications/read-all', requireOwner, (_req, res) => {
-  res.json(markAllNotificationsRead());
+app.post('/api/notifications/read-all', (req, res) => {
+  const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+  res.json(markAllNotificationsRead(ws));
 });
 
 function resolveSupportWorkspace(req) {
@@ -1018,8 +1024,9 @@ app.post('/api/secrets/reveal', requireOwner, (req, res) => {
   }
 });
 
-app.post('/api/agent/restart', requireOwner, async (_req, res) => {
-  const result = await restartAgent();
+app.post('/api/agent/restart', requireOwner, async (req, res) => {
+  const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+  const result = await restartAgent(ws);
   res.status(result.ok ? 200 : 500).json(result);
 });
 

@@ -268,6 +268,7 @@ export async function sendMessage(opts, env = readEnvFile()) {
       addNotification({
         type: 'support_message',
         severity: 'warn',
+        workspaceId: ws, // admin-only type → routed to WAFFi cabinet
         key: `support_msg_${ws}_${Date.now()}`,
         title: 'Support chat — new user message',
         message: [
@@ -344,6 +345,7 @@ export async function flagTenantError(
     addNotification({
       type: 'tenant_error',
       severity: 'error',
+      workspaceId: ws, // admin-only type → routed to WAFFi cabinet
       key: `tenant_error_${ws}`,
       title: `Cabinet error — ${ws}`,
       message: [`workspace_id: ${ws}`, `email: ${email || '—'}`, '', reason].join('\n'),

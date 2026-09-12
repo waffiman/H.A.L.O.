@@ -2274,17 +2274,53 @@ function renderDashboard() {
       <div class="analytics-toolbar">
         <div class="analytics-tabs" role="tablist">
           <button type="button" class="analytics-tab active" data-tab="pipeline">Pipeline</button>
+          <button type="button" class="analytics-tab" data-tab="rates">Rates</button>
           <button type="button" class="analytics-tab" data-tab="outreach">Outreach</button>
           <button type="button" class="analytics-tab" data-tab="health">Session</button>
         </div>
         <div class="analytics-controls">
           <select id="analytics-range" title="Timeframe">
-            <option value="7d">7 days</option>
-            <option value="30d" selected>30 days</option>
-            <option value="90d">90 days</option>
-            <option value="24h">24 hours</option>
+            <optgroup label="Hours">
+              <option value="1h">Last 1 hour</option>
+              <option value="6h">Last 6 hours</option>
+              <option value="12h">Last 12 hours</option>
+              <option value="24h">Last 24 hours</option>
+            </optgroup>
+            <optgroup label="Days">
+              <option value="3d">Last 3 days</option>
+              <option value="7d">Last 7 days</option>
+              <option value="14d">Last 14 days</option>
+              <option value="30d" selected>Last 30 days</option>
+              <option value="60d">Last 60 days</option>
+              <option value="90d">Last 90 days</option>
+            </optgroup>
+            <optgroup label="Longer">
+              <option value="180d">Last 6 months</option>
+              <option value="365d">Last year</option>
+              <option value="all">All available</option>
+            </optgroup>
+            <optgroup label="Custom">
+              <option value="custom">Custom range…</option>
+            </optgroup>
+          </select>
+          <select id="analytics-bucket" title="Bucket / interval">
+            <option value="auto" selected>Interval: Auto</option>
+            <option value="hour">Hourly</option>
+            <option value="day">Daily</option>
+            <option value="week">Weekly</option>
           </select>
         </div>
+      </div>
+      <div class="analytics-custom-range" id="analytics-custom-range" hidden>
+        <label class="analytics-date-field">
+          <span>From</span>
+          <input type="datetime-local" id="analytics-from" />
+        </label>
+        <label class="analytics-date-field">
+          <span>To</span>
+          <input type="datetime-local" id="analytics-to" />
+        </label>
+        <button type="button" class="btn btn-sm" id="analytics-apply-custom">Apply</button>
       </div>
       <div class="analytics-metrics" id="analytics-metrics"></div>
       <div class="analytics-plot-wrap">
@@ -2323,9 +2359,80 @@ function bindStageBIntervalGuard() {
 let analyticsState = {
   tab: 'pipeline',
   range: '30d',
+  bucket: 'auto',
+  from: '',
+  to: '',
   enabled: {},
   series: null,
 };
+
+function toDatetimeLocalValue(ms) {
+  const d = new Date(ms);
+  if (!Number.isFinite(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function syncAnalyticsCustomVisibility() {
+  const wrap = document.getElementById('analytics-custom-range');
+  const rangeEl = document.getElementById('analytics-range');
+  if (!wrap || !rangeEl) return;
+  const custom = rangeEl.value === 'custom';
+  wrap.hidden = !custom;
+  if (custom) {
+    const fromEl = document.getElementById('analytics-from');
+    const toEl = document.getElementById('analytics-to');
+    const now = Date.now();
+    if (fromEl && !fromEl.value) {
+      fromEl.value = analyticsState.from
+        ? toDatetimeLocalValue(Date.parse(analyticsState.from))
+        : toDatetimeLocalValue(now - 7 * 86400000);
+    }
+    if (toEl && !toEl.value) {
+      toEl.value = analyticsState.to
+        ? toDatetimeLocalValue(Date.parse(analyticsState.to))
+        : toDatetimeLocalValue(now);
+    }
+  }
+}
+
+function analyticsSeriesQuery() {
+  const params = new URLSearchParams({
+    tab: analyticsState.tab,
+    range: analyticsState.range,
+    bucket: analyticsState.bucket || 'auto',
+  });
+  if (analyticsState.range === 'custom') {
+    if (analyticsState.from) params.set('from', analyticsState.from);
+    if (analyticsState.to) params.set('to', analyticsState.to);
+  }
+  return `/api/analytics/series?${params.toString()}`;
+}
+
+function defaultEnabledMetrics(tab, metrics) {
+  const enabled = {};
+  for (const m of metrics || []) enabled[m.id] = true;
+  if (tab === 'pipeline') {
+    enabled.lost = false;
+    enabled.closed = false;
+    enabled.open = false;
+  } else if (tab === 'rates') {
+    enabled.lostRate = false;
+    enabled.leadShare = false;
+    enabled.openShare = false;
+  } else if (tab === 'outreach') {
+    enabled.events = false;
+    enabled.ice = false;
+    enabled.dm = false;
+    enabled.sync = false;
+    enabled.leads = false;
+  } else if (tab === 'health') {
+    enabled.events = false;
+    enabled.booked = false;
+    enabled.brain = false;
+  }
+  return enabled;
+}
 
 async function bindAnalyticsCanvas() {
   const root = document.getElementById('analytics-canvas');
@@ -2341,12 +2448,37 @@ async function bindAnalyticsCanvas() {
   });
   const rangeEl = document.getElementById('analytics-range');
   if (rangeEl) {
-    rangeEl.value = analyticsState.range;
+    rangeEl.value = analyticsState.range === 'custom' ? 'custom' : analyticsState.range;
     rangeEl.onchange = () => {
       analyticsState.range = rangeEl.value;
+      syncAnalyticsCustomVisibility();
+      if (rangeEl.value !== 'custom') loadAndDrawAnalytics();
+    };
+  }
+  const bucketEl = document.getElementById('analytics-bucket');
+  if (bucketEl) {
+    bucketEl.value = analyticsState.bucket || 'auto';
+    bucketEl.onchange = () => {
+      analyticsState.bucket = bucketEl.value;
       loadAndDrawAnalytics();
     };
   }
+  const applyBtn = document.getElementById('analytics-apply-custom');
+  if (applyBtn) {
+    applyBtn.onclick = () => {
+      const fromEl = document.getElementById('analytics-from');
+      const toEl = document.getElementById('analytics-to');
+      const fromVal = fromEl?.value || '';
+      const toVal = toEl?.value || '';
+      if (!fromVal || !toVal) return;
+      analyticsState.range = 'custom';
+      analyticsState.from = new Date(fromVal).toISOString();
+      analyticsState.to = new Date(toVal).toISOString();
+      if (rangeEl) rangeEl.value = 'custom';
+      loadAndDrawAnalytics();
+    };
+  }
+  syncAnalyticsCustomVisibility();
   await loadAndDrawAnalytics();
 }
 
@@ -2356,14 +2488,12 @@ async function loadAndDrawAnalytics() {
   const canvas = document.getElementById('analytics-plot');
   if (!canvas) return;
   try {
-    const data = await api(
-      `/api/analytics/series?tab=${encodeURIComponent(analyticsState.tab)}&range=${encodeURIComponent(analyticsState.range)}`
-    );
+    const data = await api(analyticsSeriesQuery());
     analyticsState.series = data;
+    if (data.from) analyticsState.from = data.from;
+    if (data.to) analyticsState.to = data.to;
     if (!Object.keys(analyticsState.enabled).length) {
-      for (const m of data.metrics || []) analyticsState.enabled[m.id] = true;
-      // Pipeline default: hide Lost (scale) unless user enables
-      if (analyticsState.tab === 'pipeline') analyticsState.enabled.lost = false;
+      analyticsState.enabled = defaultEnabledMetrics(analyticsState.tab, data.metrics);
     }
     if (metricsEl) {
       metricsEl.innerHTML = (data.metrics || [])
@@ -2478,20 +2608,25 @@ function drawAnalyticsChart(data) {
   }
 
   let maxY = 1;
-  for (const p of points) {
-    for (const m of metrics) {
-      const v = Number(p[m.id] || 0);
-      if (v > maxY) maxY = v;
+  const allPct = metrics.length > 0 && metrics.every((m) => m.unit === 'pct');
+  if (allPct) {
+    maxY = 100;
+  } else {
+    for (const p of points) {
+      for (const m of metrics) {
+        const v = Number(p[m.id] || 0);
+        if (v > maxY) maxY = v;
+      }
     }
+    maxY = Math.ceil(maxY * 1.12) || 1;
   }
-  maxY = Math.ceil(maxY * 1.12) || 1;
 
   ctx.fillStyle = 'rgba(154, 160, 166, 0.85)';
   ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
   for (let i = 0; i <= 4; i++) {
     const val = Math.round(maxY - (maxY * i) / 4);
     const y = pad.t + (h * i) / 4;
-    ctx.fillText(String(val), 8, y + 4);
+    ctx.fillText(allPct ? `${val}%` : String(val), 6, y + 4);
   }
 
   const n = points.length;
@@ -2539,10 +2674,23 @@ function drawAnalyticsChart(data) {
   const labelIdx = n === 1 ? [0] : n === 2 ? [0, 1] : [0, Math.floor((n - 1) / 2), n - 1];
   ctx.fillStyle = 'rgba(154, 160, 166, 0.9)';
   ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+  const spanMs = Number(data.spanMs || 0);
+  const bucket = data.bucket || analyticsState.bucket || 'auto';
+  const useTime =
+    bucket === 'hour' ||
+    (spanMs > 0 && spanMs <= 2 * 86400000) ||
+    ['1h', '6h', '12h', '24h'].includes(analyticsState.range);
   for (const i of labelIdx) {
     const t = points[i]?.t || '';
-    const label = analyticsState.range === '24h' ? t.slice(11, 16) : t.slice(5, 10);
-    ctx.fillText(label, xAt(i) - 14, cssH - 14);
+    let label;
+    if (useTime) {
+      label = t.length >= 16 ? t.slice(5, 16).replace('T', ' ') : t.slice(11, 16);
+    } else if (bucket === 'week') {
+      label = t.slice(0, 10);
+    } else {
+      label = t.slice(5, 10);
+    }
+    ctx.fillText(label, xAt(i) - 18, cssH - 14);
   }
 }
 

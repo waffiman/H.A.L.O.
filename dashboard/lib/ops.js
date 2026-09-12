@@ -751,7 +751,7 @@ export function buildSettingsView(workspaceId = waffiWorkspaceId()) {
     supabaseUrl: (env.SUPABASE_URL || '').trim(),
     supabaseKeepalive: getSupabaseKeepaliveStatus(env),
     apifyActor: (env.APIFY_ACTOR || 'apimaestro~linkedin-profile-detail').trim(),
-    notifications: listNotifications(),
+    notifications: listNotifications(ws),
     envPath: ENV_PATH,
     appRoot: APP_ROOT,
   };
@@ -1275,27 +1275,29 @@ export function requestForceRunOnce(reason = 'dashboard_save_and_restart') {
   return { path: FORCE_RUN_ONCE_PATH, runStageA, runStageB };
 }
 
-function notifyRestartResult(result) {
+function notifyRestartResult(result, workspaceId = waffiWorkspaceId()) {
   const hint = result.ok ? forceRunHint(result) : '';
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
   try {
     if (result.ok) {
       const runningNow = result.runStageA || result.runStageB;
       addNotification({
+        workspaceId: ws,
         type: 'agent_restart',
         severity: 'info',
-        key: `agent_restart_${Date.now()}`,
+        key: `agent_restart_${ws}_${Date.now()}`,
         title: runningNow ? 'H.A.L.O. restarted — running now' : 'H.A.L.O. restarted',
         message: ['Save and restart completed — agent recreated.', hint].filter(Boolean).join('\n'),
       });
     } else {
       addNotification({
+        workspaceId: ws,
         type: 'agent_restart',
         severity: 'error',
-        key: `agent_restart_fail_${Date.now()}`,
+        key: `agent_restart_fail_${ws}_${Date.now()}`,
         title: 'H.A.L.O. restart failed',
         message: String(result.output || result.error || 'unknown error').slice(0, 500),
       });
-      const ws = String(readEnvFile().WORKSPACE_ID || 'default').trim() || 'default';
       import('./supportChat.js')
         .then(({ flagTenantError }) =>
           flagTenantError(ws, {
@@ -1311,17 +1313,21 @@ function notifyRestartResult(result) {
   return { ...result, hint, runStageA: result.runStageA, runStageB: result.runStageB };
 }
 
-export function restartAgent() {
+export function restartAgent(workspaceId = waffiWorkspaceId()) {
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
   const env = readEnvFile();
   if (!llmRolesConfigured(env)) {
     return Promise.resolve(
-      notifyRestartResult({
-        ok: false,
-        error:
-          'LLM brain roles incomplete — add Researcher, Copywriter, and Inspector API keys in Integrations → LLM.',
-        runStageA: false,
-        runStageB: false,
-      })
+      notifyRestartResult(
+        {
+          ok: false,
+          error:
+            'LLM brain roles incomplete — add Researcher, Copywriter, and Inspector API keys in Integrations → LLM.',
+          runStageA: false,
+          runStageB: false,
+        },
+        ws
+      )
     );
   }
   return new Promise((resolve) => {
@@ -1329,7 +1335,7 @@ export function restartAgent() {
     try {
       forcePlan = requestForceRunOnce('dashboard_save_and_restart');
     } catch (e) {
-      resolve(notifyRestartResult({ ok: false, error: `force_run_once write failed: ${e.message}` }));
+      resolve(notifyRestartResult({ ok: false, error: `force_run_once write failed: ${e.message}` }, ws));
       return;
     }
     // Prefer host path when it is mounted into this container (see docker-compose.ionos.yml).
@@ -1358,11 +1364,14 @@ export function restartAgent() {
     child.on('close', (code) => {
       if (code === 0) {
         resolve(
-          notifyRestartResult({
-            ok: true,
-            output: (out || 'agent recreated').trim().slice(-400),
-            ...forcePlan,
-          })
+          notifyRestartResult(
+            {
+              ok: true,
+              output: (out || 'agent recreated').trim().slice(-400),
+              ...forcePlan,
+            },
+            ws
+          )
         );
         return;
       }
@@ -1390,20 +1399,23 @@ export function restartAgent() {
         const httpCode = fbOut.trim();
         const ok = fbCode === 0 && (httpCode === '204' || httpCode === '200' || httpCode === '');
         resolve(
-          notifyRestartResult({
-            ok,
-            code: fbCode,
-            output: `compose recreate failed (${code}): ${out.slice(-200)} | restart http=${httpCode}`,
-            ...forcePlan,
-          })
+          notifyRestartResult(
+            {
+              ok,
+              code: fbCode,
+              output: `compose recreate failed (${code}): ${out.slice(-200)} | restart http=${httpCode}`,
+              ...forcePlan,
+            },
+            ws
+          )
         );
       });
       fb.on('error', (err) =>
-        resolve(notifyRestartResult({ ok: false, error: err.message, output: out.slice(-300) }))
+        resolve(notifyRestartResult({ ok: false, error: err.message, output: out.slice(-300) }, ws))
       );
     });
     child.on('error', (err) => {
-      resolve(notifyRestartResult({ ok: false, error: err.message }));
+      resolve(notifyRestartResult({ ok: false, error: err.message }, ws));
     });
   });
 }

@@ -2927,12 +2927,58 @@ select {
   color: var(--accent);
   border-color: transparent;
 }
+.analytics-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
 .analytics-controls select {
   background: var(--bg-secondary);
   color: var(--fg);
   border: 1px solid var(--line-subtle);
   border-radius: 8px;
   padding: 6px 10px;
+  font-size: 0.78rem;
+  max-width: 100%;
+}
+.analytics-custom-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-subtle);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+}
+.analytics-custom-range[hidden] { display: none !important; }
+.analytics-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.analytics-date-field input {
+  background: var(--bg-secondary);
+  color: var(--fg);
+  border: 1px solid var(--line-subtle);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color-scheme: dark;
+}
+html[data-theme="light"] .analytics-date-field input {
+  color-scheme: light;
+}
+.analytics-custom-range .btn-sm {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  border-radius: 8px;
 }
 .analytics-metrics {
   display: flex;
