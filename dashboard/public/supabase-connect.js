@@ -100,22 +100,89 @@
     }
   }
 
-  async function copySchema() {
-    await loadSchemaIfNeeded();
-    if (!schemaSql) return;
+  /**
+   * Copy text to the clipboard.
+   * navigator.clipboard exists only in a secure context (https or localhost),
+   * so a dashboard opened over plain http at a LAN/VPS address has no Clipboard
+   * API at all — fall back to execCommand there.
+   * @param {string} text
+   * @returns {Promise<boolean>} true when the text actually reached the clipboard
+   */
+  async function writeClipboard(text) {
     try {
-      await navigator.clipboard.writeText(schemaSql);
-      const btn = root()?.querySelector('#sc-copy-schema');
-      if (btn) {
-        const prev = btn.textContent;
-        btn.textContent = 'Copied!';
-        setTimeout(() => {
-          btn.textContent = prev;
-        }, 1600);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
       }
     } catch {
-      /* ignore */
+      /* denied or unavailable — try the legacy path below */
     }
+    let ta = null;
+    try {
+      ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      return document.execCommand('copy');
+    } catch {
+      return false;
+    } finally {
+      if (ta && ta.parentNode) ta.parentNode.removeChild(ta);
+    }
+  }
+
+  /**
+   * The schema <pre> ships as .sr-only (clipped to 1px), so anything written
+   * into it — including load errors — is invisible. Reveal it whenever the user
+   * needs to read or hand-copy the SQL.
+   */
+  function revealSchemaBlock() {
+    const pre = schemaPre();
+    if (!pre) return;
+    pre.classList.remove('sr-only');
+    pre.classList.add('sg-schema-visible');
+    pre.removeAttribute('aria-hidden');
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(pre);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch {
+      /* selection is a convenience, not required */
+    }
+  }
+
+  /** Transient label on the Copy SQL button (step 1 has no status line). */
+  function flashCopyButton(msg) {
+    const btn = root()?.querySelector('#sc-copy-schema');
+    if (!btn) return;
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+    btn.textContent = msg;
+    clearTimeout(flashCopyButton.timer);
+    flashCopyButton.timer = setTimeout(() => {
+      btn.textContent = btn.dataset.label;
+    }, 2400);
+  }
+
+  async function copySchema() {
+    await loadSchemaIfNeeded();
+    if (!schemaSql) {
+      // loadSchemaIfNeeded() wrote the reason into the (hidden) <pre> — show it
+      // instead of leaving the button looking dead.
+      revealSchemaBlock();
+      flashCopyButton('Could not load SQL');
+      return;
+    }
+    if (await writeClipboard(schemaSql)) {
+      flashCopyButton('Copied!');
+      return;
+    }
+    revealSchemaBlock();
+    flashCopyButton('Copy manually ↓');
   }
 
   async function validateCredentials() {

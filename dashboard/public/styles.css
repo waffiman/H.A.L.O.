@@ -4148,6 +4148,22 @@ select {
 .sg-schema-copy-row {
   margin: 14px 0 10px;
 }
+/* Shown when the clipboard is unavailable or the schema failed to load, so the
+   user can read the error or select the SQL by hand. */
+.sg-schema-visible {
+  display: block;
+  max-height: 240px;
+  overflow: auto;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--ink-secondary);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+  user-select: text;
+}
 .sg-schema-head {
   justify-content: space-between;
   align-items: center;
