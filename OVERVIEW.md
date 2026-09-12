@@ -49,6 +49,26 @@ Agent mounts:
 
 Dashboard mounts host tree as `/app-data` (`APP_ROOT`) and Docker socket for agent restart.
 
+### Marketing site (`/marketing`)
+
+`marketing/` is a standalone **React + Vite + Tailwind** port of the Nebulink
+Figma template — the only build step in the repo. It is deliberately separate
+from `dashboard/public/app.js`, which stays framework-free and build-free.
+
+- `dashboard/Dockerfile` builds it in a first stage (`npm ci && npm run build`)
+  and copies the output to `/marketing/dist` in the runtime image.
+- `dashboard/server.js` serves that directory at `/marketing` (hashed assets
+  cached 1y; `index.html` uncached), with a `/marketing/*` SPA fallback.
+- The route is wrapped in an `fs.existsSync` guard, so a dashboard running from
+  source without a marketing build simply doesn't expose it — not an error.
+- Figma asset URLs expire ~7 days after extraction; every asset is committed
+  under `marketing/src/assets/` and mapped in `marketing/assets.manifest.json`.
+
+The port is **incomplete**: Homepage Hero/Features/How-it-Works plus shared
+navbar, footer and CTA are done; the remaining sections and 16 inner pages are
+routed stubs. See `marketing/README.md` for status and how to resume (blocked on
+the Figma MCP Starter-plan cap of 20 calls/month).
+
 ### Brain files — deploy vs runtime (VPS-owned)
 
 | File | Deploy from local? | Owner |
