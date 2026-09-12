@@ -1,13 +1,37 @@
 /**
- * Agent-side helper to append dashboard notifications (same file as dashboard).
+ * Agent-side helper to append dashboard notifications (same files as dashboard).
+ * Respects TENANT_DATA_ROOT / WORKSPACE_ID so cabinets do not share one inbox.
  */
 import fs from 'fs';
 import path from 'path';
 
-const NOTIFICATIONS_PATH = path.join(process.cwd(), 'notifications.json');
-
 const TELEGRAM_DEDUP_MS = 6 * 60 * 60 * 1000;
-const NOTIFICATION_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+const NOTIFICATION_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const ADMIN_ONLY_TYPES = new Set(['support_message', 'tenant_error']);
+
+function waffiWorkspaceId() {
+  return String(process.env.WAFFI_WORKSPACE_ID || 'default').trim() || 'default';
+}
+
+function resolveWorkspaceId(note = {}) {
+  const type = String(note.type || '');
+  if (ADMIN_ONLY_TYPES.has(type)) return waffiWorkspaceId();
+  if (note.workspaceId) return String(note.workspaceId).trim() || waffiWorkspaceId();
+  const envWs = String(process.env.WORKSPACE_ID || '').trim();
+  return envWs || waffiWorkspaceId();
+}
+
+function notificationsPathFor(workspaceId) {
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  const tenantRoot = String(process.env.TENANT_DATA_ROOT || '').trim();
+  if (tenantRoot && ws !== waffiWorkspaceId()) {
+    return path.join(tenantRoot, 'notifications.json');
+  }
+  if (ws !== waffiWorkspaceId()) {
+    return path.join(process.cwd(), 'halo-tenants', ws, 'notifications.json');
+  }
+  return path.join(process.cwd(), 'notifications.json');
+}
 
 function pruneOld(data) {
   const cutoff = Date.now() - NOTIFICATION_RETENTION_MS;
@@ -19,10 +43,11 @@ function pruneOld(data) {
   return data;
 }
 
-function load() {
+function load(workspaceId) {
+  const file = notificationsPathFor(workspaceId);
   try {
-    if (!fs.existsSync(NOTIFICATIONS_PATH)) return { items: [] };
-    const data = JSON.parse(fs.readFileSync(NOTIFICATIONS_PATH, 'utf8'));
+    if (!fs.existsSync(file)) return { items: [] };
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
     const parsed = Array.isArray(data.items) ? data : { items: [] };
     return pruneOld(parsed);
   } catch {
@@ -30,8 +55,10 @@ function load() {
   }
 }
 
-function save(data) {
-  fs.writeFileSync(NOTIFICATIONS_PATH, JSON.stringify(pruneOld(data), null, 2));
+function save(workspaceId, data) {
+  const file = notificationsPathFor(workspaceId);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(pruneOld(data), null, 2));
 }
 
 /**
@@ -46,7 +73,8 @@ function telegramDue(item) {
 }
 
 export async function notify(note) {
-  const data = load();
+  const workspaceId = resolveWorkspaceId(note);
+  const data = load(workspaceId);
   const key = note.key || null;
   if (key) {
     const recent = data.items.find(
@@ -57,6 +85,7 @@ export async function notify(note) {
     if (recent) {
       recent.message = note.message;
       recent.title = note.title;
+      recent.workspaceId = workspaceId;
       recent.updatedAt = new Date().toISOString();
       // Never re-send Telegram for the same key inside the dedup window
       // (forceTelegram must not bypass this — it caused 3× session_dead spam).
@@ -65,16 +94,18 @@ export async function notify(note) {
         .map((i) => Date.parse(i.lastTelegramAt || 0))
         .filter((t) => Number.isFinite(t) && t > 0);
       const tgRecently = lastTg.some((t) => Date.now() - t < TELEGRAM_DEDUP_MS);
-      if (!tgRecently && telegramDue(recent) && !note.skipTelegram) {
+      const skipTg = note.skipTelegram || (workspaceId !== waffiWorkspaceId() && note.type === 'session');
+      if (!tgRecently && telegramDue(recent) && !skipTg) {
         await maybeTelegram(recent);
         recent.lastTelegramAt = new Date().toISOString();
       }
-      save(data);
+      save(workspaceId, data);
       return recent;
     }
   }
   const item = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    workspaceId,
     type: note.type || 'general',
     title: String(note.title || 'Notification'),
     message: String(note.message || ''),
@@ -84,11 +115,12 @@ export async function notify(note) {
     createdAt: new Date().toISOString(),
   };
   data.items.unshift(item);
-  save(data);
-  if (telegramDue(item) && !note.skipTelegram) {
+  save(workspaceId, data);
+  const skipTg = note.skipTelegram || (workspaceId !== waffiWorkspaceId() && note.type === 'session');
+  if (telegramDue(item) && !skipTg) {
     await maybeTelegram(item);
     item.lastTelegramAt = new Date().toISOString();
-    save(data);
+    save(workspaceId, data);
   }
   return item;
 }

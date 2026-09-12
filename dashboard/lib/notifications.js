@@ -1,15 +1,47 @@
 /**
- * Lightweight notification store for the outreach dashboard.
- * File: APP_ROOT/notifications.json
+ * Per-cabinet notification store.
+ * WAFFi default: APP_ROOT/notifications.json
+ * Other cabinets: APP_ROOT/halo-tenants/<workspaceId>/notifications.json
+ *
+ * Admin-only types (support_message, tenant_error) always land on the WAFFi cabinet.
  */
 import fs from 'fs';
 import path from 'path';
 import { APP_ROOT, get, readEnvFile } from './env.js';
+import { waffiWorkspaceId } from './tenants.js';
+import { tenantPaths, ensureTenantRuntime } from './tenantRuntime.js';
 
+/** @deprecated Prefer notificationsPathFor(workspaceId) — kept for imports that expect a path. */
 export const NOTIFICATIONS_PATH = path.join(APP_ROOT, 'notifications.json');
 
 const TELEGRAM_DEDUP_MS = 6 * 60 * 60 * 1000;
-const NOTIFICATION_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+const NOTIFICATION_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const ADMIN_ONLY_TYPES = new Set(['support_message', 'tenant_error']);
+
+function normalizeWorkspaceId(workspaceId) {
+  const ws = String(workspaceId || '').trim();
+  return ws || waffiWorkspaceId();
+}
+
+/** Resolve which cabinet should own this notification. */
+export function resolveNotificationWorkspace(note = {}) {
+  const type = String(note.type || '');
+  if (ADMIN_ONLY_TYPES.has(type)) return waffiWorkspaceId();
+  return normalizeWorkspaceId(note.workspaceId);
+}
+
+export function notificationsPathFor(workspaceId) {
+  const ws = normalizeWorkspaceId(workspaceId);
+  const paths = tenantPaths(ws);
+  if (!paths.isLegacy) {
+    try {
+      ensureTenantRuntime(ws);
+    } catch {
+      /* ignore */
+    }
+  }
+  return path.join(paths.root, 'notifications.json');
+}
 
 function pruneOld(data) {
   const cutoff = Date.now() - NOTIFICATION_RETENTION_MS;
@@ -21,10 +53,11 @@ function pruneOld(data) {
   return data;
 }
 
-function load() {
+function load(workspaceId) {
+  const file = notificationsPathFor(workspaceId);
   try {
-    if (!fs.existsSync(NOTIFICATIONS_PATH)) return { items: [] };
-    const data = JSON.parse(fs.readFileSync(NOTIFICATIONS_PATH, 'utf8'));
+    if (!fs.existsSync(file)) return { items: [] };
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (!Array.isArray(data.items)) return { items: [] };
     return pruneOld(data);
   } catch {
@@ -32,8 +65,11 @@ function load() {
   }
 }
 
-function save(data) {
-  fs.writeFileSync(NOTIFICATIONS_PATH, JSON.stringify(pruneOld(data), null, 2));
+function save(workspaceId, data) {
+  const file = notificationsPathFor(workspaceId);
+  const dir = path.dirname(file);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(pruneOld(data), null, 2));
 }
 
 function uid() {
@@ -41,10 +77,11 @@ function uid() {
 }
 
 /**
- * @param {{ type?: string, title: string, message: string, severity?: 'info'|'warn'|'error', key?: string }} note
+ * @param {{ type?: string, title: string, message: string, severity?: 'info'|'warn'|'error', key?: string, workspaceId?: string, skipTelegram?: boolean }} note
  */
 export function addNotification(note) {
-  const data = load();
+  const targetWs = resolveNotificationWorkspace(note);
+  const data = load(targetWs);
   const key = note.key || null;
   if (key) {
     const recent = data.items.find(
@@ -53,13 +90,15 @@ export function addNotification(note) {
     if (recent) {
       recent.message = note.message;
       recent.title = note.title;
+      recent.workspaceId = targetWs;
       recent.updatedAt = new Date().toISOString();
-      save(data);
+      save(targetWs, data);
       return recent;
     }
   }
   const item = {
     id: uid(),
+    workspaceId: targetWs,
     type: note.type || 'general',
     title: String(note.title || 'Notification'),
     message: String(note.message || ''),
@@ -69,7 +108,7 @@ export function addNotification(note) {
     createdAt: new Date().toISOString(),
   };
   data.items.unshift(item);
-  save(data);
+  save(targetWs, data);
   if (!note.skipTelegram) {
     const alreadySent = key
       ? data.items.some(
@@ -78,40 +117,53 @@ export function addNotification(note) {
       : false;
     if (!alreadySent) {
       item.lastTelegramAt = new Date().toISOString();
-      save(data);
+      save(targetWs, data);
       sendTelegramCopy(item).catch(() => {});
     }
   }
   return item;
 }
 
-export function listNotifications() {
-  const data = load();
-  save(data);
+export function listNotifications(workspaceId) {
+  const ws = normalizeWorkspaceId(workspaceId);
+  const data = load(ws);
+  // Harden: never leak rows tagged for another cabinet (legacy global file).
+  data.items = data.items.filter((i) => {
+    const rowWs = String(i.workspaceId || '').trim();
+    if (!rowWs) return ws === waffiWorkspaceId(); // untagged legacy → WAFFi only
+    return rowWs === ws;
+  });
+  save(ws, data);
   const unread = data.items.filter((i) => !i.read).length;
-  return { ok: true, items: data.items, unread };
+  return { ok: true, items: data.items, unread, workspaceId: ws };
 }
 
-export function markNotificationRead(id) {
-  const data = load();
+export function markNotificationRead(id, workspaceId) {
+  const ws = normalizeWorkspaceId(workspaceId);
+  const data = load(ws);
   const item = data.items.find((i) => i.id === id);
   if (!item) return { ok: false, error: 'not found' };
+  const rowWs = String(item.workspaceId || '').trim();
+  if (rowWs && rowWs !== ws) return { ok: false, error: 'not found' };
   item.read = true;
   item.readAt = new Date().toISOString();
-  save(data);
+  save(ws, data);
   return { ok: true, item, unread: data.items.filter((i) => !i.read).length };
 }
 
-export function markAllNotificationsRead() {
-  const data = load();
+export function markAllNotificationsRead(workspaceId) {
+  const ws = normalizeWorkspaceId(workspaceId);
+  const data = load(ws);
   const now = new Date().toISOString();
   for (const i of data.items) {
+    const rowWs = String(i.workspaceId || '').trim();
+    if (rowWs && rowWs !== ws) continue;
     if (!i.read) {
       i.read = true;
       i.readAt = now;
     }
   }
-  save(data);
+  save(ws, data);
   return { ok: true, unread: 0 };
 }
 
@@ -144,24 +196,30 @@ async function sendTelegramCopy(item) {
 
 /** Sync session health into notifications (idempotent via key). */
 export function syncSessionNotifications(session, cookies, workspaceId) {
+  const ws = normalizeWorkspaceId(workspaceId);
   let flagged = false;
   if (session && session.ok === false) {
     addNotification({
-      key: 'session_dead',
+      workspaceId: ws,
+      key: `session_dead_${ws}`,
       type: 'session',
       severity: 'error',
       title: 'LinkedIn session inactive',
       message: `LinkedIn session is no longer valid${session.reason ? ` (${session.reason})` : ''}. Open H.A.L.O. → LinkedIn and Sign in (email/password + app approval if asked).`,
+      // Tenant session alerts stay in-cabinet; avoid spamming shared admin Telegram for every trial user.
+      skipTelegram: ws !== waffiWorkspaceId(),
     });
     flagged = true;
   }
   if (cookies && cookies.present === false) {
     addNotification({
-      key: 'session_missing_li_at',
+      workspaceId: ws,
+      key: `session_missing_li_at_${ws}`,
       type: 'session',
       severity: 'error',
       title: 'LinkedIn li_at cookie missing',
       message: 'No valid LinkedIn session on the server. Use Sign in on the LinkedIn page (email/password + app approval).',
+      skipTelegram: ws !== waffiWorkspaceId(),
     });
     flagged = true;
   }
