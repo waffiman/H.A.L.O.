@@ -33,6 +33,7 @@ import {
   setSessionCookie,
   clearSessionCookie,
   tenantPublic,
+  ensureSessionSecret,
 } from './lib/tenantAuth.js';
 import { getTenantByEmail, countLeadsForWorkspace, createTenant, assertTrialAllowsNewLead, waffiWorkspaceId } from './lib/tenants.js';
 import { readEnvFile } from './lib/env.js';
@@ -43,6 +44,7 @@ import {
   createBillingPortalSession,
   applyStripeWebhookEvent,
   stripePublicConfig,
+  verifyStripeSignature,
 } from './lib/stripeBilling.js';
 import {
   provisionSupabaseCrm,
@@ -100,6 +102,45 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = Number(process.env.PORT || 3080);
 
+/**
+ * Stripe webhook — MUST be registered before express.json() so the signature is
+ * verified against the exact bytes Stripe signed. Public by design (Stripe is
+ * unauthenticated), so the signature IS the authentication: without a verified
+ * signature anyone could POST a checkout.session.completed and mark any
+ * workspace paid. Fails closed when STRIPE_WEBHOOK_SECRET is unset.
+ */
+app.post(
+  '/api/billing/webhook',
+  express.raw({ type: '*/*', limit: '1mb' }),
+  async (req, res) => {
+    try {
+      const env = readEnvFile();
+      const secret = (env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET || '').trim();
+      if (!secret) {
+        console.warn('[billing] webhook rejected — STRIPE_WEBHOOK_SECRET not configured');
+        return res.status(503).json({ ok: false, error: 'Webhook not configured' });
+      }
+      const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from(String(req.body || ''), 'utf8');
+      const verdict = verifyStripeSignature(raw, req.headers['stripe-signature'], secret);
+      if (!verdict.ok) {
+        console.warn('[billing] webhook rejected —', verdict.error);
+        return res.status(400).json({ ok: false, error: 'Invalid signature' });
+      }
+      let event;
+      try {
+        event = JSON.parse(raw.toString('utf8'));
+      } catch {
+        return res.status(400).json({ ok: false, error: 'Invalid JSON' });
+      }
+      const result = await applyStripeWebhookEvent(event, env);
+      res.json(result);
+    } catch (e) {
+      console.warn('[billing] webhook error:', e.message);
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  }
+);
+
 app.use(express.json({ limit: '4mb' }));
 
 /** Telegram Bot API webhook — must not require dashboard Basic auth. */
@@ -147,29 +188,6 @@ app.get('/api/calendar/invite.ics', async (req, res) => {
   }
 });
 
-function basicAuth(req, res, next) {
-  const user = process.env.DASHBOARD_USER || 'admin';
-  const pass = process.env.DASHBOARD_PASSWORD || '';
-  if (!pass) {
-    res.setHeader('X-Dashboard-Auth', 'open');
-    return next();
-  }
-  const header = req.headers.authorization || '';
-  if (!header.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="H.A.L.O."');
-    return res.status(401).send('Auth required');
-  }
-  const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-  const i = decoded.indexOf(':');
-  const u = decoded.slice(0, i);
-  const p = decoded.slice(i + 1);
-  if (u !== user || p !== pass) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="H.A.L.O."');
-    return res.status(401).send('Invalid credentials');
-  }
-  next();
-}
-
 /** Paths usable without Basic auth (cabinet login / landing / public APIs). */
 function isPublicPath(req) {
   const p = req.path || '';
@@ -193,51 +211,163 @@ function isPublicPath(req) {
   return false;
 }
 
-async function attachTenant(req, _res, next) {
-  try {
-    req.tenant = await resolveRequestTenant(req, readEnvFile());
-  } catch (e) {
-    console.warn('[auth] resolve tenant:', e.message);
-    req.tenant = null;
-  }
-  next();
+/**
+ * Minimal fixed-window rate limiter (no new dependency — the dashboard image
+ * ships only express + supabase-js). Keyed per client IP per bucket.
+ */
+const rateBuckets = new Map();
+
+function rateLimit({ bucket, limit, windowMs }) {
+  return (req, res, next) => {
+    const ip =
+      (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+      req.socket?.remoteAddress ||
+      'unknown';
+    const key = `${bucket}:${ip}`;
+    const now = Date.now();
+    let entry = rateBuckets.get(key);
+    if (!entry || now >= entry.resetAt) {
+      entry = { count: 0, resetAt: now + windowMs };
+      rateBuckets.set(key, entry);
+    }
+    entry.count += 1;
+    if (entry.count > limit) {
+      const retryAfter = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        ok: false,
+        success: false,
+        error: 'Too many attempts. Try again shortly.',
+        message: 'Too many attempts. Try again shortly.',
+      });
+    }
+    return next();
+  };
 }
 
-function requireTenant(req, res, next) {
-  if (req.tenant?.workspaceId) return next();
+// Bound memory: drop expired buckets periodically.
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateBuckets) {
+    if (now >= entry.resetAt) rateBuckets.delete(key);
+  }
+}, 60000).unref();
+
+const loginLimiter = rateLimit({ bucket: 'login', limit: 10, windowMs: 15 * 60 * 1000 });
+const registerLimiter = rateLimit({ bucket: 'register', limit: 5, windowMs: 60 * 60 * 1000 });
+
+/**
+ * @param {object} req
+ * @param {object} res
+ * @param {{ basicAvailable?: boolean }} opts when Basic auth is configured, a
+ *   browser navigation must get 401 + WWW-Authenticate so Chrome shows its
+ *   credential prompt. A 302 with that header is ignored by browsers, which
+ *   would leave WAFFi ops with no way in at all.
+ */
+function denyUnauthenticated(req, res, { basicAvailable = false } = {}) {
   if (req.path.startsWith('/api/')) {
     return res.status(401).json({ ok: false, error: 'Sign in required', login: '/login.html' });
+  }
+  if (basicAvailable) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="H.A.L.O."');
+    return res
+      .status(401)
+      .type('html')
+      .send(
+        '<!doctype html><meta charset="utf-8"><title>H.A.L.O. — sign in</title>' +
+          '<body style="font:14px system-ui;background:#0b0f14;color:#c9d4e0;padding:3rem">' +
+          '<h1 style="font-size:1.1rem">Sign in required</h1>' +
+          '<p>Operator access uses HTTP Basic auth (DASHBOARD_USER / DASHBOARD_PASSWORD).</p>' +
+          '<p>Cabinet accounts sign in at <a style="color:#4ade80" href="/login.html">/login.html</a>.</p>' +
+          '</body>'
+      );
   }
   return res.redirect('/login.html');
 }
 
+/**
+ * Single auth gate. resolveRequestTenant() handles BOTH the cabinet session
+ * cookie and the legacy Basic credentials, so it is called exactly once per
+ * request — it used to run two or three times, each a Supabase round-trip, and
+ * it ran for every static asset too.
+ */
 app.use(async (req, res, next) => {
   if (isPublicPath(req)) return next();
-  // Prefer cabinet session cookie; fall back to legacy Basic for WAFFi ops.
+  let tenant = null;
   try {
-    const tenant = await resolveRequestTenant(req, readEnvFile());
-    if (tenant) {
-      req.tenant = tenant;
-      return next();
-    }
+    tenant = await resolveRequestTenant(req, readEnvFile());
   } catch (e) {
     console.warn('[auth]', e.message);
   }
-  return basicAuth(req, res, (err) => {
-    if (err) return next(err);
-    // After successful Basic, attach WAFFi tenant
-    resolveRequestTenant(req, readEnvFile())
-      .then((t) => {
-        req.tenant = t;
-        next();
-      })
-      .catch(next);
-  });
+  if (tenant?.workspaceId) {
+    req.tenant = tenant;
+    return next();
+  }
+  // Fail closed. Previously an unset DASHBOARD_PASSWORD made basicAuth call
+  // next() with 'X-Dashboard-Auth: open', leaving the whole dashboard public.
+  const env = readEnvFile();
+  const pass = (env.DASHBOARD_PASSWORD || process.env.DASHBOARD_PASSWORD || '').trim();
+  return denyUnauthenticated(req, res, { basicAvailable: Boolean(pass) });
 });
-app.use(attachTenant);
-app.use(express.static(path.join(__dirname, 'public')));
 
-app.post('/api/auth/login', async (req, res) => {
+/** Global config, secrets, and agent control are owner-only. */
+function requireOwner(req, res, next) {
+  if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+  if (req.tenant.role !== 'owner') {
+    return res.status(403).json({
+      ok: false,
+      error: 'Owner access required',
+      code: 'OWNER_ONLY',
+    });
+  }
+  return next();
+}
+
+/**
+ * Non-owner cabinets keep the settings shape the SPA expects but get none of
+ * the WAFFi-global content: prompts, Brain policy, integration keys, LinkedIn
+ * session state, infrastructure URLs, host paths, or the ops notification feed.
+ */
+function redactSettingsForTenant(view) {
+  return {
+    ...view,
+    linkedin: { ...(view.linkedin || {}), targetUrl: '' },
+    prompts: { playbook: '', ice_breaker: '', reply: '', closing_followup: '' },
+    brain: {
+      userPrompt: '',
+      strategyNotes: '',
+      analysisEnabled: false,
+      analysisIntervalValue: 0,
+      analysisIntervalUnit: 'days',
+      analysisState: { lastRunAt: null, leadsAnalyzed: 0, lastSummary: '' },
+      portrait: null,
+      linkedInSearch: null,
+      outcome: null,
+      searchUrlOverride: '',
+      booking: null,
+      bookingComplete: false,
+      prospectSearch: null,
+    },
+    telegram: {},
+    googleCalendar: { meetUrl: '', ready: false },
+    session: null,
+    cookies: { present: false },
+    integrations: [],
+    integrationsHasProblem: false,
+    brainLlmHealth: {},
+    notionCrmUrl: '',
+    supabaseUrl: '',
+    supabaseDashboardUrl: '',
+    supabaseKeepalive: null,
+    apifyActor: '',
+    envPath: '',
+    appRoot: '',
+  };
+}
+
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '5m', etag: true }));
+
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
     const email = String(req.body?.email || '').trim();
     const password = String(req.body?.password || '');
@@ -304,8 +434,8 @@ async function handleRegister(req, res) {
   }
 }
 
-app.post('/api/auth/register', handleRegister);
-app.post('/auth/register', handleRegister);
+app.post('/api/auth/register', registerLimiter, handleRegister);
+app.post('/auth/register', registerLimiter, handleRegister);
 app.post('/api/auth/logout', (_req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
@@ -400,18 +530,6 @@ app.post('/api/billing/portal', async (req, res) => {
   }
 });
 
-/** Stripe webhooks — public. Signature verify lands when STRIPE_WEBHOOK_SECRET + SDK are wired. */
-app.post('/api/billing/webhook', async (req, res) => {
-  try {
-    const env = readEnvFile();
-    const event = req.body && typeof req.body === 'object' ? req.body : {};
-    const result = await applyStripeWebhookEvent(event, env);
-    res.json(result);
-  } catch (e) {
-    res.status(400).json({ ok: false, error: e.message });
-  }
-});
-
 function waffiWorkspaceIdFallback() {
   return waffiWorkspaceId();
 }
@@ -423,13 +541,15 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/settings', (req, res) => {
   try {
     const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
-    res.json({ ok: true, settings: buildSettingsView(ws) });
+    const view = buildSettingsView(ws);
+    const isOwner = req.tenant?.role === 'owner';
+    res.json({ ok: true, settings: isOwner ? view : redactSettingsForTenant(view) });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-app.post('/api/settings', (req, res) => {
+app.post('/api/settings', requireOwner, (req, res) => {
   try {
     const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
     const settings = applyDashboardPatch(req.body || {}, ws);
@@ -440,7 +560,7 @@ app.post('/api/settings', (req, res) => {
 });
 
 /** Auto-save switches only (master / stages / channels) without full form submit */
-app.post('/api/settings/switches', (req, res) => {
+app.post('/api/settings/switches', requireOwner, (req, res) => {
   try {
     const body = req.body || {};
     const patch = {};
@@ -470,11 +590,11 @@ app.get('/api/notion/counts', async (req, res) => {
   }
 });
 
-app.get('/api/notion/setup', (_req, res) => {
+app.get('/api/notion/setup', requireOwner, (_req, res) => {
   res.json({ ok: true, configured: notionConfigured() });
 });
 
-app.post('/api/notion/validate', async (req, res) => {
+app.post('/api/notion/validate', requireOwner, async (req, res) => {
   try {
     const token = String(req.body?.token || '').trim();
     const data = await validateNotionToken(token);
@@ -484,7 +604,7 @@ app.post('/api/notion/validate', async (req, res) => {
   }
 });
 
-app.post('/api/notion/pages', async (req, res) => {
+app.post('/api/notion/pages', requireOwner, async (req, res) => {
   try {
     const token = String(req.body?.token || '').trim();
     const query = String(req.body?.query || '').trim();
@@ -495,7 +615,7 @@ app.post('/api/notion/pages', async (req, res) => {
   }
 });
 
-app.post('/api/notion/provision', async (req, res) => {
+app.post('/api/notion/provision', requireOwner, async (req, res) => {
   try {
     if (notionConfigured()) {
       return res.status(409).json({
@@ -604,7 +724,7 @@ app.post('/api/crm/leads/bulk', requireSupabaseCrm, async (req, res) => {
   }
 });
 
-app.post('/api/supabase/validate', async (req, res) => {
+app.post('/api/supabase/validate', requireOwner, async (req, res) => {
   try {
     const url = String(req.body?.url || '').trim();
     const serviceRoleKey = String(req.body?.serviceRoleKey || '').trim();
@@ -616,7 +736,7 @@ app.post('/api/supabase/validate', async (req, res) => {
   }
 });
 
-app.post('/api/supabase/provision', async (req, res) => {
+app.post('/api/supabase/provision', requireOwner, async (req, res) => {
   try {
     const url = String(req.body?.url || '').trim();
     const serviceRoleKey = String(req.body?.serviceRoleKey || '').trim();
@@ -630,7 +750,7 @@ app.post('/api/supabase/provision', async (req, res) => {
   }
 });
 
-app.get('/api/analytics/series', (req, res) => {
+app.get('/api/analytics/series', requireOwner, (req, res) => {
   try {
     const range = String(req.query.range || '30d');
     const tab = String(req.query.tab || 'pipeline');
@@ -894,16 +1014,17 @@ app.get('/api/support/stream', async (req, res) => {
   }
 });
 
-app.post('/api/secrets/reveal', (req, res) => {
+app.post('/api/secrets/reveal', requireOwner, (req, res) => {
   try {
     const key = String(req.body?.key || '');
-    res.json(revealSecret(key));
+    const out = revealSecret(key);
+    res.status(out.ok ? 200 : 403).json(out);
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
 });
 
-app.post('/api/agent/restart', async (req, res) => {
+app.post('/api/agent/restart', requireOwner, async (req, res) => {
   const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
   const result = await restartAgent(ws);
   res.status(result.ok ? 200 : 500).json(result);
@@ -967,7 +1088,7 @@ app.post('/api/linkedin/repair/input', (req, res) => {
   }
 });
 
-app.get('/api/linkedin/repair/link', (_req, res) => {
+app.get('/api/linkedin/repair/link', requireOwner, (_req, res) => {
   try {
     const link = ensureActiveRepairLink('manual');
     res.json({ ok: true, ...link });
@@ -977,7 +1098,7 @@ app.get('/api/linkedin/repair/link', (_req, res) => {
 });
 
 /** LinkedIn Session tile on dashboard — email/password → remote Chromium login. */
-app.post('/api/linkedin/session/login', (req, res) => {
+app.post('/api/linkedin/session/login', requireOwner, (req, res) => {
   try {
     const { username, password } = req.body || {};
     const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
@@ -1000,6 +1121,14 @@ app.get('/api/linkedin/session/login/status', (req, res) => {
     !workerAlive &&
     !st.liAtCaptured;
   res.json({ ok: true, workerAlive, stale, ...st });
+});
+
+app.get('/api/supabase/keepalive', requireOwner, (_req, res) => {
+  try {
+    res.json({ ok: true, keepalive: getSupabaseKeepaliveStatus() });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 app.get('/api/tenants/linkedin', async (req, res) => {
@@ -1054,6 +1183,11 @@ app.get('/regions/catalog.js', async (_req, res) => {
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+const secretBoot = ensureSessionSecret();
+if (secretBoot.created) {
+  console.warn('[auth] generated a new HALO_SESSION_SECRET and wrote it to .env — existing sessions are invalidated.');
+}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`outreach-dashboard listening on :${PORT}`);

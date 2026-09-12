@@ -658,6 +658,9 @@ export function buildSettingsView(workspaceId = waffiWorkspaceId()) {
   const cookies = readLiAtPresent(ws);
   // Only push TG session alerts for the active request cabinet
   syncSessionNotifications(session, cookies, ws);
+  // Read the policy file once — this block used to re-read and re-parse
+  // sales_policy.json six times per settings request.
+  const salesPolicy = readBrainSalesPolicy();
   const linkedinSessionOk =
     session?.ok === true && !session?.needsCookieRepair && cookies.present;
   const integrations = buildIntegrationsView(rootEnv);
@@ -728,12 +731,12 @@ export function buildSettingsView(workspaceId = waffiWorkspaceId()) {
       analysisIntervalValue: brainInt.value,
       analysisIntervalUnit: brainInt.unit,
       analysisState: readBrainAnalysisState(),
-      portrait: readBrainSalesPolicy().portrait,
-      linkedInSearch: readBrainSalesPolicy().linkedInSearch,
-      outcome: readBrainSalesPolicy().outcome,
-      searchUrlOverride: readBrainSalesPolicy().searchUrlOverride,
-      booking: readBrainSalesPolicy().booking,
-      bookingComplete: validateBookingSchedule(readBrainSalesPolicy().booking).ok,
+      portrait: salesPolicy.portrait,
+      linkedInSearch: salesPolicy.linkedInSearch,
+      outcome: salesPolicy.outcome,
+      searchUrlOverride: salesPolicy.searchUrlOverride,
+      booking: salesPolicy.booking,
+      bookingComplete: validateBookingSchedule(salesPolicy.booking).ok,
       prospectSearch: readProspectSearchPreview(),
     },
     integrations,
@@ -1207,10 +1210,31 @@ export {
   markNotificationRead,
 };
 
+/**
+ * Only values the Integrations UI actually renders a reveal/copy button for may
+ * be read back in cleartext. Derived from INTEGRATION_DEFS so the allowlist
+ * cannot drift from the UI. Everything else — Stripe keys, LinkedIn password,
+ * DASHBOARD_PASSWORD, HALO_SESSION_SECRET, Notion token — is never returned.
+ */
+function revealableKeys() {
+  const out = new Set();
+  for (const d of INTEGRATION_DEFS) {
+    if (d.hidden) continue;
+    if (d.secret === false) continue;
+    if (!isSecretKey(d.key)) continue;
+    out.add(d.key);
+  }
+  return out;
+}
+
 export function revealSecret(key) {
+  const k = String(key || '');
+  if (!revealableKeys().has(k)) {
+    return { ok: false, error: 'This value cannot be revealed' };
+  }
   const env = readEnvFile();
-  if (!(key in env)) return { ok: false, error: 'not found' };
-  return { ok: true, key, value: env[key] || '' };
+  if (!(k in env)) return { ok: false, error: 'not found' };
+  return { ok: true, key: k, value: env[k] || '' };
 }
 
 const FORCE_RUN_ONCE_PATH = path.join(APP_ROOT, 'force_run_once.json');

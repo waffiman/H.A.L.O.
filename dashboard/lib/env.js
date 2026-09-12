@@ -49,7 +49,37 @@ export function maskSecret(value) {
   return `${v.slice(0, 4)}…${v.slice(-4)}`;
 }
 
+/**
+ * Parsed-.env cache keyed by path. Invalidated by mtime+size, and explicitly by
+ * writeEnvFile() so same-process writes are never served stale.
+ * `get()` and the crmApi/tenants default params call this on nearly every request.
+ */
+const envCache = new Map();
+
+export function invalidateEnvCache(filePath) {
+  if (filePath) envCache.delete(filePath);
+  else envCache.clear();
+}
+
 export function readEnvFile(filePath = ENV_PATH) {
+  let stat = null;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
+    envCache.delete(filePath);
+    return {};
+  }
+  const stamp = `${stat.mtimeMs}:${stat.size}`;
+  const hit = envCache.get(filePath);
+  // Always hand back a copy: writeEnvFile() mutates what it gets, and callers
+  // must never be able to corrupt the shared cache entry.
+  if (hit && hit.stamp === stamp) return { ...hit.map };
+  const map = parseEnvFile(filePath);
+  envCache.set(filePath, { stamp, map });
+  return { ...map };
+}
+
+function parseEnvFile(filePath) {
   const map = {};
   if (!fs.existsSync(filePath)) return map;
   for (const line of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
@@ -76,6 +106,7 @@ export function writeEnvFile(updates, { removeKeys = [] } = {}, filePath = ENV_P
   }
   const lines = Object.entries(current).map(([k, v]) => `${k}=${v}`);
   fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
+  invalidateEnvCache(filePath);
   return current;
 }
 

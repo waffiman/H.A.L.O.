@@ -7,11 +7,40 @@ import { readEnvFile } from './env.js';
 
 const WAFFI_WORKSPACE = 'default';
 
+/** Reuse one Supabase client per credential pair instead of one per call. */
+const clientCache = new Map();
+
 function client(env = readEnvFile()) {
   const url = (env.SUPABASE_URL || '').trim();
   const key = (env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
   if (!url || !key) throw new Error('Supabase credentials missing');
-  return createClient(url, key, { auth: { persistSession: false } });
+  const ck = `${url}\u0000${key}`;
+  let sb = clientCache.get(ck);
+  if (!sb) {
+    sb = createClient(url, key, { auth: { persistSession: false } });
+    clientCache.set(ck, sb);
+  }
+  return sb;
+}
+
+/**
+ * Auth rows are read on every authenticated request (resolveRequestTenant).
+ * Short TTL keeps the "prefer live workspace_id after repairs/re-seeds" intent
+ * while removing a Supabase round-trip per request; mutations invalidate
+ * explicitly so login / signup / billing transitions are visible immediately.
+ */
+const TENANT_CACHE_TTL_MS = 15000;
+const tenantCache = new Map();
+
+export function invalidateTenantCache(email) {
+  if (email) tenantCache.delete(String(email).trim().toLowerCase());
+  else tenantCache.clear();
+}
+
+function cachedTenantRow(email) {
+  const hit = tenantCache.get(email);
+  if (hit && Date.now() - hit.at < TENANT_CACHE_TTL_MS) return hit.row;
+  return undefined;
 }
 
 export function hashPassword(password) {
@@ -61,12 +90,16 @@ function rowToTenant(row) {
 }
 
 export async function getTenantAuthRow(email, env = readEnvFile()) {
-  const sb = client(env);
   const needle = String(email || '').trim().toLowerCase();
   if (!needle) return null;
+  const cached = cachedTenantRow(needle);
+  if (cached !== undefined) return cached;
+  const sb = client(env);
   const { data, error } = await sb.from('halo_tenants').select('*').ilike('email', needle).maybeSingle();
   if (error) throw new Error(error.message);
-  return data || null;
+  const row = data || null;
+  tenantCache.set(needle, { at: Date.now(), row });
+  return row;
 }
 
 export async function getTenantByEmail(email, env = readEnvFile()) {
@@ -118,6 +151,7 @@ export async function createTenant(
     .select('*')
     .single();
   if (error) throw new Error(error.message);
+  invalidateTenantCache(em);
   return rowToTenant(data);
 }
 

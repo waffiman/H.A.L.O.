@@ -425,6 +425,47 @@ Acceptance monitoring is **not** a separate toggle — it runs at the start of e
 
 Legacy My Network import (`STAGE_A_LEGACY_SYNC=1`, `SYNC_MAX_NEW`) is **env-only** — removed from dashboard UI (2026-08-28). Production VPS runs portrait mode (`STAGE_A_LEGACY_SYNC=0`).
 
+### Auth & authorization (2026-09-09)
+
+Two ways in, resolved **once** per request by `resolveRequestTenant`
+([`dashboard/lib/tenantAuth.js`](dashboard/lib/tenantAuth.js)):
+
+1. **Cabinet session cookie** `halo_session` — HMAC-signed with
+   `HALO_SESSION_SECRET` (>= 32 chars; auto-generated into `.env` on first boot).
+   There is **no** hardcoded fallback secret and `DASHBOARD_PASSWORD` is never
+   reused as the signing key.
+2. **Basic auth** `DASHBOARD_USER` / `DASHBOARD_PASSWORD` → WAFFi workspace
+   `default`, `role: owner`.
+
+**Fails closed.** With no session and no valid Basic credentials the request is
+refused. An unset `DASHBOARD_PASSWORD` no longer serves the dashboard openly.
+
+Refusal shape matters: `/api/*` gets JSON `401`; a browser navigation gets
+`401` + `WWW-Authenticate` when `DASHBOARD_PASSWORD` is set (so Chrome shows its
+credential prompt — a `302` with that header is silently ignored by browsers),
+and a redirect to `/login.html` otherwise. **Operator login is HTTP Basic, not
+the `/login.html` form** — that form is for Supabase cabinet accounts and
+requires a `halo_tenants` row.
+
+| Surface | Who |
+|---------|-----|
+| `/api/crm/*` | Any signed-in cabinet, scoped to its own `workspace_id` |
+| `GET /api/settings` | Any cabinet — **non-owners get a redacted view** (no prompts, Brain policy, integration keys, session state, infra URLs, host paths, notifications) |
+| `POST /api/settings`, `/api/settings/switches`, `/api/secrets/reveal`, `/api/agent/restart`, `/api/linkedin/session/login`, `/api/linkedin/repair/link`, `/api/notion/*`, `/api/supabase/*`, `/api/analytics/series`, `/api/notifications*` | **`role === 'owner'` only** (`requireOwner`) |
+
+`POST /api/secrets/reveal` returns values **only** for keys the Integrations UI
+renders a reveal button for (derived from `INTEGRATION_DEFS`). Stripe keys,
+`LINKEDIN_PASSWORD`, `NOTION_TOKEN`, `DASHBOARD_PASSWORD`, and
+`HALO_SESSION_SECRET` are never returned.
+
+**Stripe webhook** `/api/billing/webhook` is public (Stripe is unauthenticated),
+so the signature *is* the auth. It is registered **before** `express.json()` and
+verified against the raw body with `STRIPE_WEBHOOK_SECRET` (scheme v1, 300s
+tolerance). Unset secret → `503`; bad signature → `400`. Do not move this route
+below the JSON body parser — re-serialized JSON will not match the signature.
+
+Rate limits: login 10 / 15 min / IP, register 5 / hr / IP.
+
 ### Key APIs
 
 | Path | Role |

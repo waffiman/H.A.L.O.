@@ -3,7 +3,7 @@
  * Cookie: halo_session = base64url(payload).sig
  */
 import crypto from 'crypto';
-import { readEnvFile } from './env.js';
+import { readEnvFile, writeEnvFile } from './env.js';
 import {
   getTenantByEmail,
   getTenantAuthRow,
@@ -15,12 +15,44 @@ import {
 const COOKIE = 'halo_session';
 const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
+/**
+ * Session HMAC key. No hardcoded fallback and no DASHBOARD_PASSWORD reuse:
+ * a guessable key lets anyone mint a session cookie for any workspace.
+ * ensureSessionSecret() runs at boot so this never throws in practice.
+ */
 function sessionSecret(env = readEnvFile()) {
-  return (
-    (env.HALO_SESSION_SECRET || '').trim() ||
-    (env.DASHBOARD_PASSWORD || '').trim() ||
-    'halo-dev-session-secret-change-me'
-  );
+  const secret = (env.HALO_SESSION_SECRET || process.env.HALO_SESSION_SECRET || '').trim();
+  if (secret.length < 32) {
+    throw new Error(
+      'HALO_SESSION_SECRET missing or too short (need >= 32 chars). Dashboard refuses to sign or verify sessions.'
+    );
+  }
+  return secret;
+}
+
+/**
+ * Generate and persist a strong session secret on first boot so a fresh deploy
+ * is secure by default rather than falling back to a shared constant.
+ * @returns {{ created: boolean }}
+ */
+export function ensureSessionSecret() {
+  const env = readEnvFile();
+  const current = (env.HALO_SESSION_SECRET || process.env.HALO_SESSION_SECRET || '').trim();
+  if (current.length >= 32) return { created: false };
+  const generated = crypto.randomBytes(48).toString('base64url');
+  writeEnvFile({ HALO_SESSION_SECRET: generated });
+  process.env.HALO_SESSION_SECRET = generated;
+  return { created: true };
+}
+
+/** Length-safe constant-time string compare for credential checks. */
+function constantTimeEquals(a, b) {
+  const bufA = Buffer.from(String(a ?? ''), 'utf8');
+  const bufB = Buffer.from(String(b ?? ''), 'utf8');
+  // Compare digests so differing lengths do not short-circuit or throw.
+  const digestA = crypto.createHash('sha256').update(bufA).digest();
+  const digestB = crypto.createHash('sha256').update(bufB).digest();
+  return crypto.timingSafeEqual(digestA, digestB) && bufA.length === bufB.length;
 }
 
 function b64url(buf) {
@@ -147,9 +179,10 @@ export async function resolveRequestTenant(req, env = readEnvFile()) {
   if (!header.startsWith('Basic ')) return null;
   const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
   const i = decoded.indexOf(':');
+  if (i < 0) return null;
   const u = decoded.slice(0, i);
   const p = decoded.slice(i + 1);
-  if (u !== user || p !== pass) return null;
+  if (!constantTimeEquals(u, user) || !constantTimeEquals(p, pass)) return null;
 
   return {
     email: user.includes('@') ? user.toLowerCase() : 'wafficompany@gmail.com',

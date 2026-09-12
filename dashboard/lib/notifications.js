@@ -43,13 +43,16 @@ export function notificationsPathFor(workspaceId) {
   return path.join(paths.root, 'notifications.json');
 }
 
+/** Drop items past retention. Sets `data._pruned` when anything was removed. */
 function pruneOld(data) {
   const cutoff = Date.now() - NOTIFICATION_RETENTION_MS;
   const items = Array.isArray(data.items) ? data.items : [];
-  data.items = items.filter((i) => {
+  const kept = items.filter((i) => {
     const t = Date.parse(i.createdAt || i.updatedAt || 0);
     return Number.isFinite(t) && t >= cutoff;
   });
+  data._pruned = kept.length !== items.length;
+  data.items = kept;
   return data;
 }
 
@@ -69,7 +72,9 @@ function save(workspaceId, data) {
   const file = notificationsPathFor(workspaceId);
   const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(pruneOld(data), null, 2));
+  const pruned = pruneOld(data);
+  const { _pruned, ...persist } = pruned;
+  fs.writeFileSync(file, JSON.stringify(persist, null, 2));
 }
 
 function uid() {
@@ -108,19 +113,25 @@ export function addNotification(note) {
     createdAt: new Date().toISOString(),
   };
   data.items.unshift(item);
-  save(targetWs, data);
+  let telegramTarget = null;
   if (!note.skipTelegram) {
     const alreadySent = key
       ? data.items.some(
-          (i) => i.key === key && i.lastTelegramAt && Date.now() - Date.parse(i.lastTelegramAt) < TELEGRAM_DEDUP_MS
+          (i) =>
+            i !== item &&
+            i.key === key &&
+            i.lastTelegramAt &&
+            Date.now() - Date.parse(i.lastTelegramAt) < TELEGRAM_DEDUP_MS
         )
       : false;
     if (!alreadySent) {
       item.lastTelegramAt = new Date().toISOString();
-      save(targetWs, data);
-      sendTelegramCopy(item).catch(() => {});
+      telegramTarget = item;
     }
   }
+  // Single write covers both the new item and its lastTelegramAt stamp.
+  save(targetWs, data);
+  if (telegramTarget) sendTelegramCopy(telegramTarget).catch(() => {});
   return item;
 }
 
@@ -128,12 +139,16 @@ export function listNotifications(workspaceId) {
   const ws = normalizeWorkspaceId(workspaceId);
   const data = load(ws);
   // Harden: never leak rows tagged for another cabinet (legacy global file).
+  const beforeFilter = data.items.length;
   data.items = data.items.filter((i) => {
     const rowWs = String(i.workspaceId || '').trim();
     if (!rowWs) return ws === waffiWorkspaceId(); // untagged legacy → WAFFi only
     return rowWs === ws;
   });
-  save(ws, data);
+  // Persist only when retention or the cabinet filter actually dropped rows.
+  // This is polled every 30s per open tab and is also called from
+  // buildSettingsView and analytics — it must not rewrite on every read.
+  if (data._pruned || data.items.length !== beforeFilter) save(ws, data);
   const unread = data.items.filter((i) => !i.read).length;
   return { ok: true, items: data.items, unread, workspaceId: ws };
 }

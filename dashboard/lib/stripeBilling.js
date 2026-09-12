@@ -7,7 +7,9 @@
  *   STRIPE_SUCCESS_URL       (optional, default {public}/?billing=success)
  *   STRIPE_CANCEL_URL        (optional, default {public}/?billing=cancel)
  */
+import crypto from 'crypto';
 import { readEnvFile } from './env.js';
+import { invalidateTenantCache } from './tenants.js';
 import { createClient } from '@supabase/supabase-js';
 
 export function stripeConfigured(env = readEnvFile()) {
@@ -104,6 +106,57 @@ export async function createBillingPortalSession({ tenant, env = readEnvFile() }
  * Minimal webhook handler (Checkout completed / subscription updated / deleted).
  * Call with raw JSON body from Stripe (signature verification when secret set).
  */
+/**
+ * Verify a Stripe webhook signature (scheme v1) against the raw request body.
+ * Stripe signs `${timestamp}.${rawBody}` with STRIPE_WEBHOOK_SECRET.
+ * @param {Buffer|string} rawBody exact bytes Stripe POSTed — a re-serialized
+ *   JSON object will not match.
+ * @param {string} signatureHeader value of the `stripe-signature` header
+ * @param {string} secret STRIPE_WEBHOOK_SECRET (whsec_…)
+ * @param {number} toleranceSec reject timestamps older/newer than this
+ * @returns {{ ok: boolean, error?: string }}
+ */
+export function verifyStripeSignature(rawBody, signatureHeader, secret, toleranceSec = 300) {
+  const key = String(secret || '').trim();
+  if (!key) return { ok: false, error: 'STRIPE_WEBHOOK_SECRET not configured' };
+  const header = String(signatureHeader || '').trim();
+  if (!header) return { ok: false, error: 'Missing stripe-signature header' };
+
+  let timestamp = '';
+  const signatures = [];
+  for (const part of header.split(',')) {
+    const i = part.indexOf('=');
+    if (i < 0) continue;
+    const k = part.slice(0, i).trim();
+    const v = part.slice(i + 1).trim();
+    if (k === 't') timestamp = v;
+    else if (k === 'v1') signatures.push(v);
+  }
+  if (!timestamp || !signatures.length) {
+    return { ok: false, error: 'Malformed stripe-signature header' };
+  }
+
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts)) return { ok: false, error: 'Invalid signature timestamp' };
+  if (Math.abs(Date.now() / 1000 - ts) > toleranceSec) {
+    return { ok: false, error: 'Signature timestamp outside tolerance' };
+  }
+
+  const payload = Buffer.concat([
+    Buffer.from(`${timestamp}.`, 'utf8'),
+    Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(String(rawBody || ''), 'utf8'),
+  ]);
+  const expected = crypto.createHmac('sha256', key).update(payload).digest('hex');
+  const expectedBuf = Buffer.from(expected, 'utf8');
+
+  for (const candidate of signatures) {
+    const candidateBuf = Buffer.from(candidate, 'utf8');
+    if (candidateBuf.length !== expectedBuf.length) continue;
+    if (crypto.timingSafeEqual(candidateBuf, expectedBuf)) return { ok: true };
+  }
+  return { ok: false, error: 'Signature mismatch' };
+}
+
 export async function applyStripeWebhookEvent(event, env = readEnvFile()) {
   const type = event?.type || '';
   const obj = event?.data?.object || {};
@@ -123,6 +176,7 @@ export async function applyStripeWebhookEvent(event, env = readEnvFile()) {
         stripe_subscription_id: String(subId || ''),
       })
       .eq('workspace_id', workspaceId);
+    invalidateTenantCache();
     return { ok: true, applied: 'checkout.session.completed', workspaceId };
   }
 
@@ -140,6 +194,7 @@ export async function applyStripeWebhookEvent(event, env = readEnvFile()) {
     });
     if (workspaceId) await q.eq('workspace_id', workspaceId);
     else if (customerId) await q.eq('stripe_customer_id', String(customerId));
+    invalidateTenantCache();
     return { ok: true, applied: type, mapped };
   }
 
