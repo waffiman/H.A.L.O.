@@ -110,8 +110,30 @@ export function isSupportStaff(tenant) {
   return role === 'owner' || role === 'support';
 }
 
-/** WAFFi golden cabinet only — admin UI / cross-tenant inbox. */
-export function isWaffiAdmin(tenant) {
+/** Built-in platform operators (WAFFi team) — always get Admin panel. */
+const BUILTIN_PLATFORM_ADMIN_EMAILS = [
+  'wafficompany@gmail.com',
+  'uroki.online2020@gmail.com',
+  'ddacisin@gmail.com',
+];
+
+/** Optional extra emails via HALO_PLATFORM_ADMIN_EMAILS=a@x.com,b@y.com */
+export function platformAdminEmails(env = readEnvFile()) {
+  const fromEnv = String(env.HALO_PLATFORM_ADMIN_EMAILS || process.env.HALO_PLATFORM_ADMIN_EMAILS || '')
+    .split(/[,;\s]+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return new Set([...BUILTIN_PLATFORM_ADMIN_EMAILS, ...fromEnv]);
+}
+
+/**
+ * Platform Admin panel / cross-tenant inbox.
+ * - Email allowlist (WAFFi + team), any cabinet they sign into
+ * - Or owner/support on the golden WAFFi workspace
+ */
+export function isWaffiAdmin(tenant, env = readEnvFile()) {
+  const email = String(tenant?.email || '').trim().toLowerCase();
+  if (email && platformAdminEmails(env).has(email)) return true;
   if (!isSupportStaff(tenant)) return false;
   return String(tenant?.workspaceId || '').trim() === waffiWorkspaceId();
 }

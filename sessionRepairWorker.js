@@ -920,12 +920,48 @@ async function runRepair() {
         const since = cur?.challengeSince ? Date.parse(cur.challengeSince) : 0;
         const lastNudge = cur?.lastFeedNudgeAt ? Date.parse(cur.lastFeedNudgeAt) : 0;
         const postChallenge = since && !cur?.liAtCaptured;
+
+        // LinkedIn often drops back to an empty Sign in form after a failed
+        // checkpoint (no phone push). Stop the infinite "Extra verification" loop.
+        if (postChallenge && mode !== 'challenge') {
+          const bouncedToLogin = await page
+            .evaluate(() => {
+              const user = document.querySelector(
+                'input#username, input[name="session_key"], input[autocomplete="username"], input[type="email"]'
+              );
+              const pass = document.querySelector(
+                'input#password, input[name="session_password"], input[type="password"]'
+              );
+              const url = location.href || '';
+              return !!(user && pass && /login|uas\/login|session_redirect/i.test(url));
+            })
+            .catch(() => false);
+          if (bouncedToLogin && Date.now() - since > 20000) {
+            const msg =
+              'LinkedIn bounced back to Sign in without completing verification ' +
+              '(no app Sign-in request / checkpoint failed). Close all personal LinkedIn tabs, ' +
+              'disable browser extensions on linkedin.com, then try Sign in again.';
+            console.log('Challenge bounce → login form:', msg);
+            writeState({
+              status: 'error',
+              error: msg,
+              uiMode: 'form',
+              challengeKind: null,
+              lastSignInError: msg,
+            });
+            break;
+          }
+        }
+
         if (postChallenge && Date.now() - since > 5000 && Date.now() - lastNudge > 8000) {
           const nudgeN = (cur?.challengeNudgeCount || 0) + 1;
+          // Re-classify challengeKind so UI is not stuck on stale "generic"
+          const liveKind = (await detectChallengeKind(page).catch(() => null)) || cur?.challengeKind;
           writeState({
             lastFeedNudgeAt: new Date().toISOString(),
             challengeNudgeCount: nudgeN,
             uiMode: 'challenge',
+            challengeKind: liveKind || 'generic',
           });
           if (nudgeN >= 4 && nudgeN % 4 === 0) {
             console.log('Post-challenge feed fallback (after waiting on challenge page)…');

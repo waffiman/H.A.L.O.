@@ -126,7 +126,7 @@ export async function listTenants(env = readEnvFile()) {
  * Create tenant. workspace_id must be unique; email unique (case-insensitive).
  */
 export async function createTenant(
-  { email, password, workspaceId, displayName = '', company = '', role = 'user', subscriptionStatus = 'trial' },
+  { email, password, workspaceId, displayName = '', company = '', role = 'owner', subscriptionStatus = 'trial' },
   env = readEnvFile()
 ) {
   const sb = client(env);

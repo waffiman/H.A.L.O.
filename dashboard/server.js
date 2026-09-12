@@ -325,9 +325,10 @@ function requireOwner(req, res, next) {
 
 /**
  * A cabinet's own Brain, prompts, stage flags, LinkedIn session and
- * notifications all resolve under tenantPaths(workspaceId), so a non-owner now
- * sees its own — not WAFFi's. What stays hidden is genuinely platform-shared:
- * integration keys from the root .env, infrastructure URLs, and host paths.
+ * notifications all resolve under tenantPaths(workspaceId), so any signed-in
+ * cabinet account uses its own data — not WAFFi's.
+ * requireOwner stays only for platform-shared ops (secrets, CRM provision, agent restart).
+ * LinkedIn Sign in + analytics are available to every authenticated cabinet.
  */
 function redactSettingsForTenant(view) {
   return {
@@ -382,7 +383,7 @@ async function handleRegister(req, res) {
           workspaceId,
           displayName: displayName || email.split('@')[0],
           company,
-          role: 'user',
+          role: 'owner',
           subscriptionStatus: 'trial',
         });
         ensureTenantRuntime(tenant.workspaceId);
@@ -741,14 +742,15 @@ app.post('/api/supabase/provision', requireOwner, async (req, res) => {
   }
 });
 
-app.get('/api/analytics/series', requireOwner, (req, res) => {
+app.get('/api/analytics/series', (req, res) => {
   try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
     const range = String(req.query.range || '30d');
     const tab = String(req.query.tab || 'pipeline');
     const from = req.query.from != null ? String(req.query.from) : '';
     const to = req.query.to != null ? String(req.query.to) : '';
     const bucket = req.query.bucket != null ? String(req.query.bucket) : 'auto';
-    const workspaceId = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+    const workspaceId = req.tenant.workspaceId;
     res.json(buildAnalyticsSeries({ range, tab, from, to, bucket, workspaceId }));
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -1079,8 +1081,9 @@ app.post('/api/linkedin/repair/input', (req, res) => {
   }
 });
 
-app.get('/api/linkedin/repair/link', requireOwner, (_req, res) => {
+app.get('/api/linkedin/repair/link', (req, res) => {
   try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
     const link = ensureActiveRepairLink('manual');
     res.json({ ok: true, ...link });
   } catch (e) {
@@ -1089,10 +1092,11 @@ app.get('/api/linkedin/repair/link', requireOwner, (_req, res) => {
 });
 
 /** LinkedIn Session tile on dashboard — email/password → remote Chromium login. */
-app.post('/api/linkedin/session/login', requireOwner, (req, res) => {
+app.post('/api/linkedin/session/login', (req, res) => {
   try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
     const { username, password } = req.body || {};
-    const ws = req.tenant?.workspaceId || waffiWorkspaceIdFallback();
+    const ws = req.tenant.workspaceId;
     const result = startDashboardLinkedInLogin(username, password, ws);
     res.json(result);
   } catch (e) {

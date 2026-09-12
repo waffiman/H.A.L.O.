@@ -499,7 +499,7 @@ const LI_CHALLENGE_COPY = {
   },
   generic: {
     title: 'Extra verification needed',
-    body: 'LinkedIn needs another step. Open the repair page below and follow the instructions.',
+    body: 'LinkedIn needs another step. Open the repair page below and follow the instructions. Keep personal LinkedIn tabs closed while connecting — parallel login often blocks the phone Sign-in request.',
     toast: 'LinkedIn needs verification — open repair page',
     notifyTitle: 'LinkedIn verification',
     notifyBody: 'Open the repair page in H.A.L.O.',
