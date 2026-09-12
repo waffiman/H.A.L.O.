@@ -7,8 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package and install dependencies
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY package.json package-lock.json ./
+# npm ci installs exactly what the lockfile pins (reproducible + faster than npm install)
+RUN npm ci
 
 # Copy all source files
 COPY . .

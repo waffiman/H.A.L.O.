@@ -24,6 +24,11 @@ serp_*.png
 serp_*.html
 serp_*.json
 state.json
+# Probe/debug screenshots captured during ops (feed_probe.png alone was 1.7 MB
+# of a 2.3 MB repo). Keep them local; never commit.
+feed_probe*.png
+login_debug*.png
+*_probe.png
 
 # Operator one-shots (often embed VPS credentials) — remain on disk, not in git
 scripts/_*
@@ -94,6 +99,11 @@ _recover_index.ps1
 !scripts/archive-p1-reset-cursor.js
 !scripts/check-p2-silence-due.js
 !scripts/check-status-counts.js
+
+# Local dev only: dashboard/lib/ops.js imports '../bookingSchedule.js', which in
+# the container resolves to /app/bookingSchedule.js (see dashboard/Dockerfile).
+# Running the dashboard from source needs a copy/symlink at this path.
+dashboard/bookingSchedule.js
 
 # Node / OS
 node_modules/
