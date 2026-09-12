@@ -451,7 +451,23 @@ requires a `halo_tenants` row.
 |---------|-----|
 | `/api/crm/*` | Any signed-in cabinet, scoped to its own `workspace_id` |
 | `GET /api/settings` | Any cabinet — **non-owners get a redacted view** (no prompts, Brain policy, integration keys, session state, infra URLs, host paths, notifications) |
-| `POST /api/settings`, `/api/settings/switches`, `/api/secrets/reveal`, `/api/agent/restart`, `/api/linkedin/session/login`, `/api/linkedin/repair/link`, `/api/notion/*`, `/api/supabase/*`, `/api/analytics/series`, `/api/notifications*` | **`role === 'owner'` only** (`requireOwner`) |
+| `POST /api/settings`, `/api/settings/switches` | Any signed-in cabinet — writes are cabinet-scoped (Brain, prompts, stage flags, cookies under `tenantPaths(ws)`). `applyDashboardPatch(..., { isOwner })` refuses integration keys + Notion CRM URL for non-owners |
+| `/api/notifications*` | Any signed-in cabinet — per-cabinet store |
+| `/api/secrets/reveal`, `/api/agent/restart`, `/api/linkedin/session/login`, `/api/linkedin/repair/link`, `/api/notion/*`, `/api/supabase/*`, `/api/analytics/series`, `/api/supabase/keepalive` | **`role === 'owner'` only** (`requireOwner`) |
+
+**Per-cabinet files (2026-09-12).** `cabinetPaths(ws)` in
+[`dashboard/lib/ops.js`](dashboard/lib/ops.js) maps a workspace to its Brain,
+prompts, `salesPlaybook.md` and playbook paths: the WAFFi `default` cabinet keeps
+the legacy `APP_ROOT` locations, every other cabinet gets
+`halo-tenants/<ws>/{brain,prompts}`. `ensureTenantRuntime` seeds a new cabinet
+with a **neutral** starter prompt (never WAFFi's master prompt) and copies the
+mode adapters. `buildSettingsView(ws)` and `applyDashboardPatch(...)` are now
+**async** — the People-search preview imports `prospectSearch.js` in-process
+instead of spawning a Node process per request.
+
+Still WAFFi-only at runtime: the single `linkedin-agent` container and
+`cycle.lock`. A tenant can configure a cabinet fully, but no Stage A/B runs for
+it until per-tenant agents exist.
 
 `POST /api/secrets/reveal` returns values **only** for keys the Integrations UI
 renders a reveal button for (derived from `INTEGRATION_DEFS`). Stripe keys,

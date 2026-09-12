@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { spawn, execSync } from 'child_process';
+import { pathToFileURL } from 'url';
+import { spawn } from 'child_process';
 import {
   APP_ROOT,
   HOST_APP_ROOT,
@@ -64,53 +65,95 @@ export function invalidateNotionCountsCache() {
   countsCache = { at: 0, data: null, ws: null };
 }
 
-function ensureBrainDir() {
-  if (!fs.existsSync(BRAIN_DIR)) fs.mkdirSync(BRAIN_DIR, { recursive: true });
+/**
+ * Per-cabinet Brain + prompt file locations. The WAFFi `default` workspace keeps
+ * the legacy APP_ROOT paths; every other cabinet gets its own tree under
+ * halo-tenants/<ws>/ so a tenant editing its Brain cannot touch WAFFi's.
+ * @param {string} [workspaceId]
+ */
+function cabinetPaths(workspaceId = waffiWorkspaceId()) {
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  const paths = tenantPaths(ws);
+  if (paths.isLegacy) {
+    return {
+      workspaceId: ws,
+      isLegacy: true,
+      root: APP_ROOT,
+      brainDir: BRAIN_DIR,
+      userPrompt: BRAIN_USER_PROMPT_PATH,
+      strategyNotes: BRAIN_STRATEGY_NOTES_PATH,
+      analysisState: BRAIN_ANALYSIS_STATE_PATH,
+      targetPortrait: BRAIN_TARGET_PORTRAIT_PATH,
+      salesPolicy: BRAIN_SALES_POLICY_PATH,
+      promptsDir: PROMPTS_DIR,
+      playbook: PLAYBOOK_PATH,
+    };
+  }
+  return {
+    workspaceId: ws,
+    isLegacy: false,
+    root: paths.root,
+    brainDir: paths.brain,
+    userPrompt: path.join(paths.brain, 'user_prompt.md'),
+    strategyNotes: path.join(paths.brain, 'strategy_notes.md'),
+    analysisState: path.join(paths.brain, 'analysis_state.json'),
+    targetPortrait: path.join(paths.brain, 'target_portrait.md'),
+    salesPolicy: path.join(paths.brain, 'sales_policy.json'),
+    promptsDir: paths.prompts,
+    playbook: paths.playbook,
+  };
 }
 
-function readBrainUserPrompt() {
-  ensureBrainDir();
-  if (!fs.existsSync(BRAIN_USER_PROMPT_PATH) || !fs.readFileSync(BRAIN_USER_PROMPT_PATH, 'utf8').trim()) {
-    if (fs.existsSync(PLAYBOOK_PATH)) {
-      fs.writeFileSync(BRAIN_USER_PROMPT_PATH, fs.readFileSync(PLAYBOOK_PATH, 'utf8'), 'utf8');
+function ensureBrainDir(cp = cabinetPaths()) {
+  if (!fs.existsSync(cp.brainDir)) fs.mkdirSync(cp.brainDir, { recursive: true });
+}
+
+function readBrainUserPrompt(cp = cabinetPaths()) {
+  ensureBrainDir(cp);
+  if (!fs.existsSync(cp.userPrompt) || !fs.readFileSync(cp.userPrompt, 'utf8').trim()) {
+    if (fs.existsSync(cp.playbook)) {
+      fs.writeFileSync(cp.userPrompt, fs.readFileSync(cp.playbook, 'utf8'), 'utf8');
     } else {
+      // Only the WAFFi cabinet falls back to the WAFFi identity line.
       fs.writeFileSync(
-        BRAIN_USER_PROMPT_PATH,
-        'You write LinkedIn messages for Mykhailo, Founder of WAFFi.\n',
+        cp.userPrompt,
+        cp.isLegacy
+          ? 'You write LinkedIn messages for Mykhailo, Founder of WAFFi.\n'
+          : 'You write LinkedIn messages on behalf of the account owner.\n',
         'utf8'
       );
     }
   }
-  return fs.readFileSync(BRAIN_USER_PROMPT_PATH, 'utf8');
+  return fs.readFileSync(cp.userPrompt, 'utf8');
 }
 
-function writeBrainUserPrompt(text) {
-  ensureBrainDir();
-  fs.writeFileSync(BRAIN_USER_PROMPT_PATH, String(text ?? ''), 'utf8');
+function writeBrainUserPrompt(text, cp = cabinetPaths()) {
+  ensureBrainDir(cp);
+  fs.writeFileSync(cp.userPrompt, String(text ?? ''), 'utf8');
   // Keep legacy playbook in sync so older scripts still see the same voice
   try {
-    fs.writeFileSync(PLAYBOOK_PATH, String(text ?? ''), 'utf8');
+    fs.writeFileSync(cp.playbook, String(text ?? ''), 'utf8');
   } catch {
     /* ignore */
   }
 }
 
-function readBrainStrategyNotes() {
-  ensureBrainDir();
-  if (!fs.existsSync(BRAIN_STRATEGY_NOTES_PATH)) return '';
-  return fs.readFileSync(BRAIN_STRATEGY_NOTES_PATH, 'utf8');
+function readBrainStrategyNotes(cp = cabinetPaths()) {
+  ensureBrainDir(cp);
+  if (!fs.existsSync(cp.strategyNotes)) return '';
+  return fs.readFileSync(cp.strategyNotes, 'utf8');
 }
 
-function readBrainAnalysisState() {
+function readBrainAnalysisState(cp = cabinetPaths()) {
   try {
-    if (!fs.existsSync(BRAIN_ANALYSIS_STATE_PATH)) {
+    if (!fs.existsSync(cp.analysisState)) {
       return { lastRunAt: null, leadsAnalyzed: 0, lastSummary: '' };
     }
     return {
       lastRunAt: null,
       leadsAnalyzed: 0,
       lastSummary: '',
-      ...JSON.parse(fs.readFileSync(BRAIN_ANALYSIS_STATE_PATH, 'utf8')),
+      ...JSON.parse(fs.readFileSync(cp.analysisState, 'utf8')),
     };
   } catch {
     return { lastRunAt: null, leadsAnalyzed: 0, lastSummary: '' };
@@ -119,26 +162,26 @@ function readBrainAnalysisState() {
 
 const SALES_OUTCOME_IDS = ['book_a_call', 'purchase', 'qualify', 'referral'];
 
-function readBrainTargetPortrait() {
-  ensureBrainDir();
-  if (!fs.existsSync(BRAIN_TARGET_PORTRAIT_PATH)) return '';
-  return fs.readFileSync(BRAIN_TARGET_PORTRAIT_PATH, 'utf8');
+function readBrainTargetPortrait(cp = cabinetPaths()) {
+  ensureBrainDir(cp);
+  if (!fs.existsSync(cp.targetPortrait)) return '';
+  return fs.readFileSync(cp.targetPortrait, 'utf8');
 }
 
-function writeBrainTargetPortrait(text) {
-  ensureBrainDir();
-  fs.writeFileSync(BRAIN_TARGET_PORTRAIT_PATH, String(text ?? ''), 'utf8');
+function writeBrainTargetPortrait(text, cp = cabinetPaths()) {
+  ensureBrainDir(cp);
+  fs.writeFileSync(cp.targetPortrait, String(text ?? ''), 'utf8');
 }
 
-function readBrainSalesPolicy() {
-  ensureBrainDir();
+function readBrainSalesPolicy(cp = cabinetPaths()) {
+  ensureBrainDir(cp);
   try {
-    if (fs.existsSync(BRAIN_SALES_POLICY_PATH)) {
-      const raw = JSON.parse(fs.readFileSync(BRAIN_SALES_POLICY_PATH, 'utf8'));
+    if (fs.existsSync(cp.salesPolicy)) {
+      const raw = JSON.parse(fs.readFileSync(cp.salesPolicy, 'utf8'));
       const outcome = SALES_OUTCOME_IDS.includes(raw.outcome) ? raw.outcome : 'book_a_call';
       let portrait = normalizePortraitFields(raw.portrait);
       if (isPortraitFieldsEmpty(portrait)) {
-        const legacy = readBrainTargetPortrait().trim();
+        const legacy = readBrainTargetPortrait(cp).trim();
         if (legacy) portrait = { ...portrait, need: legacy };
       }
       return {
@@ -152,7 +195,7 @@ function readBrainSalesPolicy() {
   } catch {
     /* fall through */
   }
-  const legacy = readBrainTargetPortrait().trim();
+  const legacy = readBrainTargetPortrait(cp).trim();
   return {
     outcome: 'book_a_call',
     portrait: legacy
@@ -263,35 +306,39 @@ function compilePortraitMarkdownFromFields(portrait) {
   return lines.join('\n\n');
 }
 
-function writeBrainSalesPolicy(policy) {
-  ensureBrainDir();
+function writeBrainSalesPolicy(policy, cp = cabinetPaths()) {
+  ensureBrainDir(cp);
   const outcome = SALES_OUTCOME_IDS.includes(policy?.outcome) ? policy.outcome : 'book_a_call';
   const portrait = normalizePortraitFields(policy?.portrait);
   const linkedInSearch = normalizeLinkedInSearchFields(policy?.linkedInSearch);
   const searchUrlOverride = String(policy?.searchUrlOverride || '').trim();
   const booking = normalizeBookingSchedule(policy?.booking);
   fs.writeFileSync(
-    BRAIN_SALES_POLICY_PATH,
+    cp.salesPolicy,
     JSON.stringify({ outcome, portrait, linkedInSearch, searchUrlOverride, booking }, null, 2),
     'utf8'
   );
-  writeBrainTargetPortrait(compilePortraitMarkdownFromFields(portrait));
+  writeBrainTargetPortrait(compilePortraitMarkdownFromFields(portrait), cp);
 }
 
-function readProspectSearchPreview() {
+const PROSPECT_FALLBACK = { keywords: 'founder', searchUrl: '', facets: [], source: 'portrait' };
+let prospectSearchMod;
+
+/**
+ * Build the People-search preview for a cabinet. resolvePeopleSearchUrl(root)
+ * reads brain/ under the root it is given, so a tenant previews its own
+ * portrait. Loaded in-process and memoised — this used to spawn a whole Node
+ * process (execSync, 15s timeout) on every GET /api/settings.
+ */
+async function readProspectSearchPreview(cp = cabinetPaths()) {
   try {
-    const out = execSync(
-      `node --input-type=module -e "import { resolvePeopleSearchUrl } from './prospectSearch.js'; console.log(JSON.stringify(resolvePeopleSearchUrl(process.cwd())))"`,
-      { cwd: APP_ROOT, encoding: 'utf8', timeout: 15000 }
-    );
-    return JSON.parse(String(out).trim());
+    if (!prospectSearchMod) {
+      const url = pathToFileURL(path.join(APP_ROOT, 'prospectSearch.js')).href;
+      prospectSearchMod = await import(url);
+    }
+    return prospectSearchMod.resolvePeopleSearchUrl(cp.root);
   } catch {
-    return {
-      keywords: 'founder',
-      searchUrl: '',
-      facets: [],
-      source: 'portrait',
-    };
+    return { ...PROSPECT_FALLBACK };
   }
 }
 
@@ -618,27 +665,28 @@ export function upsertLiAt(token, workspaceId = waffiWorkspaceId()) {
   };
 }
 
-export function readPrompt(name) {
+export function readPrompt(name, cp = cabinetPaths()) {
   if (name === 'playbook') {
-    return fs.existsSync(PLAYBOOK_PATH) ? fs.readFileSync(PLAYBOOK_PATH, 'utf8') : '';
+    return fs.existsSync(cp.playbook) ? fs.readFileSync(cp.playbook, 'utf8') : '';
   }
-  const p = path.join(PROMPTS_DIR, `${name}.md`);
+  const p = path.join(cp.promptsDir, `${name}.md`);
   return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
 }
 
-export function writePrompt(name, text) {
+export function writePrompt(name, text, cp = cabinetPaths()) {
   if (name === 'playbook') {
-    fs.writeFileSync(PLAYBOOK_PATH, String(text ?? ''), 'utf8');
+    fs.writeFileSync(cp.playbook, String(text ?? ''), 'utf8');
     return;
   }
-  if (!fs.existsSync(PROMPTS_DIR)) fs.mkdirSync(PROMPTS_DIR, { recursive: true });
+  if (!fs.existsSync(cp.promptsDir)) fs.mkdirSync(cp.promptsDir, { recursive: true });
   const allowed = new Set(['ice_breaker', 'reply', 'closing_followup']);
   if (!allowed.has(name)) throw new Error('Unknown prompt');
-  fs.writeFileSync(path.join(PROMPTS_DIR, `${name}.md`), String(text ?? ''), 'utf8');
+  fs.writeFileSync(path.join(cp.promptsDir, `${name}.md`), String(text ?? ''), 'utf8');
 }
 
-export function buildSettingsView(workspaceId = waffiWorkspaceId()) {
+export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
   const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  const cp = cabinetPaths(ws);
   const rootEnv = readEnvFile();
   const paths = tenantPaths(ws);
   const tenantEnv = paths.isLegacy ? {} : readEnvFile(paths.envFile);
@@ -660,7 +708,7 @@ export function buildSettingsView(workspaceId = waffiWorkspaceId()) {
   syncSessionNotifications(session, cookies, ws);
   // Read the policy file once — this block used to re-read and re-parse
   // sales_policy.json six times per settings request.
-  const salesPolicy = readBrainSalesPolicy();
+  const salesPolicy = readBrainSalesPolicy(cp);
   const linkedinSessionOk =
     session?.ok === true && !session?.needsCookieRepair && cookies.present;
   const integrations = buildIntegrationsView(rootEnv);
@@ -719,25 +767,25 @@ export function buildSettingsView(workspaceId = waffiWorkspaceId()) {
     session,
     cookies,
     prompts: {
-      playbook: readPrompt('playbook'),
-      ice_breaker: readPrompt('ice_breaker'),
-      reply: readPrompt('reply'),
-      closing_followup: readPrompt('closing_followup'),
+      playbook: readPrompt('playbook', cp),
+      ice_breaker: readPrompt('ice_breaker', cp),
+      reply: readPrompt('reply', cp),
+      closing_followup: readPrompt('closing_followup', cp),
     },
     brain: {
-      userPrompt: readBrainUserPrompt(),
-      strategyNotes: readBrainStrategyNotes(),
+      userPrompt: readBrainUserPrompt(cp),
+      strategyNotes: readBrainStrategyNotes(cp),
       analysisEnabled: env.BRAIN_ANALYSIS_ENABLED !== '0',
       analysisIntervalValue: brainInt.value,
       analysisIntervalUnit: brainInt.unit,
-      analysisState: readBrainAnalysisState(),
+      analysisState: readBrainAnalysisState(cp),
       portrait: salesPolicy.portrait,
       linkedInSearch: salesPolicy.linkedInSearch,
       outcome: salesPolicy.outcome,
       searchUrlOverride: salesPolicy.searchUrlOverride,
       booking: salesPolicy.booking,
       bookingComplete: validateBookingSchedule(salesPolicy.booking).ok,
-      prospectSearch: readProspectSearchPreview(),
+      prospectSearch: await readProspectSearchPreview(cp),
     },
     integrations,
     integrationsHasProblem: integrations.some((it) => it.problem),
@@ -922,12 +970,28 @@ function buildIntegrationsView(env) {
   return items;
 }
 
-export function applyDashboardPatch(body = {}, workspaceId = waffiWorkspaceId()) {
+export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspaceId(), { isOwner = true } = {}) {
   const updates = {};
   const removeKeys = [];
   const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
   ensureTenantRuntime(ws);
   const paths = tenantPaths(ws);
+  const cp = cabinetPaths(ws);
+  // Brain, prompts, cookies and stage flags are per-cabinet, so a tenant may
+  // edit its own. Platform-shared config is not: integration secrets, the
+  // Notion CRM URL and anything matching rootOnlyKeys below all live in the
+  // root .env that every cabinet's agent reads.
+  if (!isOwner) {
+    if (body.integrations && Object.keys(body.integrations).length) {
+      throw new Error('Integration keys are managed by WAFFi and cannot be changed from a cabinet');
+    }
+    if (Array.isArray(body.removeIntegrationKeys) && body.removeIntegrationKeys.length) {
+      throw new Error('Integration keys are managed by WAFFi and cannot be changed from a cabinet');
+    }
+    if (body.notionCrmUrl != null) {
+      throw new Error('Notion CRM URL is managed by WAFFi');
+    }
+  }
   const env = paths.isLegacy
     ? readEnvFile()
     : { ...readEnvFile(), ...readEnvFile(paths.envFile), WORKSPACE_ID: ws };
@@ -1131,9 +1195,9 @@ export function applyDashboardPatch(body = {}, workspaceId = waffiWorkspaceId())
   }
 
   if (body.brain && typeof body.brain === 'object') {
-    const policy = readBrainSalesPolicy();
+    const policy = readBrainSalesPolicy(cp);
     if (body.brain.userPrompt != null) {
-      writeBrainUserPrompt(body.brain.userPrompt);
+      writeBrainUserPrompt(body.brain.userPrompt, cp);
     }
     if (body.brain.outcome != null) policy.outcome = body.brain.outcome;
     if (body.brain.portrait != null) policy.portrait = body.brain.portrait;
@@ -1153,13 +1217,13 @@ export function applyDashboardPatch(body = {}, workspaceId = waffiWorkspaceId())
     if (policy.outcome === 'book_a_call' && !validateBookingSchedule(policy.booking).ok) {
       throw new Error('Book a call requires a complete weekly availability schedule');
     }
-    writeBrainSalesPolicy(policy);
+    writeBrainSalesPolicy(policy, cp);
   }
 
   if (body.prompts && typeof body.prompts === 'object') {
     for (const [name, text] of Object.entries(body.prompts)) {
       if (text == null) continue;
-      writePrompt(name, text);
+      writePrompt(name, text, cp);
     }
   }
 
@@ -1179,6 +1243,12 @@ export function applyDashboardPatch(body = {}, workspaceId = waffiWorkspaceId())
     } else {
       tenantKeys.add(k);
     }
+  }
+
+  if (!isOwner) {
+    // Defence in depth: drop anything root-scoped even if a new field starts
+    // producing one of these keys without an explicit guard above.
+    for (const k of rootOnlyKeys) delete updates[k];
   }
 
   if (paths.isLegacy) {
