@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    @apply bg-ink text-n2 font-sans antialiased;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+  }
+  /* Headline tokens resolve to Inter Tight; Archivo-based H1/Display keep font-sans. */
+  h1, h2, h3, h4, h5, h6 { @apply text-n1; }
+}

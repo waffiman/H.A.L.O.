@@ -348,6 +348,18 @@ function redactSettingsForTenant(view) {
 
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '5m', etag: true }));
 
+// Public marketing site (../marketing), built by Vite into marketing/dist.
+// Static assets are content-hashed, so they cache hard; index.html must not.
+// Absent build output is not fatal — the dashboard runs without it.
+const marketingDist = path.join(__dirname, '..', 'marketing', 'dist');
+if (fs.existsSync(marketingDist)) {
+  app.use('/marketing', express.static(marketingDist, { maxAge: '1y', etag: true, index: false }));
+  // Client-side routes (/marketing/pricing, ...) fall back to the SPA shell.
+  app.get('/marketing/*', (_req, res) => {
+    res.sendFile(path.join(marketingDist, 'index.html'), { maxAge: 0 });
+  });
+}
+
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
     const email = String(req.body?.email || '').trim();

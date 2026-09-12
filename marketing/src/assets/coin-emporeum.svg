@@ -1,0 +1,13 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Cryptocurrency">
+<path id="Shape" opacity="0.2" d="M31.9132 16.0003C31.9132 24.7903 24.7876 31.9161 15.9977 31.9161C7.20764 31.9161 0.0819819 24.7903 0.0819819 16.0003C0.0819819 7.21034 7.20764 0.0846888 15.9977 0.0846888C24.7875 0.0846888 31.9132 7.21034 31.9132 16.0003" fill="#505050"/>
+<g id="Group" opacity="0.8">
+<path id="Shape_2" d="M15.9468 8.61539L15.8485 8.94952V18.6453L15.9468 18.7434L20.4474 16.0831L15.9468 8.61539Z" fill="white"/>
+<path id="Shape_3" d="M15.9468 8.61539L11.4462 16.0831L15.9468 18.7434V14.0374V8.61539Z" fill="white"/>
+<path id="Shape_4" d="M15.9468 20.2077L15.8914 20.2752V23.7291L15.9468 23.8909L20.4502 17.5487L15.9468 20.2077Z" fill="white"/>
+<path id="Shape_5" d="M15.9468 23.8909V20.2077L11.4462 17.5487L15.9468 23.8909Z" fill="white"/>
+<path id="Shape_6" d="M15.9468 18.7434L20.4474 16.0831L15.9468 14.0374V18.7434Z" fill="white"/>
+<path id="Shape_7" d="M11.4462 16.0831L15.9467 18.7434V14.0374L11.4462 16.0831Z" fill="white"/>
+</g>
+</g>
+</svg>

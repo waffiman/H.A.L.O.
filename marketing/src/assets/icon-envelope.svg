@@ -1,0 +1,15 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="EnvelopeOpen" clip-path="url(#clip0_0_347)">
+<g id="Vector">
+</g>
+<path id="Vector_2" d="M2.49609 7.5V15.625C2.49609 15.7908 2.56194 15.9497 2.67915 16.0669C2.79636 16.1842 2.95533 16.25 3.12109 16.25H16.8711C17.0369 16.25 17.1958 16.1842 17.313 16.0669C17.4302 15.9497 17.4961 15.7908 17.4961 15.625V7.5L9.99609 2.5L2.49609 7.5Z" stroke="#373737" stroke-width="1.62069" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M8.6332 11.875L2.68945 16.0734" stroke="#373737" stroke-width="1.62069" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_4" d="M17.3051 16.0734L11.3613 11.875" stroke="#373737" stroke-width="1.62069" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_5" d="M17.4961 7.5L11.3602 11.875H8.63281L2.49609 7.5" stroke="#373737" stroke-width="1.62069" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_0_347">
+<rect width="20" height="20" fill="white"/>
+</clipPath>
+</defs>
+</svg>
