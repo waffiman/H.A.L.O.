@@ -212,8 +212,14 @@ async function sendTelegramCopy(item) {
 /** Sync session health into notifications (idempotent via key). */
 export function syncSessionNotifications(session, cookies, workspaceId) {
   const ws = normalizeWorkspaceId(workspaceId);
+  const reason = String(session?.reason || '').toLowerCase();
+  // Fresh cabinets start as awaiting_linkedin_cookies — not an error, don't spam Telegram/Admin.
+  const initialSetup =
+    reason.includes('awaiting_linkedin') ||
+    reason.includes('tenant_provision') ||
+    session?.source === 'tenant_provision';
   let flagged = false;
-  if (session && session.ok === false) {
+  if (session && session.ok === false && !initialSetup) {
     addNotification({
       workspaceId: ws,
       key: `session_dead_${ws}`,
@@ -226,7 +232,7 @@ export function syncSessionNotifications(session, cookies, workspaceId) {
     });
     flagged = true;
   }
-  if (cookies && cookies.present === false) {
+  if (cookies && cookies.present === false && !initialSetup) {
     addNotification({
       workspaceId: ws,
       key: `session_missing_li_at_${ws}`,

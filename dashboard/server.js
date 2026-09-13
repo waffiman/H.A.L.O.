@@ -201,13 +201,15 @@ function isPublicPath(req) {
     return true;
   }
   if (p === '/login' || p === '/landing') return true;
-  if (p.startsWith('/api/auth/')) return true;
+  // Login/register/logout are public; /api/auth/me must still resolve the session.
+  if (p === '/api/auth/login' || p === '/api/auth/register' || p === '/api/auth/logout') return true;
   if (p === '/auth/register') return true;
   if (p.startsWith('/api/billing/webhook')) return true;
   if (p.startsWith('/api/telegram/webhook')) return true;
   if (p.startsWith('/api/calendar/')) return true;
   if (p === '/api/health') return true;
   if (p.startsWith('/repair')) return true;
+  if (p === '/marketing' || p.startsWith('/marketing/')) return true;
   return false;
 }
 
@@ -291,18 +293,19 @@ function denyUnauthenticated(req, res, { basicAvailable = false } = {}) {
  * request — it used to run two or three times, each a Supabase round-trip, and
  * it ran for every static asset too.
  */
+/**
+ * Resolve cabinet session/Basic on every request (including public paths like
+ * /api/auth/me). Only enforce login for non-public routes.
+ */
 app.use(async (req, res, next) => {
-  if (isPublicPath(req)) return next();
-  let tenant = null;
   try {
-    tenant = await resolveRequestTenant(req, readEnvFile());
+    req.tenant = await resolveRequestTenant(req, readEnvFile());
   } catch (e) {
     console.warn('[auth]', e.message);
+    req.tenant = null;
   }
-  if (tenant?.workspaceId) {
-    req.tenant = tenant;
-    return next();
-  }
+  if (isPublicPath(req)) return next();
+  if (req.tenant?.workspaceId) return next();
   // Fail closed. Previously an unset DASHBOARD_PASSWORD made basicAuth call
   // next() with 'X-Dashboard-Auth: open', leaving the whole dashboard public.
   const env = readEnvFile();
