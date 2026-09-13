@@ -383,40 +383,70 @@ async function clickSignIn(page) {
 }
 
 async function detectChallengeKind(page) {
-  return page
+  const url = page.url() || '';
+  const fromDom = await page
     .evaluate(() => {
-      const t = (document.body?.innerText || '').slice(0, 5000).toLowerCase();
+      const t = (document.body?.innerText || '').slice(0, 8000).toLowerCase();
+      // EN + UA + RU — phone app approval / "sign-in request"
       if (
-        /check your linkedin app|notification sent|tap yes|approve this sign|confirm (it'?s|this is) you|verify it'?s you|sign-in request|we sent a notification|open the linkedin app|waiting for approval|sent to your device/i.test(
+        /check your linkedin app|notification sent|tap yes|approve this sign|confirm (it'?s|this is) you|verify it'?s you|sign-in request|we sent a notification|open the linkedin app|waiting for approval|sent to your device|approve in (the )?app|check your phone|linkedIn app|linkedin app/.test(
+          t
+        ) ||
+        /підтверд(іть|ження)|перевірте.*додаток|відкрийте.*додаток|запит на вхід|підтвердіть вхід|додатку linkedin|додатку linkedin|проверьте.*приложение|откройте.*приложение|подтвердите вход|запрос на вход|уведомление.*(отправлен|послан)/.test(
           t
         )
       ) {
         return 'app_approval';
       }
-      if (/enter the code|verification code|one-time|enter code|pin/i.test(t)) return 'pin';
-      if (/captcha|robot|security check|puzzle/i.test(t)) return 'captcha';
-      return 'generic';
+      if (
+        /enter the code|verification code|one-time|enter code|\bpin\b|код підтвердження|код подтверждения|введіть код|введите код/.test(
+          t
+        )
+      ) {
+        return 'pin';
+      }
+      if (/captcha|robot|security check|puzzle|я не робот|не робот/.test(t)) return 'captcha';
+      return null;
     })
-    .catch(() => 'generic');
+    .catch(() => null);
+
+  if (fromDom) return fromDom;
+  // Checkpoint URLs almost always mean phone Approve — don't fall through to "generic/repair".
+  if (/checkpoint|challenge|manage\/challenge|two-step|add-phone/i.test(url)) {
+    return 'app_approval';
+  }
+  return 'generic';
 }
 
 async function notifyChallengeNeeded(page) {
   const st = readState() || {};
-  if (st.challengeNotified) return;
   const kind = (await detectChallengeKind(page)) || 'generic';
-  writeState({ challengeNotified: true, challengeKind: kind, challengeSince: new Date().toISOString() });
+  const prev = st.challengeKind || null;
+  const rank = { app_approval: 3, pin: 3, captcha: 3, generic: 1 };
+  const upgraded = !prev || (rank[kind] || 0) > (rank[prev] || 0);
+  // First detection or upgrade generic → app_approval/pin/captcha
+  if (!st.challengeNotified || upgraded) {
+    writeState({
+      challengeNotified: true,
+      challengeKind: kind,
+      challengeSince: st.challengeSince || new Date().toISOString(),
+    });
+  }
+  if (st.challengeNotified && !upgraded) return;
+
   const titles = {
     app_approval: 'Approve LinkedIn sign-in in your app',
     pin: 'LinkedIn wants a verification code',
     captcha: 'LinkedIn security check',
-    generic: 'LinkedIn needs extra verification',
+    generic: 'Approve LinkedIn sign-in in your app',
   };
   const messages = {
     app_approval:
       'Open the LinkedIn app on your phone and tap Yes / Approve on the sign-in request. H.A.L.O. will continue automatically — no need to sign in again here.',
     pin: 'Enter the code LinkedIn sent, or open the repair page from the LinkedIn dashboard.',
     captcha: 'Complete the security check on the repair page from the LinkedIn dashboard.',
-    generic: 'Open the repair page from the LinkedIn dashboard and follow the on-screen steps.',
+    generic:
+      'Open the LinkedIn app on your phone and tap Yes / Approve if LinkedIn sent a sign-in request. H.A.L.O. continues automatically.',
   };
   try {
     const { notify } = await import('./notify.js');

@@ -735,8 +735,8 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
     silenceSkipWeekends: env.SILENCE_SKIP_WEEKENDS !== '0',
     channels: {
       linkedin: env.CHANNEL_LINKEDIN_ENABLED !== '0',
-      instagram: env.CHANNEL_INSTAGRAM_ENABLED === '1',
-      facebook: env.CHANNEL_FACEBOOK_ENABLED === '1',
+      x: env.CHANNEL_X_ENABLED === '1',
+      telegram: env.CHANNEL_TELEGRAM_ENABLED === '1',
     },
     linkedin: {
       targetUrl: env.TARGET_LINKEDIN_URL || '',
@@ -1085,11 +1085,11 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
     if (typeof body.channels.linkedin === 'boolean') {
       updates.CHANNEL_LINKEDIN_ENABLED = body.channels.linkedin ? '1' : '0';
     }
-    if (typeof body.channels.instagram === 'boolean') {
-      updates.CHANNEL_INSTAGRAM_ENABLED = body.channels.instagram ? '1' : '0';
+    if (typeof body.channels.x === 'boolean') {
+      updates.CHANNEL_X_ENABLED = body.channels.x ? '1' : '0';
     }
-    if (typeof body.channels.facebook === 'boolean') {
-      updates.CHANNEL_FACEBOOK_ENABLED = body.channels.facebook ? '1' : '0';
+    if (typeof body.channels.telegram === 'boolean') {
+      updates.CHANNEL_TELEGRAM_ENABLED = body.channels.telegram ? '1' : '0';
     }
   }
 

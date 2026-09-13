@@ -2,8 +2,8 @@ const ICONS = {
   dashboard: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 12 L17.2 8.2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round"/><circle cx="12" cy="12" r="1.55" fill="currentColor"/><path d="M6.2 15.8 A7.2 7.2 0 0 1 17.8 15.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/><path d="M7.1 14.6 A5.8 5.8 0 0 1 12 7.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
   crm: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
   linkedin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 8.5A2 2 0 1 1 6.5 4.5a2 2 0 0 1 0 4zM4.75 10h3.5V20h-3.5V10zM13 10.2c1.4-1.5 3.7-1.6 5.2-.3.8.7 1.3 1.8 1.3 3V20h-3.5v-5.5c0-1-.4-1.7-1.3-1.7-.9 0-1.4.6-1.4 1.7V20H9.8V10h3.4v.2z"/></svg>',
-  instagram: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm5 4.5A4.5 4.5 0 1 0 16.5 12 4.5 4.5 0 0 0 12 7.5zm6.25-.75a1.1 1.1 0 1 0 1.1 1.1 1.1 1.1 0 0 0-1.1-1.1zM12 9.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/></svg>',
-  facebook: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v6h3v-6h2.6l.4-3H13v-2c0-.6.4-1 1-1z"/></svg>',
+  x: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.9 2H22l-6.8 7.8L23 22h-6.5l-5.1-6.7L5.7 22H2.6l7.3-8.4L1 2h6.7l4.6 6.1L18.9 2zm-1.1 18h1.8L7.3 3.9H5.4L17.8 20z"/></svg>',
+  telegram: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M21.8 4.2 2.9 11.5c-1.3.5-1.3 1.2-.2 1.5l4.8 1.5 1.9 5.7c.2.7.4 1 .9 1 .6 0 .8-.2 1.1-.5l2.6-2.5 5.4 4c1 .5 1.7.3 2-.9L23.9 5.5c.4-1.5-.5-2.2-1.6-1.7l-.5.4zM9.4 14.7l-.2 3.3 1.1-2 8.2-7.4c.3-.2-.1-.4-.4-.2L9.4 14.7z"/></svg>',
   integrations: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>',
   profile: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.24l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.25.1.54 0 .68-.24l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>',
   billing: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>',
@@ -21,8 +21,8 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', title: 'Overview, stages, channels' },
   { id: 'crm', label: 'CRM', title: 'Pipeline, leads, and CRM backend' },
   { id: 'linkedin', label: 'LinkedIn', title: 'LinkedIn channel settings and session' },
-  { id: 'instagram', label: 'Instagram', title: 'Instagram channel (coming soon)' },
-  { id: 'facebook', label: 'Facebook', title: 'Facebook channel (coming soon)' },
+  { id: 'x', label: 'X', title: 'X channel (coming soon)' },
+  { id: 'telegram', label: 'Telegram', title: 'Telegram channel (coming soon)' },
   { id: 'profile', label: 'Settings', title: 'Account, billing, and integrations' },
   { id: 'brain', label: 'Brain', title: 'Sales Brain — master prompt and strategy analysis' },
   { id: 'faq', label: 'FAQ', title: 'Setup guide and quick answers' },
@@ -497,28 +497,48 @@ const LI_CHALLENGE_COPY = {
     notifyTitle: 'LinkedIn security check',
     notifyBody: 'Complete verification on the repair page',
   },
+  // Same primary CTA as app_approval — most "generic" checkpoints are phone Approve.
+  // Repair page is only a fallback if the app push never arrives.
   generic: {
-    title: 'Extra verification needed',
-    body: 'LinkedIn needs another step. Open the repair page below and follow the instructions. Keep personal LinkedIn tabs closed while connecting — parallel login often blocks the phone Sign-in request.',
-    toast: 'LinkedIn needs verification — open repair page',
-    notifyTitle: 'LinkedIn verification',
-    notifyBody: 'Open the repair page in H.A.L.O.',
+    title: 'Action required: approve in LinkedIn app',
+    body: 'Open the LinkedIn app on your phone and tap Yes / Approve on the sign-in request. This page updates automatically. Only use the repair page if no app notification appears.',
+    toast: 'Open LinkedIn app → tap Approve on the sign-in request',
+    notifyTitle: 'LinkedIn sign-in waiting',
+    notifyBody: 'Tap Approve in your LinkedIn app now',
   },
 };
 
 function showLinkedInChallengeUI(st, els) {
   const kind = st.challengeKind || 'app_approval';
-  const copy = LI_CHALLENGE_COPY[kind] || LI_CHALLENGE_COPY.generic;
+  const copy = LI_CHALLENGE_COPY[kind] || LI_CHALLENGE_COPY.app_approval;
   const { statusEl, bannerEl, repairLink } = els;
   if (bannerEl) {
     bannerEl.classList.remove('hidden');
     const t = bannerEl.querySelector('.li-challenge-title');
     const b = bannerEl.querySelector('.li-challenge-body');
+    const foot = bannerEl.querySelector('.li-challenge-foot');
     if (t) t.textContent = copy.title;
     if (b) b.textContent = copy.body;
+    if (foot) {
+      const needsRepair = kind === 'pin' || kind === 'captcha';
+      foot.innerHTML = needsRepair
+        ? 'Open the <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> to enter the code / complete the check.'
+        : 'Usually no extra page is needed — approve in the LinkedIn app. Fallback: <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> (live screenshot).';
+      // re-bind repairLink after innerHTML replace
+      const newLink = bannerEl.querySelector('#li-repair-link');
+      if (newLink && st.token) {
+        newLink.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
+      }
+      if (els) els.repairLink = newLink || repairLink;
+    }
   }
-  if (statusEl) statusEl.textContent = '';
-  if (repairLink && st.token) {
+  if (statusEl) {
+    statusEl.textContent =
+      kind === 'pin' || kind === 'captcha'
+        ? 'Complete verification — waiting for server…'
+        : 'Approve in LinkedIn app — waiting for server…';
+  }
+  if (repairLink && st.token && repairLink.isConnected) {
     repairLink.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
   }
 }
@@ -558,7 +578,7 @@ function unitSelect(id, unit) {
 
 const NAV_GROUPS = [
   { label: 'Overview', ids: ['dashboard', 'crm'] },
-  { label: 'Channels', ids: ['linkedin', 'instagram', 'facebook'] },
+  { label: 'Channels', ids: ['linkedin', 'x', 'telegram'] },
   { label: 'Account', ids: ['profile'] },
   { label: 'Help', ids: ['faq'] },
 ];
@@ -2097,8 +2117,8 @@ function bindSwitchAutosave() {
   const stageA = document.getElementById('stageA');
   const stageB = document.getElementById('stageB');
   const chLi = document.getElementById('ch-linkedin');
-  const chIg = document.getElementById('ch-instagram');
-  const chFb = document.getElementById('ch-facebook');
+  const chX = document.getElementById('ch-x');
+  const chTg = document.getElementById('ch-telegram');
 
   const persistAndRefresh = async (patch) => {
     await persistSwitches(patch);
@@ -2121,8 +2141,8 @@ function bindSwitchAutosave() {
         _masterSource: true,
         channels: {
           linkedin: chLi ? chLi.checked : settings.channels.linkedin,
-          instagram: chIg ? chIg.checked : settings.channels.instagram,
-          facebook: chFb ? chFb.checked : settings.channels.facebook,
+          x: chX ? chX.checked : settings.channels.x,
+          telegram: chTg ? chTg.checked : settings.channels.telegram,
         },
       });
     };
@@ -2141,8 +2161,8 @@ function bindSwitchAutosave() {
       stageBEnabled: bOn,
       channels: {
         linkedin: chLi ? chLi.checked : settings.channels.linkedin,
-        instagram: chIg ? chIg.checked : settings.channels.instagram,
-        facebook: chFb ? chFb.checked : settings.channels.facebook,
+        x: chX ? chX.checked : settings.channels.x,
+        telegram: chTg ? chTg.checked : settings.channels.telegram,
       },
     });
   };
@@ -2154,12 +2174,12 @@ function bindSwitchAutosave() {
     await persistAndRefresh({
       channels: {
         linkedin: chLi ? chLi.checked : settings.channels.linkedin,
-        instagram: chIg ? chIg.checked : settings.channels.instagram,
-        facebook: chFb ? chFb.checked : settings.channels.facebook,
+        x: chX ? chX.checked : settings.channels.x,
+        telegram: chTg ? chTg.checked : settings.channels.telegram,
       },
     });
   };
-  [chLi, chIg, chFb].forEach((el) => {
+  [chLi, chX, chTg].forEach((el) => {
     if (el) el.onchange = onChannel;
   });
 }
@@ -2266,8 +2286,8 @@ function renderDashboard() {
         leadsPerCycleLabel: LEADS_PER_CYCLE_LABEL,
         leadsEditable: true,
       })}
-      ${channelTile('instagram', 'Instagram', s.channels.instagram, { comingSoon: true })}
-      ${channelTile('facebook', 'Facebook', s.channels.facebook, { comingSoon: true })}
+      ${channelTile('x', 'X', s.channels.x, { comingSoon: true })}
+      ${channelTile('telegram', 'Telegram', s.channels.telegram, { comingSoon: true })}
     </div>
 
     <div class="card analytics-canvas" id="analytics-canvas">
@@ -4203,7 +4223,7 @@ function pollLinkedInLogin(token, challengeEls = {}) {
       }
       if (st.uiMode === 'challenge' || (st.challengeSince && !st.liAtCaptured && st.status === 'running')) {
         const kind = st.challengeKind || 'app_approval';
-        const copy = LI_CHALLENGE_COPY[kind] || LI_CHALLENGE_COPY.generic;
+        const copy = LI_CHALLENGE_COPY[kind] || LI_CHALLENGE_COPY.app_approval;
         showLinkedInChallengeUI(st, els);
         startLinkedInTitleAlert();
         if (!linkedInChallengeAlerted) {
@@ -4211,7 +4231,6 @@ function pollLinkedInLogin(token, challengeEls = {}) {
           toastWarn(copy.toast, 0);
           browserNotify(copy.notifyTitle, copy.notifyBody);
         }
-        if (statusEl) statusEl.textContent = 'Approve in LinkedIn app — waiting for server…';
       } else if (statusEl) {
         if (st.lastSignInError && st.status === 'running') {
           statusEl.textContent = st.lastSignInError;
@@ -6276,11 +6295,11 @@ function collectPatch() {
     if (sd) patch.silenceBusinessDays = sd.value;
     if (sw) patch.silenceSkipWeekends = sw.checked;
     const li = document.getElementById('ch-linkedin');
-    const ig = document.getElementById('ch-instagram');
-    const fb = document.getElementById('ch-facebook');
+    const chX = document.getElementById('ch-x');
+    const chTg = document.getElementById('ch-telegram');
     if (li) patch.channels.linkedin = li.checked;
-    if (ig) patch.channels.instagram = ig.checked;
-    if (fb) patch.channels.facebook = fb.checked;
+    if (chX) patch.channels.x = chX.checked;
+    if (chTg) patch.channels.telegram = chTg.checked;
   }
 
   if (page === 'brain') {
@@ -6400,7 +6419,7 @@ function setNotifyOpen(open) {
 
 function updateSaveVisibility() {
   if (!topActions) return;
-  const hide = page === 'instagram' || page === 'facebook' || page === 'faq';
+  const hide = page === 'x' || page === 'telegram' || page === 'faq';
   topActions.classList.toggle('no-save', hide);
 }
 
@@ -6415,8 +6434,8 @@ function render() {
   if (page === 'dashboard') renderDashboard();
   else if (page === 'crm') renderCrm();
   else if (page === 'linkedin') renderLinkedIn();
-  else if (page === 'instagram') renderComing('Instagram');
-  else if (page === 'facebook') renderComing('Facebook');
+  else if (page === 'x') renderComing('X');
+  else if (page === 'telegram') renderComing('Telegram');
   else if (page === 'integrations') renderIntegrations();
   else if (page === 'profile') renderProfile();
   else if (page === 'brain') renderBrain();
