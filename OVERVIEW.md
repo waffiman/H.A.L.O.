@@ -414,7 +414,7 @@ Analytics: [`dashboard/lib/analytics.js`](dashboard/lib/analytics.js) → `GET /
 1. **Dashboard** — master pause, Stage A/B toggles + intervals (Stage B min **6 min**, jitter hint), silence, channels (LinkedIn: **Connection invites per Stage A**), **analytics chart** (Pipeline / Outreach / Session tabs, 7d–90d range, smooth curves + metric toggles)  
 2. **CRM** — Notion status counts  
 3. **LinkedIn** — session + cookie paste, **Stage A prospecting** (one toggle + invite cap), **Auto-dialog** info (always on), test URL filter  
-4. Instagram / Facebook — coming soon  
+4. X / Telegram — coming soon (UI placeholders; wiring later)  
 5. **Integrations** (key icon) — API keys, Telegram  
 6. **Brain** (pinned bottom nav) — master prompt carousel, **Sales** (portrait + LinkedIn People filters + URL override + outcome; **Book a call** ⚙ availability + Meet URL), Learning (analysis + strategy notes)  
 7. **FAQ** — setup guide + tiles (includes Book a call)

@@ -94,8 +94,7 @@ const CRM_MESSENGER_APPS = [
   { id: 'telegram', label: 'Telegram' },
   { id: 'messenger', label: 'Messenger' },
   { id: 'viber', label: 'Viber' },
-  { id: 'facebook', label: 'Facebook' },
-  { id: 'instagram', label: 'Instagram' },
+  { id: 'x', label: 'X' },
   { id: 'phone', label: 'Phone' },
 ];
 const CRM_CARD_PROP_DEFS = [

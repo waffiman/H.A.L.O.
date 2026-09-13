@@ -387,25 +387,44 @@ async function detectChallengeKind(page) {
   const fromDom = await page
     .evaluate(() => {
       const t = (document.body?.innerText || '').slice(0, 8000).toLowerCase();
-      // EN + UA + RU — phone app approval / "sign-in request"
-      if (
-        /check your linkedin app|notification sent|tap yes|approve this sign|confirm (it'?s|this is) you|verify it'?s you|sign-in request|we sent a notification|open the linkedin app|waiting for approval|sent to your device|approve in (the )?app|check your phone|linkedIn app|linkedin app/.test(
+      // Phone app approval — LinkedIn localizes checkpoint copy (EN + common locales).
+      // Prefer URL fallback below if text is unknown; do not treat as "repair-only".
+      const appApproval =
+        // EN
+        /check your linkedin app|notification sent|tap yes|approve this sign|confirm (it'?s|this is) you|verify it'?s you|sign-in request|we sent a notification|open the linkedin app|waiting for approval|sent to your device|approve in (the )?app|check your phone|linkedin app|approve the request|yes,? it'?s me/.test(
           t
         ) ||
-        /підтверд(іть|ження)|перевірте.*додаток|відкрийте.*додаток|запит на вхід|підтвердіть вхід|додатку linkedin|додатку linkedin|проверьте.*приложение|откройте.*приложение|подтвердите вход|запрос на вход|уведомление.*(отправлен|послан)/.test(
+        // UA / RU
+        /підтверд(іть|ження)|перевірте.*додаток|відкрийте.*додаток|запит на вхід|підтвердіть вхід|додатку linkedin|проверьте.*приложение|откройте.*приложение|подтвердите вход|запрос на вход|уведомление.*(отправлен|послан)|это вы|це ви/.test(
           t
-        )
-      ) {
-        return 'app_approval';
-      }
+        ) ||
+        // DE / NL / PL
+        /linkedin[- ]app|in der linkedin[- ]app|bestätigen sie|anmeldung bestätigen|anfrage (genehmigen|bestätigen)|in de linkedin[- ]app|bevestig (het is u|aanmelding)|in (aplikacji|aplikacji) linkedin|potwierdź (logowanie|że to ty)|zatwierdź/.test(
+          t
+        ) ||
+        // FR / ES / PT / IT
+        /application linkedin|approuvez|confirmez (qu.?il s.?agit de vous|la connexion)|demande de connexion|app de linkedin|aprueba|confirma (que eres tú|el inicio)|solicitud de inicio|aplicativo linkedin|aprova|confirme (que é você|o login)|app linkedin|approva|conferma (che sei tu|l.?accesso)|richiesta di accesso/.test(
+          t
+        ) ||
+        // TR / JA / ZH / AR (common LinkedIn strings + script cues)
+        /linkedin uygulamas|onayla|giriş isteği|linkedinアプリ|承認|サインイン|领英|linkedin.?应用|确认是你|批准|تطبيق linkedin|وافق|تأكيد تسجيل/.test(
+          t
+        );
+      if (appApproval) return 'app_approval';
       if (
-        /enter the code|verification code|one-time|enter code|\bpin\b|код підтвердження|код подтверждения|введіть код|введите код/.test(
+        /enter the code|verification code|one-time|enter code|\bpin\b|код підтвердження|код подтверждения|введіть код|введите код|code de v[eé]rification|c[oó]digo de verificaci[oó]n|c[oó]digo de verifica[cç][aã]o|verifizierungscode|codice di verifica|kod weryfikacyjny|doğrulama kodu|認証コード|验证码|رمز التحقق/.test(
           t
         )
       ) {
         return 'pin';
       }
-      if (/captcha|robot|security check|puzzle|я не робот|не робот/.test(t)) return 'captcha';
+      if (
+        /captcha|robot|security check|puzzle|я не робот|не робот|ich bin kein roboter|je ne suis pas un robot|no soy un robot|não sou um robô|non sono un robot/.test(
+          t
+        )
+      ) {
+        return 'captcha';
+      }
       return null;
     })
     .catch(() => null);
@@ -480,9 +499,11 @@ async function detectUiMode(page) {
       const pin = document.querySelector(
         'input[name="pin"], input#input__phone_verification_pin, input[autocomplete="one-time-code"]'
       );
-      const challengeText = /enter the code|verification|captcha|confirm it.?s you|unusual activity|check your linkedin app|notification sent|tap yes|approve this sign|verify it.?s you|sign-in request|we sent a notification|open the linkedin app/i.test(
-        document.body?.innerText || ''
-      );
+      const body = (document.body?.innerText || '').slice(0, 8000);
+      const challengeText =
+        /enter the code|verification|captcha|confirm it.?s you|unusual activity|check your linkedin app|notification sent|tap yes|approve this sign|verify it.?s you|sign-in request|we sent a notification|open the linkedin app|linkedin app|підтверд|запрос на вход|запит на вхід|anmeldung bestätigen|approuvez|aprueba|approva|potwierdź|onayla|承認|验证|وافق/i.test(
+          body
+        );
       return {
         hasLoginFields: !!(user && pass),
         hasPin: !!pin,
