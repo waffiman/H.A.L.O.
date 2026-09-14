@@ -1,6 +1,7 @@
 /**
  * Deterministic IANA timezone from LinkedIn/Apify location strings.
  * No LLM — city/country keyword map + country defaults.
+ * LinkedIn often uses "Greater X Area" / "X Metropolitan Area" without country.
  */
 const CITY_TZ = [
   // Americas
@@ -23,6 +24,7 @@ const CITY_TZ = [
 
   // Europe
   [/london|manchester|birmingham|edinburgh|glasgow|united\s*kingdom|\buk\b|england|scotland|wales/i, 'Europe/London'],
+  [/swansea|cardiff|bristol|leeds|liverpool|newcastle|sheffield|nottingham|cambridge|oxford|brighton/i, 'Europe/London'],
   [/dublin|ireland/i, 'Europe/Dublin'],
   [/paris|lyon|marseille|france/i, 'Europe/Paris'],
   [/berlin|munich|hamburg|frankfurt|cologne|germany|deutschland/i, 'Europe/Berlin'],
@@ -37,7 +39,8 @@ const CITY_TZ = [
   [/oslo|norway/i, 'Europe/Oslo'],
   [/copenhagen|denmark/i, 'Europe/Copenhagen'],
   [/helsinki|finland/i, 'Europe/Helsinki'],
-  [/warsaw|poland|krak[oó]w/i, 'Europe/Warsaw'],
+  // Kraków English "Cracow" + other PL cities (LinkedIn metro labels often omit "Poland")
+  [/warsaw|warszawa|cracow|krak[oó]w|poland|polska|wroc[lł]aw|gdansk|gda[nń]sk|pozna[nń]|[lł][oó]d[zź]|katowice|lublin|szczecin|bydgoszcz|bialystok|bia[lł]ystok/i, 'Europe/Warsaw'],
   [/prague|czechia|czech/i, 'Europe/Prague'],
   [/budapest|hungary/i, 'Europe/Budapest'],
   [/bucharest|romania/i, 'Europe/Bucharest'],
@@ -71,7 +74,7 @@ const COUNTRY_TZ = [
   [/\bnetherlands\b/i, 'Europe/Amsterdam'],
   [/\bspain\b/i, 'Europe/Madrid'],
   [/\bitaly\b/i, 'Europe/Rome'],
-  [/\bpoland\b/i, 'Europe/Warsaw'],
+  [/\bpoland\b|\bpolska\b/i, 'Europe/Warsaw'],
   [/\bukraine\b/i, 'Europe/Kyiv'],
   [/\bindia\b/i, 'Asia/Kolkata'],
   [/\baustralia\b/i, 'Australia/Sydney'],
