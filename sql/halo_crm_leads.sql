@@ -36,6 +36,8 @@ alter table public.leads add column if not exists email text not null default ''
 alter table public.leads add column if not exists lost_reason text not null default '';
 alter table public.leads add column if not exists messenger_app text not null default '';
 alter table public.leads add column if not exists messenger_value text not null default '';
+alter table public.leads add column if not exists lead_score integer;
+alter table public.leads add column if not exists score_breakdown jsonb;
 
 create unique index if not exists leads_workspace_link_uidx
   on public.leads (workspace_id, link)

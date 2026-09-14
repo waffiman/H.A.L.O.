@@ -116,6 +116,7 @@ const CRM_FIELD_DEFS = [
   { id: 'lostReason', label: 'Lost reason', type: 'text' },
   { id: 'status', label: 'Status', type: 'status' },
   { id: 'msg', label: 'Ice-breaker', type: 'text' },
+  { id: 'leadScore', label: 'Lead score', type: 'number' },
   { id: 'processingAt', label: 'Last contact', type: 'date' },
   { id: 'notes', label: 'Conversation', type: 'text' },
 ];
@@ -127,6 +128,13 @@ const CRM_FILTER_OPS = {
     { id: 'is_not', label: 'Is not' },
     { id: 'starts_with', label: 'Starts with' },
     { id: 'ends_with', label: 'Ends with' },
+    { id: 'is_empty', label: 'Is empty' },
+    { id: 'is_not_empty', label: 'Is not empty' },
+  ],
+  number: [
+    { id: 'is', label: 'Is' },
+    { id: 'gte', label: '≥' },
+    { id: 'lte', label: '≤' },
     { id: 'is_empty', label: 'Is empty' },
     { id: 'is_not_empty', label: 'Is not empty' },
   ],
@@ -259,6 +267,9 @@ function crmLeadFieldValue(lead, fieldId) {
   if (fieldId === 'notes') return String(lead.notes || '').trim();
   if (fieldId === 'processingAt') return lead.processingAt || '';
   if (fieldId === 'status') return String(lead.status || '').trim();
+  if (fieldId === 'leadScore') {
+    return lead.leadScore == null || lead.leadScore === '' ? '' : Number(lead.leadScore);
+  }
   return String(lead.name || '').trim();
 }
 
@@ -315,6 +326,18 @@ function crmEvaluateFilter(lead, rule) {
     return true;
   }
 
+  if (def.type === 'number') {
+    if (rule.op === 'is_empty') return raw === '' || raw == null || Number.isNaN(Number(raw));
+    if (rule.op === 'is_not_empty') return raw !== '' && raw != null && !Number.isNaN(Number(raw));
+    const n = Number(raw);
+    const target = Number(val);
+    if (Number.isNaN(n) || Number.isNaN(target)) return false;
+    if (rule.op === 'is') return n === target;
+    if (rule.op === 'gte') return n >= target;
+    if (rule.op === 'lte') return n <= target;
+    return true;
+  }
+
   if (rule.op === 'is_empty') return !raw;
   if (rule.op === 'is_not_empty') return Boolean(raw);
   if (rule.op === 'contains') return lower.includes(valLower);
@@ -349,6 +372,14 @@ function crmCompareLeads(a, b, fieldId, dir) {
     if (!at) return 1;
     if (!bt) return -1;
     return (at - bt) * mul;
+  }
+  if (def.type === 'number') {
+    const an = av === '' || av == null || Number.isNaN(Number(av)) ? null : Number(av);
+    const bn = bv === '' || bv == null || Number.isNaN(Number(bv)) ? null : Number(bv);
+    if (an == null && bn == null) return 0;
+    if (an == null) return 1;
+    if (bn == null) return -1;
+    return (an - bn) * mul;
   }
 
   if (def.type === 'status') {
@@ -819,8 +850,41 @@ function crmBodyPreview(notes) {
   return escapeHtml(crmTextPreview(line, 120));
 }
 
+function leadScoreColor(score) {
+  const n = Number(score);
+  if (!Number.isFinite(n)) return null;
+  if (n <= 20) return '#ef4444';
+  if (n <= 40) return '#f97316';
+  if (n <= 60) return '#eab308';
+  if (n <= 80) return '#84cc16';
+  return '#22c55e';
+}
+
+function leadScoreTooltip(breakdown) {
+  if (!breakdown || typeof breakdown !== 'object') return 'ICP fit vs Client portrait';
+  const line = (key, label) => {
+    const b = breakdown[key];
+    if (!b) return '';
+    return `${label}: ${b.points ?? 0}/${b.max ?? '?'}`;
+  };
+  return [
+    line('role', 'Role'),
+    line('industry', 'Industry'),
+    line('companySize', 'Company size'),
+    line('region', 'Region'),
+    line('seniority', 'Seniority'),
+    line('profile', 'Profile'),
+    `Total: ${breakdown.total ?? '—'}/100`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 function crmKanbanCardHtml(lead) {
   const props = [];
+  const score =
+    lead.leadScore == null || lead.leadScore === '' ? null : Number(lead.leadScore);
+  const scoreColor = leadScoreColor(score);
   if (crmCardProps.link) {
     const link = crmLinkLabel(lead.url);
     props.push(
@@ -884,9 +948,13 @@ function crmKanbanCardHtml(lead) {
       `<div class="crm-prop crm-prop-body"><span class="crm-prop-label">Body</span><span class="crm-prop-val">${bodyLine}</span></div>`
     );
   }
-  return `<div class="crm-kanban-card${props.length ? '' : ' crm-kanban-card-compact'}${isCrmPinned(lead.id) ? ' is-pinned' : ''}" draggable="true" data-lead-id="${escapeAttr(lead.id)}" data-lead-status="${escapeAttr(lead.status)}" title="Drag to move · click to open">
+  return `<div class="crm-kanban-card${props.length ? '' : ' crm-kanban-card-compact'}${isCrmPinned(lead.id) ? ' is-pinned' : ''}${scoreColor ? ' has-lead-score' : ''}" draggable="true" data-lead-id="${escapeAttr(lead.id)}" data-lead-status="${escapeAttr(lead.status)}" title="Drag to move · click to open"${scoreColor ? ` style="--lead-score-color:${scoreColor}"` : ''}>
     <div class="crm-kanban-card-top">
-      <div class="crm-kanban-card-name">${isCrmPinned(lead.id) ? '<span class="crm-pin-mark" title="Pinned" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M16 3a1 1 0 0 1 1 1v2.17l1.55.78a1 1 0 0 1 .45 1.34l-2.2 4.4V19a1 1 0 1 1-2 0v-2.31l-2.2-4.4a1 1 0 0 1 .45-1.34L15 6.17V4a1 1 0 0 1 1-1z"/></svg></span>' : ''}${escapeHtml(lead.name || 'Untitled')}</div>
+      <div class="crm-kanban-card-name">${isCrmPinned(lead.id) ? '<span class="crm-pin-mark" title="Pinned" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M16 3a1 1 0 0 1 1 1v2.17l1.55.78a1 1 0 0 1 .45 1.34l-2.2 4.4V19a1 1 0 1 1-2 0v-2.31l-2.2-4.4a1 1 0 0 1 .45-1.34L15 6.17V4a1 1 0 0 1 1-1z"/></svg></span>' : ''}${escapeHtml(lead.name || 'Untitled')}${
+        scoreColor != null
+          ? `<span class="lead-score" style="background:${scoreColor}" title="${escapeAttr(leadScoreTooltip(lead.scoreBreakdown))}">${Math.round(score)}</span>`
+          : ''
+      }</div>
       <div class="crm-card-menu">
         <button type="button" class="crm-card-menu-btn" data-crm-menu-toggle="${escapeAttr(lead.id)}" title="Lead actions" aria-label="Lead actions" aria-expanded="false">⋯</button>
         <div class="crm-card-menu-drop hidden" data-crm-menu-drop="${escapeAttr(lead.id)}" role="menu">
@@ -1847,6 +1915,16 @@ function bindCrmToolbar() {
       renderCrm();
     };
   });
+  document.getElementById('crm-sort-score')?.addEventListener('click', () => {
+    crmSort = {
+      primary: { field: 'leadScore', dir: 'desc' },
+      secondary: crmSort.secondary || null,
+      pinnedFirst: crmSort.pinnedFirst !== false,
+    };
+    saveCrmSort(crmSort);
+    paintCrmLeadsPanel();
+    toast('Sorted by lead score (high → low)');
+  });
   document.querySelectorAll('[data-crm-status]').forEach((btn) => {
     btn.onclick = () => {
       const st = btn.dataset.crmStatus;
@@ -2244,6 +2322,32 @@ function infoTip(text) {
   </span>`;
 }
 
+function leadQualityCardHtml() {
+  const all = Object.values(crmKanban || {}).flat();
+  const scored = all.filter((l) => l.leadScore != null && Number.isFinite(Number(l.leadScore)));
+  if (!scored.length) {
+    return `<div class="lead-quality-card muted" title="ICP scores fill in after LinkedIn enrich">
+      <div class="lead-quality-title">Lead Quality</div>
+      <p class="lead-quality-empty">Scores appear after Apify enrich vs Client portrait. Open CRM after Stage A enrich.</p>
+    </div>`;
+  }
+  const avg = Math.round(scored.reduce((s, l) => s + Number(l.leadScore), 0) / scored.length);
+  let hot = 0;
+  let warm = 0;
+  let cold = 0;
+  for (const l of scored) {
+    const n = Number(l.leadScore);
+    if (n >= 80) hot++;
+    else if (n >= 50) warm++;
+    else cold++;
+  }
+  return `<div class="lead-quality-card" title="ICP fit from LinkedIn enrich">
+    <div class="lead-quality-title">Lead Quality</div>
+    <div class="lead-quality-avg">Avg <strong>${avg}</strong>/100 · ${scored.length} scored</div>
+    <div class="lead-quality-dist">${hot} hot (80+) · ${warm} warm (50–79) · ${cold} cold (&lt;50)</div>
+  </div>`;
+}
+
 function renderDashboard() {
   const s = settings;
   const c = counts?.counts || {};
@@ -2261,6 +2365,7 @@ function renderDashboard() {
         </div>
         <div class="dash-crm-body">
           ${buildCrmSnapshotDonut(c)}
+          ${leadQualityCardHtml()}
         </div>
       </div>
 
@@ -3902,6 +4007,7 @@ function renderCrm() {
           ${crmStatusFilter ? `<button type="button" class="btn ghost btn-sm" id="crm-clear-filter">Clear filter · ${escapeHtml(crmStatusFilter)}</button>` : ''}
         </div>
         <div class="crm-toolbar-right">
+          <button type="button" class="btn ghost btn-sm" id="crm-sort-score" title="Sort by ICP lead score (high → low)">Sort by Score</button>
           ${crmCardPropsMenuHtml()}
           <form class="crm-search-form" autocomplete="off" onsubmit="return false;">
             <input type="text" class="crm-autofill-trap" name="username" tabindex="-1" aria-hidden="true" autocomplete="username" value="" />

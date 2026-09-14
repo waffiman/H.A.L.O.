@@ -306,6 +306,10 @@ Stored in `sales_policy.json` → `smartTiming` (`enabled`, `windowStart`/`windo
 - Stage B replies and silence closings are **not** delayed.
 - Dashboard: Brain → Sales → **Smart Timing** card. CRM location prop shows timezone + 🕐 next window when outside hours.
 
+### Lead score (LinkedIn ICP)
+
+After Apify enrich, [`leadScoring.js`](leadScoring.js) scores the profile vs Brain **Client portrait** (0–100: role, industry, company size, region, seniority, profile completeness). Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)). CRM shows a color badge + edge bar; **Sort by Score** in CRM toolbar. Dashboard **Lead Quality** summarizes loaded kanban scores. Does **not** change send order yet. X / Email / Telegram scoring later.
+
 LinkedIn filter mapping (auto URL):
 
 | LinkedIn UI filter | Brain control |

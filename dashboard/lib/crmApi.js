@@ -48,6 +48,9 @@ function rowToLead(row) {
     lostReason: String(row.lost_reason || '').trim(),
     messengerApp: String(row.messenger_app || '').trim(),
     messengerValue: String(row.messenger_value || '').trim(),
+    leadScore: row.lead_score == null || row.lead_score === '' ? null : Number(row.lead_score),
+    scoreBreakdown:
+      row.score_breakdown && typeof row.score_breakdown === 'object' ? row.score_breakdown : null,
     processingAt: row.processing_at || null,
     status: (() => {
       const raw = String(row.status || '').trim();

@@ -105,7 +105,7 @@ export async function ensureProcessingAt(id, iso = new Date().toISOString()) {
 
 export async function updateNameAndIceBreaker(
   id,
-  { name, iceBreaker, location, timezone, email, setProcessingAt: setProc = false }
+  { name, iceBreaker, location, timezone, email, leadScore, scoreBreakdown, setProcessingAt: setProc = false }
 ) {
   const notion = getNotion();
   const properties = {

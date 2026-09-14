@@ -5978,6 +5978,37 @@ html[data-theme="light"] .analytics-date-field input {
   position: relative;
   z-index: 1;
 }
+.crm-kanban-card.has-lead-score {
+  border-left: 3px solid var(--lead-score-color, #84cc16);
+}
+.lead-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.25rem;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #0b1220;
+  vertical-align: middle;
+  cursor: help;
+}
+.lead-quality-card {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.lead-quality-title {
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.lead-quality-avg { margin-bottom: 2px; }
+.lead-quality-dist, .lead-quality-empty { color: var(--muted); font-size: 0.8rem; }
 .crm-kanban-card.crm-card-menu-open {
   z-index: 40;
 }

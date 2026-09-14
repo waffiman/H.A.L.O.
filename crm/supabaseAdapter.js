@@ -18,6 +18,8 @@ function rowToLead(row) {
     lostReason: String(row.lost_reason || '').trim(),
     messengerApp: String(row.messenger_app || '').trim(),
     messengerValue: String(row.messenger_value || '').trim(),
+    leadScore: row.lead_score == null || row.lead_score === '' ? null : Number(row.lead_score),
+    scoreBreakdown: row.score_breakdown && typeof row.score_breakdown === 'object' ? row.score_breakdown : null,
     processingAt: row.processing_at ? new Date(row.processing_at) : null,
     status: String(row.status || '').trim(),
     notes: String(row.notes || ''),
@@ -78,7 +80,16 @@ export async function ensureProcessingAt(id, iso = new Date().toISOString()) {
 
 export async function updateNameAndIceBreaker(
   id,
-  { name, iceBreaker, location, timezone, email, setProcessingAt: setProc = false }
+  {
+    name,
+    iceBreaker,
+    location,
+    timezone,
+    email,
+    leadScore,
+    scoreBreakdown,
+    setProcessingAt: setProc = false,
+  }
 ) {
   const patch = {};
   if (iceBreaker != null) patch.ice_breaker = String(iceBreaker);
@@ -86,8 +97,26 @@ export async function updateNameAndIceBreaker(
   if (location != null) patch.location = String(location).trim().slice(0, 300);
   if (timezone != null) patch.timezone = String(timezone).trim().slice(0, 64);
   if (email != null) patch.email = String(email).trim().slice(0, 200);
+  if (leadScore != null && Number.isFinite(Number(leadScore))) {
+    patch.lead_score = Math.max(0, Math.min(100, Math.round(Number(leadScore))));
+  }
+  if (scoreBreakdown != null && typeof scoreBreakdown === 'object') {
+    patch.score_breakdown = scoreBreakdown;
+  }
   if (setProc) patch.processing_at = new Date().toISOString();
-  await restUpdate('leads', id, patch);
+  try {
+    await restUpdate('leads', id, patch);
+  } catch (e) {
+    // Schema may not have score columns yet — retry without them.
+    if (patch.lead_score != null || patch.score_breakdown != null) {
+      delete patch.lead_score;
+      delete patch.score_breakdown;
+      console.error('lead_score write failed (run sql/migrate_lead_score.sql?):', e.message);
+      await restUpdate('leads', id, patch);
+      return;
+    }
+    throw e;
+  }
 }
 
 export async function createLead({ url, name = '', status = STATUS_LEAD } = {}) {
@@ -279,6 +308,14 @@ export async function patchLead(id, fields = {}) {
     patch.messenger_value = String(fields.messengerValue ?? fields.messenger_value ?? '')
       .trim()
       .slice(0, 300);
+  }
+  if (fields.leadScore != null || fields.lead_score != null) {
+    const n = Number(fields.leadScore ?? fields.lead_score);
+    if (Number.isFinite(n)) patch.lead_score = Math.max(0, Math.min(100, Math.round(n)));
+  }
+  if (fields.scoreBreakdown != null || fields.score_breakdown != null) {
+    const b = fields.scoreBreakdown ?? fields.score_breakdown;
+    if (b && typeof b === 'object') patch.score_breakdown = b;
   }
   const row = await restUpdate('leads', id, patch);
   return rowToLead(row);

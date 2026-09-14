@@ -113,7 +113,9 @@ export async function scrapeLinkedInProfile(url) {
       console.log(`Apify scrape slug=${slug} (token #${i + 1})`);
       const raw = await apifyFetchProfile(slug, tokens[i]);
       const b = raw.basic_info || {};
-      const exp0 = Array.isArray(raw.experience) ? raw.experience[0] : null;
+      const exp = Array.isArray(raw.experience) ? raw.experience : [];
+      const exp0 = exp[0] || null;
+      const edu = Array.isArray(raw.education) ? raw.education : [];
       const loc = b.location || {};
       const location =
         (typeof loc === 'string' ? loc : loc.full || loc.city || loc.country || '').trim() ||
@@ -128,15 +130,34 @@ export async function scrapeLinkedInProfile(url) {
       )
         .trim()
         .toLowerCase();
+      const employeeCount = Number(
+        b.company_employee_count ||
+          b.employee_count ||
+          raw.company_employee_count ||
+          b.current_company_employee_count ||
+          NaN
+      );
       const profile = {
         name: (b.fullname || raw.fullName || '').trim(),
         headline: (b.headline || '').trim(),
-        about: (b.about || '').trim(),
+        about: (b.about || b.summary || '').trim(),
         company: (b.current_company || exp0?.company || '').trim(),
+        industry: String(b.industry || raw.industry || b.current_company_industry || '').trim(),
+        employeeCount: Number.isFinite(employeeCount) && employeeCount > 0 ? employeeCount : null,
+        companySizeText: String(
+          b.company_size || b.current_company_size || raw.company_size || ''
+        ).trim(),
         location,
         email,
         timezone: timezoneFromLocation(location),
         topRole: exp0 ? `${exp0.title || ''} at ${exp0.company || ''}`.trim() : '',
+        currentTitle: String(exp0?.title || b.occupation || '').trim(),
+        experience: exp,
+        education: edu,
+        hasPhoto: Boolean(
+          b.profile_picture_url || b.profile_picture || raw.profilePic || raw.profile_pic_url
+        ),
+        profilePicture: b.profile_picture_url || b.profile_picture || '',
         slug,
       };
       if (!profile.name && !profile.headline) {
@@ -208,7 +229,16 @@ export function resolveEnrichDisplayName(crmName, apifyName) {
 
 export async function updateNotionNameAndIceBreaker(
   pageId,
-  { name, iceBreaker, location, timezone, email, setProcessingAt = false }
+  {
+    name,
+    iceBreaker,
+    location,
+    timezone,
+    email,
+    leadScore,
+    scoreBreakdown,
+    setProcessingAt = false,
+  }
 ) {
   await crm.updateNameAndIceBreaker(pageId, {
     name,
@@ -216,6 +246,8 @@ export async function updateNotionNameAndIceBreaker(
     location: location != null ? String(location).trim().slice(0, 300) : undefined,
     timezone: timezone != null ? String(timezone).trim().slice(0, 64) : undefined,
     email: email != null ? String(email).trim().slice(0, 200) : undefined,
+    leadScore,
+    scoreBreakdown,
     setProcessingAt,
   });
 }
@@ -249,6 +281,18 @@ export async function enrichOneLead(lead) {
         (profile.email ? ` | ${profile.email}` : '')
     );
     const ice = await generateIceBreaker({ ...profile, name: nameForIce || apifyName });
+    let leadScore = null;
+    let scoreBreakdown = null;
+    try {
+      const { computeLeadScore } = await import('./leadScoring.js');
+      const { readSalesPolicy } = await import('./brainStore.js');
+      const scored = computeLeadScore(profile, readSalesPolicy());
+      leadScore = scored.score;
+      scoreBreakdown = scored.breakdown;
+      console.log(`  Lead score: ${leadScore}/100`);
+    } catch (e) {
+      console.error('  Lead score skipped:', e.message);
+    }
     const setProcessingAt = !lead.processingAt;
     await updateNotionNameAndIceBreaker(lead.id, {
       name: nameForNotion,
@@ -256,6 +300,8 @@ export async function enrichOneLead(lead) {
       location: profile.location || '',
       timezone: profile.timezone || '',
       email: profile.email || '',
+      leadScore,
+      scoreBreakdown,
       setProcessingAt,
     });
     console.log(
@@ -263,6 +309,7 @@ export async function enrichOneLead(lead) {
         (profile.location ? ` | location=${profile.location}` : '') +
         (profile.timezone ? ` | timezone=${profile.timezone}` : '') +
         (profile.email ? ` | email=${profile.email}` : '') +
+        (leadScore != null ? ` | score=${leadScore}` : '') +
         (setProcessingAt ? ' | Processing at=UTC now' : ' | Processing at kept') +
         (keptCrm ? ' | Name unchanged in CRM' : '')
     );
@@ -277,6 +324,8 @@ export async function enrichOneLead(lead) {
         location: profile.location || lead.location || '',
         timezone: profile.timezone || lead.timezone || '',
         email: profile.email || lead.email || '',
+        leadScore,
+        scoreBreakdown,
         msg: ice,
         ice,
       },
