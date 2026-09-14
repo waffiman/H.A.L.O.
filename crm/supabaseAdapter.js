@@ -98,7 +98,7 @@ export async function updateNameAndIceBreaker(
   if (timezone != null) patch.timezone = String(timezone).trim().slice(0, 64);
   if (email != null) patch.email = String(email).trim().slice(0, 200);
   if (leadScore != null && Number.isFinite(Number(leadScore))) {
-    patch.lead_score = Math.max(0, Math.min(100, Math.round(Number(leadScore))));
+    patch.lead_score = Math.max(1, Math.min(10, Math.round(Number(leadScore))));
   }
   if (scoreBreakdown != null && typeof scoreBreakdown === 'object') {
     patch.score_breakdown = scoreBreakdown;
@@ -311,7 +311,7 @@ export async function patchLead(id, fields = {}) {
   }
   if (fields.leadScore != null || fields.lead_score != null) {
     const n = Number(fields.leadScore ?? fields.lead_score);
-    if (Number.isFinite(n)) patch.lead_score = Math.max(0, Math.min(100, Math.round(n)));
+    if (Number.isFinite(n)) patch.lead_score = Math.max(1, Math.min(10, Math.round(n)));
   }
   if (fields.scoreBreakdown != null || fields.score_breakdown != null) {
     const b = fields.scoreBreakdown ?? fields.score_breakdown;

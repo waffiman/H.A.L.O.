@@ -1,8 +1,9 @@
 /**
  * LinkedIn ICP lead score from Apify profile vs Brain Client portrait.
+ * Prefer Brain **Inspector** LLM (with role fallback); rubric is backup.
  * Informational only — does not change outreach order.
  *
- * Rubric (max 100):
+ * Rubric (max 100 → display/store 1–10):
  *  role 0–30 | industry 0–20 | company size 0–15 | region 0–15 | seniority 0–10 | profile 0–10
  */
 import { readSalesPolicy } from './brainStore.js';
@@ -229,12 +230,7 @@ function scoreCompleteness(profile) {
   return { points, max: 10, detail: parts.length ? parts.join(', ') : 'sparse profile' };
 }
 
-/**
- * @param {object} profileData Apify-normalized profile
- * @param {object} [salesPolicyOrPortrait] full sales policy or portrait fields
- * @returns {{ score: number, breakdown: object }}
- */
-export function computeLeadScore(profileData, salesPolicyOrPortrait = null) {
+function resolvePortrait(salesPolicyOrPortrait = null) {
   let portrait = salesPolicyOrPortrait;
   if (portrait && portrait.portrait) portrait = portrait.portrait;
   if (!portrait) {
@@ -244,13 +240,24 @@ export function computeLeadScore(profileData, salesPolicyOrPortrait = null) {
       portrait = {};
     }
   }
+  return portrait || {};
+}
+
+/**
+ * Deterministic rubric fallback (1–10).
+ * @param {object} profileData Apify-normalized profile
+ * @param {object} [salesPolicyOrPortrait] full sales policy or portrait fields
+ * @returns {{ score: number, breakdown: object }}
+ */
+export function computeLeadScore(profileData, salesPolicyOrPortrait = null) {
+  const portrait = resolvePortrait(salesPolicyOrPortrait);
   const role = scoreRole(profileData, portrait);
   const industry = scoreIndustry(profileData, portrait);
   const companySize = scoreCompanySize(profileData, portrait);
   const region = scoreRegion(profileData, portrait);
   const seniority = scoreSeniority(profileData, portrait);
   const profile = scoreCompleteness(profileData);
-  const score = Math.max(
+  const rawTotal = Math.max(
     0,
     Math.min(
       100,
@@ -262,8 +269,10 @@ export function computeLeadScore(profileData, salesPolicyOrPortrait = null) {
         profile.points
     )
   );
+  const score = Math.max(1, Math.min(10, Math.round(rawTotal / 10) || 1));
   return {
     score,
+    score100: rawTotal,
     breakdown: {
       role,
       industry,
@@ -272,17 +281,42 @@ export function computeLeadScore(profileData, salesPolicyOrPortrait = null) {
       seniority,
       profile,
       total: score,
-      max: 100,
+      total100: rawTotal,
+      max: 10,
+      source: 'rubric',
     },
   };
+}
+
+/**
+ * Preferred path: Inspector LLM → OpenRouter/shared fallback → deterministic rubric.
+ * Set LEAD_SCORE_LLM=0 to force rubric only.
+ */
+export async function scoreLead(profileData, salesPolicyOrPortrait = null) {
+  const portrait = resolvePortrait(salesPolicyOrPortrait);
+  if (process.env.LEAD_SCORE_LLM !== '0') {
+    try {
+      const { scoreLeadIcpFit } = await import('./salesBrain.js');
+      const llm = await scoreLeadIcpFit({ profile: profileData, portrait });
+      if (llm?.score != null) {
+        console.log(`  Lead score (Inspector LLM): ${llm.score}/10`);
+        return llm;
+      }
+      console.log('  Lead score LLM empty — using rubric fallback');
+    } catch (e) {
+      console.error('  Lead score LLM failed — rubric fallback:', e.message);
+    }
+  }
+  return computeLeadScore(profileData, portrait);
 }
 
 export function leadScoreColor(score) {
   const n = Number(score);
   if (!Number.isFinite(n)) return null;
-  if (n <= 20) return '#ef4444';
-  if (n <= 40) return '#f97316';
-  if (n <= 60) return '#eab308';
-  if (n <= 80) return '#84cc16';
+  // 1–10 scale
+  if (n <= 2) return '#ef4444';
+  if (n <= 4) return '#f97316';
+  if (n <= 6) return '#eab308';
+  if (n <= 8) return '#84cc16';
   return '#22c55e';
 }

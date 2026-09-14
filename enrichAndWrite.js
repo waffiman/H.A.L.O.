@@ -284,12 +284,12 @@ export async function enrichOneLead(lead) {
     let leadScore = null;
     let scoreBreakdown = null;
     try {
-      const { computeLeadScore } = await import('./leadScoring.js');
+      const { scoreLead } = await import('./leadScoring.js');
       const { readSalesPolicy } = await import('./brainStore.js');
-      const scored = computeLeadScore(profile, readSalesPolicy());
+      const scored = await scoreLead(profile, readSalesPolicy());
       leadScore = scored.score;
       scoreBreakdown = scored.breakdown;
-      console.log(`  Lead score: ${leadScore}/100`);
+      console.log(`  Lead score: ${leadScore}/10 (${scored.breakdown?.source || 'rubric'})`);
     } catch (e) {
       console.error('  Lead score skipped:', e.message);
     }

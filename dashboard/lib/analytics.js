@@ -283,11 +283,74 @@ function downsample(points, maxKeep) {
   return out;
 }
 
+const LOST_REASON_META = [
+  { id: 'not_interested', label: 'Not interested', color: '#e03e3e' },
+  { id: 'wrong_person', label: 'Wrong person', color: '#f97316' },
+  { id: 'no_budget', label: 'No budget', color: '#eab308' },
+  { id: 'bad_timing', label: 'Bad timing', color: '#84cc16' },
+  { id: 'has_solution', label: 'Has a solution', color: '#22c55e' },
+  { id: 'competitor', label: 'Competitor', color: '#14b8a6' },
+  { id: 'unsubscribe', label: 'Unsubscribe', color: '#06b6d4' },
+  { id: 'hostile', label: 'Hostile', color: '#3b82f6' },
+  { id: 'non_fit', label: 'Non-fit / ICP', color: '#8b5cf6' },
+  { id: 'no_reply', label: 'No reply', color: '#a78bfa' },
+  { id: 'connect_not_accepted', label: 'Connect declined', color: '#f472b6' },
+  { id: 'other', label: 'Other', color: '#94a3b8' },
+  { id: 'unset', label: 'Unset', color: '#64748b' },
+];
+
+async function buildLostReasonSeries(meta, workspaceId) {
+  try {
+    const { countLostReasons } = await import('./crmApi.js');
+    const { counts, total } = await countLostReasons(undefined, workspaceId);
+    const metrics = LOST_REASON_META.filter((m) => (counts[m.id] || 0) > 0).map((m) => ({
+      id: m.id,
+      label: m.label,
+      color: m.color,
+    }));
+    // Unknown / legacy reason keys
+    for (const [id, n] of Object.entries(counts || {})) {
+      if (!n || metrics.some((m) => m.id === id)) continue;
+      metrics.push({ id, label: id.replace(/_/g, ' '), color: '#787774' });
+    }
+    if (!metrics.length) {
+      return {
+        ...meta,
+        chartType: 'bars',
+        metrics: LOST_REASON_META.slice(0, 6).map((m) => ({
+          id: m.id,
+          label: m.label,
+          color: m.color,
+        })),
+        points: [],
+        note: 'No Lost❌ leads with cancellation reasons yet.',
+      };
+    }
+    const point = { t: meta.to };
+    for (const m of metrics) point[m.id] = counts[m.id] || 0;
+    return {
+      ...meta,
+      chartType: 'bars',
+      metrics,
+      points: [point],
+      note: `${total} Lost❌ lead(s) — current cancellation-reason mix (not time-series).`,
+    };
+  } catch (e) {
+    return {
+      ...meta,
+      chartType: 'bars',
+      metrics: [],
+      points: [],
+      note: e.message || 'Could not load lost reasons',
+    };
+  }
+}
+
 /**
  * Build series for the dashboard chart canvas.
- * @param {{ range?: string, tab?: string, from?: string, to?: string, bucket?: string }} opts
+ * @param {{ range?: string, tab?: string, from?: string, to?: string, bucket?: string, workspaceId?: string }} opts
  */
-export function buildAnalyticsSeries(opts = {}) {
+export async function buildAnalyticsSeries(opts = {}) {
   const tab = opts.tab || 'pipeline';
   const window = resolveAnalyticsWindow(opts);
   const { from, to, range } = window;
@@ -340,6 +403,10 @@ export function buildAnalyticsSeries(opts = {}) {
       points: crm,
       note: crm.length < 2 ? 'Collecting history — rates appear once a few CRM snapshots exist.' : null,
     };
+  }
+
+  if (tab === 'lost') {
+    return buildLostReasonSeries(meta, opts.workspaceId);
   }
 
   const points = activityFromNotifications(from, to, bucket, opts.workspaceId);

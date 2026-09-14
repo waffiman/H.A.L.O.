@@ -2268,10 +2268,30 @@ async function runStageA() {
     }
 
     // --- 0b) Drain messageable Lead😴 (accepted / ice-ready; not limited by SYNC_MAX_NEW) ---
+    // Forced restart / boot: prefer CONNECT_MAX invites this run; defer ice leftovers
+    // so ice+connect never share one Chromium lifetime (session safety).
+    const connectPriority =
+      process.env.STAGE_A_CONNECT_PRIORITY === '1' || process.env.FORCE_STAGE_A === '1';
     console.log('--- Stage A leftover drain: messageable Lead😴 ---');
     let leftoverIceReadyLeft = 0;
     let leftoverSentThisRun = 0;
-    {
+    if (connectPriority) {
+      console.log(
+        'Connect priority (boot/restart) — deferring leftover ice sends; will run CONNECT_MAX invites this run.'
+      );
+      const readyIds = new Set(acceptedPromotedIds);
+      leftoverIceReadyLeft = (await getLeads(STATUS_LEAD))
+        .filter(matchesTarget)
+        .filter((l) =>
+          isLeadReadyForIcePipeline(l, {
+            promotedIds: readyIds,
+            hasIce: (msg) => hasRealIceBreaker(msg),
+          })
+        )
+        .filter(isIceReady).length;
+      // Treat as 0 for connect-skip checks this run so connect phase proceeds.
+      leftoverIceReadyLeft = 0;
+    } else {
       const readyIds = new Set(acceptedPromotedIds);
       const backlog = (await getLeads(STATUS_LEAD))
         .filter(matchesTarget)
@@ -3215,7 +3235,8 @@ async function tickStageA() {
       console.log(`Stage A tick skipped (not due until ${nextAt}).`);
       return;
     }
-    if (force && !isStageADue()) {
+    if (force) {
+      process.env.STAGE_A_CONNECT_PRIORITY = '1';
       console.log('Stage A forced (Save and restart / FORCE_STAGE_A) — ignoring interval.');
     }
     const { withCycleLock } = await import('./cycleLock.js');
@@ -3340,10 +3361,31 @@ if (isMainModule) {
   };
 
   (async () => {
-    if (forcePlan) {
+    // Cold start without force_run_once: still run Stage A once so CONNECT_MAX
+    // from the dashboard is honored after container recreate / restart.
+    if (
+      !forcePlan &&
+      process.env.BOOT_FORCE_STAGE_A !== '0' &&
+      process.env.OUTREACH_PAUSED !== '1' &&
+      process.env.SKIP_STAGE_A !== '1' &&
+      process.env.CHANNEL_LINKEDIN_ENABLED !== '0' &&
+      process.env.STAGE_A_OUTBOUND_CONNECT === '1'
+    ) {
+      forceImmediateRunA = true;
+      process.env.STAGE_A_CONNECT_PRIORITY = '1';
+      console.log(
+        'Boot: forcing Stage A once (CONNECT_MAX / connect priority) — set BOOT_FORCE_STAGE_A=0 to disable.'
+      );
+      await tickStageA();
+      reloadEnv();
+      forceImmediateRunA = false;
+      delete process.env.STAGE_A_CONNECT_PRIORITY;
+    } else if (forcePlan) {
       if (forcePlan.runStageA) {
+        process.env.STAGE_A_CONNECT_PRIORITY = '1';
         await tickStageA();
         reloadEnv();
+        delete process.env.STAGE_A_CONNECT_PRIORITY;
       }
       if (forcePlan.runStageB) {
         const { readSessionStatus } = await import('./sessionHealth.js');
@@ -3366,7 +3408,7 @@ if (isMainModule) {
     console.log(
       `Stage B first tick in ~${Math.round(loopDelay / 60000)} min (base ${Math.round(stageBBaseIntervalMs() / 60000)} min ±1–5 min jitter).`
     );
-  })();
+  })().catch((e) => console.error('scheduler boot:', e));
 }
 
 export {

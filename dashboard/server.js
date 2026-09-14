@@ -757,7 +757,7 @@ app.post('/api/supabase/provision', requireOwner, async (req, res) => {
   }
 });
 
-app.get('/api/analytics/series', (req, res) => {
+app.get('/api/analytics/series', async (req, res) => {
   try {
     if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
     const range = String(req.query.range || '30d');
@@ -766,7 +766,7 @@ app.get('/api/analytics/series', (req, res) => {
     const to = req.query.to != null ? String(req.query.to) : '';
     const bucket = req.query.bucket != null ? String(req.query.bucket) : 'auto';
     const workspaceId = req.tenant.workspaceId;
-    res.json(buildAnalyticsSeries({ range, tab, from, to, bucket, workspaceId }));
+    res.json(await buildAnalyticsSeries({ range, tab, from, to, bucket, workspaceId }));
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

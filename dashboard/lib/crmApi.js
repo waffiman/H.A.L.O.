@@ -78,6 +78,36 @@ export async function countByStatus(env = readEnvFile(), workspaceId) {
   return { ok: true, counts, cachedAt: new Date().toISOString(), workspaceId: workspace };
 }
 
+/** Aggregate Lost❌ leads by `lost_reason` for the analytics chart. */
+export async function countLostReasons(env = readEnvFile(), workspaceId) {
+  if (crmBackend(env) !== 'supabase' || !supabaseConfigured(env)) {
+    return { ok: true, counts: {}, total: 0, workspaceId: ws(env, workspaceId) };
+  }
+  const sb = client(env);
+  const workspace = ws(env, workspaceId);
+  const counts = {};
+  let from = 0;
+  const pageSize = 1000;
+  for (;;) {
+    const { data, error } = await sb
+      .from('leads')
+      .select('lost_reason')
+      .eq('workspace_id', workspace)
+      .eq('status', 'Lost❌')
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    const rows = data || [];
+    for (const row of rows) {
+      const key = String(row.lost_reason || '').trim() || 'unset';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  const total = Object.values(counts).reduce((s, n) => s + n, 0);
+  return { ok: true, counts, total, workspaceId: workspace };
+}
+
 export async function listLeadsPage(
   { status, q, page = 1, limit = 50, workspaceId } = {},
   env = readEnvFile()

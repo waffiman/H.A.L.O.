@@ -621,6 +621,75 @@ async function generateViaPipeline(mode, system, baseCtx) {
   }
 }
 
+const ICP_SCORE_SYSTEM = `ROLE: Inspector — score how well a LinkedIn lead matches the Client portrait (ICP).
+You judge fit only. Do NOT write outreach copy.
+
+Return STRICT JSON only (no markdown):
+{
+  "score": <integer 1-10>,
+  "summary": "<one short sentence>",
+  "breakdown": {
+    "role": { "points": <0-10>, "detail": "<short>" },
+    "industry": { "points": <0-10>, "detail": "<short>" },
+    "companySize": { "points": <0-10>, "detail": "<short>" },
+    "region": { "points": <0-10>, "detail": "<short>" },
+    "seniority": { "points": <0-10>, "detail": "<short>" },
+    "profile": { "points": <0-10>, "detail": "<short>" }
+  }
+}
+Rules:
+- score 1 = poor ICP fit, 10 = excellent fit.
+- Use portrait fields as ground truth; missing portrait fields → neutral mid points.
+- Prefer evidence from headline, title, company, about, location.`;
+
+function parseIcpScoreJson(raw) {
+  let t = String(raw || '').trim();
+  t = t.replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+  const parsed = JSON.parse(t);
+  const score = Math.max(1, Math.min(10, Math.round(Number(parsed.score))));
+  if (!Number.isFinite(score)) throw new Error('ICP score missing');
+  const breakdown = parsed.breakdown && typeof parsed.breakdown === 'object' ? parsed.breakdown : {};
+  return {
+    score,
+    summary: String(parsed.summary || '').trim().slice(0, 240),
+    breakdown: {
+      ...breakdown,
+      total: score,
+      max: 10,
+      source: 'inspector_llm',
+    },
+  };
+}
+
+/**
+ * Inspector role scores lead vs Client portrait (1–10). Uses primary Inspector
+ * then OpenRouter/shared fallback via callRole. Returns null on total failure.
+ */
+export async function scoreLeadIcpFit({ profile = {}, portrait = {} } = {}) {
+  const profileBlob = {
+    name: profile.name || '',
+    headline: profile.headline || '',
+    topRole: profile.topRole || profile.currentTitle || '',
+    company: profile.company || '',
+    about: String(profile.about || '').slice(0, 1200),
+    location: profile.location || '',
+    industry: profile.industry || '',
+    companySize: profile.companySize || profile.employeeCount || '',
+  };
+  const user = [
+    'CLIENT PORTRAIT (ICP):',
+    JSON.stringify(portrait || {}, null, 0).slice(0, 4000),
+    '',
+    'LINKEDIN PROFILE:',
+    JSON.stringify(profileBlob, null, 0),
+    '',
+    'Score ICP fit 1–10. JSON only.',
+  ].join('\n');
+  const raw = await callRole('inspector', ICP_SCORE_SYSTEM, user, { temperature: 0.15 });
+  if (!raw || raw.length < 8) return null;
+  return parseIcpScoreJson(raw);
+}
+
 /**
  * @param {{ mode: 'ice_breaker'|'reply'|'closing_followup', lead?: object, profile?: object, thread?: string, bookingUrl?: string }} opts
  */

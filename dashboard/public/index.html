@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=20260914e" />
 </head>
 <body>
   <div id="nav-backdrop" class="nav-backdrop hidden" aria-hidden="true"></div>
@@ -148,7 +148,11 @@
     </form>
   </aside>
   <button type="button" id="btn-support-fab" class="support-fab" title="Contact support" aria-label="Contact support">
-    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+    <span class="support-fab-waves" aria-hidden="true">
+      <span class="support-fab-wave"></span>
+      <span class="support-fab-wave"></span>
+    </span>
+    <svg class="support-fab-svg" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
       <path fill="currentColor" d="M12 1a9 9 0 0 0-9 9v4a3 3 0 0 0 3 3h1v-6H5v-1a7 7 0 0 1 14 0v1h-2v6h1a3 3 0 0 0 3-3v-4a9 9 0 0 0-9-9zm-1 18.5c0 .83.67 1.5 1.5 1.5h1c.28 0 .5.22.5.5v1h-4.5A2.5 2.5 0 0 1 7 20v-1h4z"/>
     </svg>
     <span id="support-fab-dot" class="support-fab-dot hidden" aria-hidden="true"></span>
@@ -304,6 +308,6 @@
   <script src="/onboarding.js?v=20260914a"></script>
   <script src="/notion-connect.js?v=20260914a"></script>
   <script src="/supabase-connect.js?v=20260914a"></script>
-  <script src="/app.js?v=20260914c"></script>
+  <script src="/app.js?v=20260914e"></script>
 </body>
 </html>

@@ -308,7 +308,7 @@ Stored in `sales_policy.json` → `smartTiming` (`enabled`, `windowStart`/`windo
 
 ### Lead score (LinkedIn ICP)
 
-After Apify enrich, [`leadScoring.js`](leadScoring.js) scores the profile vs Brain **Client portrait** (0–100: role, industry, company size, region, seniority, profile completeness). Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)). CRM shows a color badge + edge bar; **Sort by Score** in CRM toolbar. Dashboard **Lead Quality** summarizes loaded kanban scores. Does **not** change send order yet. X / Email / Telegram scoring later.
+After Apify enrich, [`leadScoring.js`](leadScoring.js) scores the profile vs Brain **Client portrait**. **Primary:** Brain **Inspector** LLM (`scoreLeadIcpFit` in [`salesBrain.js`](salesBrain.js)) with the same OpenRouter/shared fallback as other roles. **Fallback:** deterministic rubric (role / industry / size / region / seniority / completeness → **1–10**). Disable LLM with `LEAD_SCORE_LLM=0`. Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)). CRM: optional card property **Lead score** (gear; off by default) shows a red→green gauge; sort/filter via the CRM settings wheel. Dashboard **Lead Quality** tile summarizes loaded kanban scores. Does **not** change send order. X / Email / Telegram scoring later.
 
 LinkedIn filter mapping (auto URL):
 
@@ -388,7 +388,7 @@ Dashboard paste: [`dashboard/lib/ops.js`](dashboard/lib/ops.js) `ingestCookiePas
 | B vs A | `tickStageB` | Skip B while A holds lock |
 | Stage B idle skip | `stageBState.js` + Notion preflight in `runStageB` | **Tick** = dashboard `STAGE_B_INTERVAL_MS` **±1–5 min jitter** (`nextBrowserDueAt` in `stage_b_state.json`). Min interval **6 min** in UI. Chromium opens when inbox scan due **or** silence closings due, and cooldown elapsed. Optional floor: `STAGE_B_BROWSER_MIN_MS` (>0) raises minimum gap between browser opens. Silence capped by `STAGE_B_SILENCE_MAX` (default **2**). |
 | Brain analysis | `tickBrainAnalysis` | Due on `BRAIN_ANALYSIS_INTERVAL_MS`; waits for lock then runs analyzer |
-| Save and restart | `force_run_once.json` + boot in `index.js` | **Save** writes settings only. **Save and restart** (mobile **Restart**) saves first, recreates agent, then runs **enabled** stage(s) once: both on → A then B; one on → that stage only; paused → restart only. After the one-shot, normal intervals apply. |
+| Save and restart | `force_run_once.json` + boot in `index.js` | **Save** writes settings only. **Save and restart** (mobile **Restart**) saves first, recreates agent, then runs **enabled** stage(s) once: both on → A then B; one on → that stage only; paused → restart only. Forced Stage A sets `STAGE_A_CONNECT_PRIORITY=1` so **`CONNECT_MAX_PER_RUN` invites run in that same boot** (leftover ice deferred). Cold recreate without the flag still forces one Stage A when LinkedIn + outbound connect are on (`BOOT_FORCE_STAGE_A=0` disables). After the one-shot, normal intervals apply. |
 
 One-shot routing via `processLeads()`:
 
@@ -424,10 +424,10 @@ Analytics: [`dashboard/lib/analytics.js`](dashboard/lib/analytics.js) → `GET /
 
 ### Pages
 
-1. **Dashboard** — master pause, Stage A/B toggles + intervals (Stage B min **6 min**, jitter hint), silence, channels (LinkedIn: **Connection invites per Stage A**), **analytics chart** (Pipeline / Outreach / Session tabs, 7d–90d range, smooth curves + metric toggles)  
-2. **CRM** — Notion status counts  
+1. **Dashboard** — master pause, Stage A/B toggles + intervals (Stage B min **6 min**, jitter hint), silence, channels (LinkedIn: **Connection invites per Stage A**), **Lead Quality**, **analytics chart** (Pipeline / Rates / Lost reasons / Outreach / Session)  
+2. **CRM** — in-app kanban (Supabase) / Notion counts  
 3. **LinkedIn** — session + cookie paste, **Stage A prospecting** (one toggle + invite cap), **Auto-dialog** info (always on), test URL filter  
-4. Email / X / Telegram — coming soon (UI placeholders; wiring later)  
+4. Email / X / Telegram — coming soon (same placeholder banner)  
 5. **Integrations** (key icon) — API keys, Telegram  
 6. **Brain** (pinned bottom nav) — master prompt carousel, **Sales** (portrait + LinkedIn People filters + URL override + outcome; **Book a call** ⚙ availability + Meet URL), Learning (analysis + strategy notes)  
 7. **FAQ** — setup guide + tiles (includes Book a call)
@@ -436,11 +436,13 @@ Analytics: [`dashboard/lib/analytics.js`](dashboard/lib/analytics.js) → `GET /
 
 | Tab | Metrics | Source |
 |-----|---------|--------|
-| **Pipeline** | Lead😴, P1, P2, Active, Lost | CRM history snapshots |
+| **Pipeline** | Lead😴, Conversation, Active, Lost, totals | CRM history snapshots |
+| **Rates** | Win / lost / share % | CRM history snapshots |
+| **Lost reasons** | Bar mix by `lost_reason` | Live CRM `Lost❌` rows |
 | **Outreach** | Inbound unread, connect invites, CRM imports, Brain runs | `notifications.json` events |
 | **Session** | Session ok / dead events | notifications |
 
-Chart: Catmull-Rom smooth lines, gradient fills, toggleable metric chips. Collect history by opening Dashboard periodically.
+Chart: smooth lines (or bars for Lost reasons), gradient fills, toggleable metric chips. Collect history by opening Dashboard periodically.
 
 ### Numeric settings UX (2026-08-28)
 

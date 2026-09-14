@@ -10,7 +10,7 @@ const ICONS = {
   billing: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>',
   general: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="12" cy="9" r="3.1" fill="currentColor"/><path fill="currentColor" d="M6.4 18.1c1.45-2.35 3.35-3.45 5.6-3.45s4.15 1.1 5.6 3.45C16 19.15 14.1 19.75 12 19.75s-4-.6-5.6-1.65z"/></svg>',
   admin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 3.18 6 2.67v4.6c0 3.9-2.5 7.54-6 8.86-3.5-1.32-6-4.96-6-8.86v-4.6l6-2.67zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/></svg>',
-  brain: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M11.5 3C10.12 3 8.9 3.73 8.18 4.84 6.86 5.17 5.75 6.38 5.75 7.85c0 .52.14 1.01.39 1.43C4.68 10.42 4.25 11.38 4.25 12.42c0 2.07 1.68 3.75 3.75 3.75.35 0 .68-.05 1-.14.61.81 1.57 1.29 2.62 1.29 1.05 0 2.01-.48 2.62-1.29.32.09.65.14 1 .14 2.07 0 3.75-1.68 3.75-3.75 0-1.04-.43-2-.89-2.64.25-.42.39-.91.39-1.43 0-1.47-1.11-2.68-2.43-3.01C14.1 3.73 12.88 3 11.5 3zm0 2c.55 0 1.04.28 1.33.71-.4-.15-.82-.23-1.26-.23-1.05 0-1.98.55-2.5 1.38-.22-.36-.57-.61-.99-.73.28-.72 1-1.23 1.84-1.23h1.58zm1 0h1.58c.84 0 1.56.51 1.84 1.23-.42.12-.77.37-.99.73-.52-.83-1.45-1.38-2.5-1.38-.44 0-.86.08-1.26.23.29-.43.78-.71 1.33-.71zM8.5 11a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm7 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm-3.5 2.75c.97 0 1.75.78 1.75 1.75 0 .2-.03.39-.09.57-.44-.32-.98-.5-1.56-.5-.58 0-1.12.18-1.56.5-.06-.18-.09-.37-.09-.57 0-.97.78-1.75 1.75-1.75z"/></svg>',
+  brain: '<svg class="nav-brain-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.142 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.142 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M14 15a2 2 0 0 0-4-.01"/><path d="M9.5 9.5c.5-.5 1.2-.8 2-.8"/><path d="M14.5 9.5c-.5-.5-1.2-.8-2-.8"/></svg>',
   /** Transparent-bg Notion mark (from user asset); inverted via CSS on dark UI */
   notionImg: '<img src="/notion-icon.png" alt="" class="notion-btn-icon" width="14" height="14" />',
   supabase: '<svg class="supabase-btn-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M13.4 2.1c.4-.7 1.5-.4 1.5.4v7.2h6.2c.8 0 1.2 1 .6 1.5l-10.1 10.7c-.4.5-1.3.1-1.2-.5l1.1-7h-6.3c-.8 0-1.2-1-.6-1.5L13.4 2.1z"/></svg>',
@@ -104,6 +104,7 @@ const CRM_CARD_PROP_DEFS = [
   { id: 'location', label: 'Location' },
   { id: 'email', label: 'Email' },
   { id: 'ice', label: 'Ice-breaker' },
+  { id: 'leadScore', label: 'Lead score' },
   { id: 'last', label: 'Last contact' },
   { id: 'body', label: 'Body' },
 ];
@@ -164,7 +165,7 @@ const CRM_SORT_KEY = 'halo_crm_kanban_sort';
 const CRM_FILTERS_KEY = 'halo_crm_kanban_filters';
 
 function loadCrmCardProps() {
-  const defaults = { link: true, location: true, email: false, ice: true, last: false, body: false };
+  const defaults = { link: true, location: true, email: false, ice: true, leadScore: false, last: false, body: false };
   try {
     const raw = JSON.parse(localStorage.getItem(CRM_CARD_PROPS_KEY) || '{}');
     return { ...defaults, ...raw };
@@ -853,15 +854,15 @@ function crmBodyPreview(notes) {
 function leadScoreColor(score) {
   const n = Number(score);
   if (!Number.isFinite(n)) return null;
-  if (n <= 20) return '#ef4444';
-  if (n <= 40) return '#f97316';
-  if (n <= 60) return '#eab308';
-  if (n <= 80) return '#84cc16';
+  if (n <= 2) return '#ef4444';
+  if (n <= 4) return '#f97316';
+  if (n <= 6) return '#eab308';
+  if (n <= 8) return '#84cc16';
   return '#22c55e';
 }
 
 function leadScoreTooltip(breakdown) {
-  if (!breakdown || typeof breakdown !== 'object') return 'ICP fit vs Client portrait';
+  if (!breakdown || typeof breakdown !== 'object') return 'ICP fit vs Client portrait (1–10)';
   const line = (key, label) => {
     const b = breakdown[key];
     if (!b) return '';
@@ -874,17 +875,31 @@ function leadScoreTooltip(breakdown) {
     line('region', 'Region'),
     line('seniority', 'Seniority'),
     line('profile', 'Profile'),
-    `Total: ${breakdown.total ?? '—'}/100`,
+    `Total: ${breakdown.total ?? '—'}/10`,
   ]
     .filter(Boolean)
     .join('\n');
 }
 
+function leadScoreGaugeHtml(score, breakdown) {
+  const n = Math.max(1, Math.min(10, Math.round(Number(score))));
+  if (!Number.isFinite(n)) return '';
+  const pct = ((n - 1) / 9) * 100;
+  return `<div class="crm-prop crm-prop-score">
+    <span class="crm-prop-label">Score</span>
+    <div class="lead-score-gauge" title="${escapeAttr(leadScoreTooltip(breakdown))}">
+      <div class="lead-score-track" aria-hidden="true"></div>
+      <div class="lead-score-pointer" style="left:${pct}%">
+        <span class="lead-score-pointer-val">${n}</span>
+        <span class="lead-score-pointer-arrow"></span>
+      </div>
+      <div class="lead-score-ends"><span>1</span><span>10</span></div>
+    </div>
+  </div>`;
+}
+
 function crmKanbanCardHtml(lead) {
   const props = [];
-  const score =
-    lead.leadScore == null || lead.leadScore === '' ? null : Number(lead.leadScore);
-  const scoreColor = leadScoreColor(score);
   if (crmCardProps.link) {
     const link = crmLinkLabel(lead.url);
     props.push(
@@ -933,6 +948,9 @@ function crmKanbanCardHtml(lead) {
       `<div class="crm-prop"><span class="crm-prop-label">Ice</span><span class="crm-prop-val">${ice ? escapeHtml(ice) : '—'}</span></div>`
     );
   }
+  if (crmCardProps.leadScore && lead.leadScore != null && lead.leadScore !== '') {
+    props.push(leadScoreGaugeHtml(lead.leadScore, lead.scoreBreakdown));
+  }
   if (crmCardProps.last) {
     const proc = lead.processingAt ? formatCrmDate(lead.processingAt) : '—';
     props.push(
@@ -948,13 +966,9 @@ function crmKanbanCardHtml(lead) {
       `<div class="crm-prop crm-prop-body"><span class="crm-prop-label">Body</span><span class="crm-prop-val">${bodyLine}</span></div>`
     );
   }
-  return `<div class="crm-kanban-card${props.length ? '' : ' crm-kanban-card-compact'}${isCrmPinned(lead.id) ? ' is-pinned' : ''}${scoreColor ? ' has-lead-score' : ''}" draggable="true" data-lead-id="${escapeAttr(lead.id)}" data-lead-status="${escapeAttr(lead.status)}" title="Drag to move · click to open"${scoreColor ? ` style="--lead-score-color:${scoreColor}"` : ''}>
+  return `<div class="crm-kanban-card${props.length ? '' : ' crm-kanban-card-compact'}${isCrmPinned(lead.id) ? ' is-pinned' : ''}" draggable="true" data-lead-id="${escapeAttr(lead.id)}" data-lead-status="${escapeAttr(lead.status)}" title="Drag to move · click to open">
     <div class="crm-kanban-card-top">
-      <div class="crm-kanban-card-name">${isCrmPinned(lead.id) ? '<span class="crm-pin-mark" title="Pinned" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M16 3a1 1 0 0 1 1 1v2.17l1.55.78a1 1 0 0 1 .45 1.34l-2.2 4.4V19a1 1 0 1 1-2 0v-2.31l-2.2-4.4a1 1 0 0 1 .45-1.34L15 6.17V4a1 1 0 0 1 1-1z"/></svg></span>' : ''}${escapeHtml(lead.name || 'Untitled')}${
-        scoreColor != null
-          ? `<span class="lead-score" style="background:${scoreColor}" title="${escapeAttr(leadScoreTooltip(lead.scoreBreakdown))}">${Math.round(score)}</span>`
-          : ''
-      }</div>
+      <div class="crm-kanban-card-name">${isCrmPinned(lead.id) ? '<span class="crm-pin-mark" title="Pinned" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M16 3a1 1 0 0 1 1 1v2.17l1.55.78a1 1 0 0 1 .45 1.34l-2.2 4.4V19a1 1 0 1 1-2 0v-2.31l-2.2-4.4a1 1 0 0 1 .45-1.34L15 6.17V4a1 1 0 0 1 1-1z"/></svg></span>' : ''}${escapeHtml(lead.name || 'Untitled')}</div>
       <div class="crm-card-menu">
         <button type="button" class="crm-card-menu-btn" data-crm-menu-toggle="${escapeAttr(lead.id)}" title="Lead actions" aria-label="Lead actions" aria-expanded="false">⋯</button>
         <div class="crm-card-menu-drop hidden" data-crm-menu-drop="${escapeAttr(lead.id)}" role="menu">
@@ -1915,16 +1929,6 @@ function bindCrmToolbar() {
       renderCrm();
     };
   });
-  document.getElementById('crm-sort-score')?.addEventListener('click', () => {
-    crmSort = {
-      primary: { field: 'leadScore', dir: 'desc' },
-      secondary: crmSort.secondary || null,
-      pinnedFirst: crmSort.pinnedFirst !== false,
-    };
-    saveCrmSort(crmSort);
-    paintCrmLeadsPanel();
-    toast('Sorted by lead score (high → low)');
-  });
   document.querySelectorAll('[data-crm-status]').forEach((btn) => {
     btn.onclick = () => {
       const st = btn.dataset.crmStatus;
@@ -2326,25 +2330,25 @@ function leadQualityCardHtml() {
   const all = Object.values(crmKanban || {}).flat();
   const scored = all.filter((l) => l.leadScore != null && Number.isFinite(Number(l.leadScore)));
   if (!scored.length) {
-    return `<div class="lead-quality-card muted" title="ICP scores fill in after LinkedIn enrich">
-      <div class="lead-quality-title">Lead Quality</div>
-      <p class="lead-quality-empty">Scores appear after Apify enrich vs Client portrait. Open CRM after Stage A enrich.</p>
+    return `<div class="tile lead-quality-tile muted" title="ICP scores fill in after LinkedIn enrich">
+      <h3>Lead Quality</h3>
+      <p class="muted">Scores (1–10) appear after Apify enrich vs Client portrait.</p>
     </div>`;
   }
-  const avg = Math.round(scored.reduce((s, l) => s + Number(l.leadScore), 0) / scored.length);
+  const avg = Math.round((scored.reduce((s, l) => s + Number(l.leadScore), 0) / scored.length) * 10) / 10;
   let hot = 0;
   let warm = 0;
   let cold = 0;
   for (const l of scored) {
     const n = Number(l.leadScore);
-    if (n >= 80) hot++;
-    else if (n >= 50) warm++;
+    if (n >= 8) hot++;
+    else if (n >= 5) warm++;
     else cold++;
   }
-  return `<div class="lead-quality-card" title="ICP fit from LinkedIn enrich">
-    <div class="lead-quality-title">Lead Quality</div>
-    <div class="lead-quality-avg">Avg <strong>${avg}</strong>/100 · ${scored.length} scored</div>
-    <div class="lead-quality-dist">${hot} hot (80+) · ${warm} warm (50–79) · ${cold} cold (&lt;50)</div>
+  return `<div class="tile lead-quality-tile" title="ICP fit from LinkedIn enrich">
+    <h3>Lead Quality</h3>
+    <div class="lead-quality-avg">Avg <strong>${avg}</strong>/10 · ${scored.length} scored</div>
+    <div class="lead-quality-dist muted">${hot} hot (8–10) · ${warm} warm (5–7) · ${cold} cold (1–4)</div>
   </div>`;
 }
 
@@ -2365,7 +2369,6 @@ function renderDashboard() {
         </div>
         <div class="dash-crm-body">
           ${buildCrmSnapshotDonut(c)}
-          ${leadQualityCardHtml()}
         </div>
       </div>
 
@@ -2419,12 +2422,14 @@ function renderDashboard() {
       ${channelTile('x', 'X', s.channels.x, { comingSoon: true })}
       ${channelTile('telegram', 'Telegram', s.channels.telegram, { comingSoon: true })}
     </div>
+    <div class="dash-quality-row">${leadQualityCardHtml()}</div>
 
     <div class="card analytics-canvas" id="analytics-canvas">
       <div class="analytics-toolbar">
         <div class="analytics-tabs" role="tablist">
           <button type="button" class="analytics-tab active" data-tab="pipeline">Pipeline</button>
           <button type="button" class="analytics-tab" data-tab="rates">Rates</button>
+          <button type="button" class="analytics-tab" data-tab="lost">Lost reasons</button>
           <button type="button" class="analytics-tab" data-tab="outreach">Outreach</button>
           <button type="button" class="analytics-tab" data-tab="health">Session</button>
         </div>
@@ -2757,6 +2762,11 @@ function drawAnalyticsChart(data) {
     return;
   }
 
+  if (data.chartType === 'bars') {
+    drawAnalyticsBars(ctx, { pad, w, h, cssH, points, metrics });
+    return;
+  }
+
   let maxY = 1;
   const allPct = metrics.length > 0 && metrics.every((m) => m.unit === 'pct');
   if (allPct) {
@@ -2842,6 +2852,51 @@ function drawAnalyticsChart(data) {
     }
     ctx.fillText(label, xAt(i) - 18, cssH - 14);
   }
+}
+
+function drawAnalyticsBars(ctx, { pad, w, h, cssH, points, metrics }) {
+  const snapshot = points[0] || {};
+  let maxY = 1;
+  for (const m of metrics) {
+    const v = Number(snapshot[m.id] || 0);
+    if (v > maxY) maxY = v;
+  }
+  maxY = Math.ceil(maxY * 1.15) || 1;
+
+  ctx.fillStyle = 'rgba(154, 160, 166, 0.85)';
+  ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+  for (let i = 0; i <= 4; i++) {
+    const val = Math.round(maxY - (maxY * i) / 4);
+    const y = pad.t + (h * i) / 4;
+    ctx.fillText(String(val), 6, y + 4);
+  }
+
+  const n = metrics.length;
+  const gap = 10;
+  const barW = Math.min(56, Math.max(14, (w - gap * (n + 1)) / n));
+  const totalBarsW = n * barW + (n - 1) * gap;
+  const startX = pad.l + Math.max(0, (w - totalBarsW) / 2);
+  const baselineY = pad.t + h;
+
+  metrics.forEach((m, i) => {
+    const v = Number(snapshot[m.id] || 0);
+    const barH = (h * v) / maxY;
+    const x = startX + i * (barW + gap);
+    const y = baselineY - barH;
+    const grad = ctx.createLinearGradient(0, y, 0, baselineY);
+    grad.addColorStop(0, hexToRgba(m.color, 0.95));
+    grad.addColorStop(1, hexToRgba(m.color, 0.35));
+    ctx.fillStyle = grad;
+    roundRect(ctx, x, y, barW, Math.max(barH, v > 0 ? 2 : 0), 6);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.95)';
+    ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillText(String(v), x + barW / 2 - 4, y - 6);
+    ctx.fillStyle = 'rgba(154, 160, 166, 0.9)';
+    ctx.font = '9px ui-sans-serif, system-ui, sans-serif';
+    const label = String(m.label || m.id).slice(0, 12);
+    ctx.fillText(label, x + Math.max(0, (barW - ctx.measureText(label).width) / 2), cssH - 14);
+  });
 }
 
 function roundRect(ctx, x, y, width, height, radius) {
@@ -3223,7 +3278,7 @@ function liChipRow(field, options, selected, multi = true) {
 
 function collectLiChipField(field) {
   const row = document.querySelector(`[data-li-field="${field}"]`);
-  if (!row) return [];
+  if (!row) return null;
   if (row.dataset.multi === '1') {
     return [...row.querySelectorAll('.brain-chip.is-active')].map((c) => c.dataset.value);
   }
@@ -3233,17 +3288,7 @@ function collectLiChipField(field) {
 
 function collectPortraitChipField(field) {
   const row = document.querySelector(`[data-portrait-field="${field}"]`);
-  if (!row) {
-    const multiFields = new Set([
-      'roles',
-      'industries',
-      'decisionMaker',
-      'regions',
-      'painPoints',
-      'linkedinSignals',
-    ]);
-    return multiFields.has(field) ? [] : '';
-  }
+  if (!row) return null;
   if (row.dataset.multi === '1') {
     return [...row.querySelectorAll('.brain-chip.is-active')].map((c) => c.dataset.value);
   }
@@ -3251,46 +3296,75 @@ function collectPortraitChipField(field) {
 }
 
 function collectLinkedInSearchFromDom() {
-  const row = document.querySelector('[data-li-field="connectionDegree"]');
-  let connectionDegree = '2nd';
-  if (row) {
-    connectionDegree = row.querySelector('.brain-chip.is-active')?.dataset.value || '2nd';
+  const base = normalizeLinkedInSearchFromSettings(settings?.brain?.linkedInSearch || {});
+  const degRow = document.querySelector('[data-li-field="connectionDegree"]');
+  if (!degRow && !document.getElementById('brain-li-keywords-extra')) return base;
+  let connectionDegree = base.connectionDegree || '2nd';
+  if (degRow) {
+    connectionDegree = degRow.querySelector('.brain-chip.is-active')?.dataset.value || connectionDegree;
   }
+  const pickArr = (field, fallback) => {
+    const v = collectLiChipField(field);
+    return v == null ? fallback : v;
+  };
+  const pickText = (id, fallback) => {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : fallback;
+  };
   return {
     connectionDegree,
-    keywordsExtra: document.getElementById('brain-li-keywords-extra')?.value?.trim() || '',
-    currentCompany: document.getElementById('brain-li-current-company')?.value?.trim() || '',
-    pastCompany: document.getElementById('brain-li-past-company')?.value?.trim() || '',
-    school: document.getElementById('brain-li-school')?.value?.trim() || '',
-    profileLanguage: document.getElementById('brain-li-language')?.value || '',
-    currentTitle: document.getElementById('brain-li-current-title')?.value?.trim() || '',
-    industryKeywords: document.getElementById('brain-li-industry')?.value?.trim() || '',
-    seniority: collectLiChipField('seniority'),
-    functionArea: collectLiChipField('functionArea'),
-    yearsOfExperience: collectLiChipField('yearsOfExperience'),
-    companyHeadcount: collectLiChipField('companyHeadcount'),
+    keywordsExtra: pickText('brain-li-keywords-extra', base.keywordsExtra || ''),
+    currentCompany: pickText('brain-li-current-company', base.currentCompany || ''),
+    pastCompany: pickText('brain-li-past-company', base.pastCompany || ''),
+    school: pickText('brain-li-school', base.school || ''),
+    profileLanguage: document.getElementById('brain-li-language')
+      ? document.getElementById('brain-li-language').value || ''
+      : base.profileLanguage || '',
+    currentTitle: pickText('brain-li-current-title', base.currentTitle || ''),
+    industryKeywords: pickText('brain-li-industry', base.industryKeywords || ''),
+    seniority: pickArr('seniority', base.seniority || []),
+    functionArea: pickArr('functionArea', base.functionArea || []),
+    yearsOfExperience: pickArr('yearsOfExperience', base.yearsOfExperience || []),
+    companyHeadcount: pickArr('companyHeadcount', base.companyHeadcount || []),
   };
 }
 function collectPortraitFromDom() {
-  const portrait = normalizePortraitFromSettings({});
-  portrait.roles = collectPortraitChipField('roles');
-  portrait.industries = collectPortraitChipField('industries');
-  portrait.companySize = collectPortraitChipField('companySize');
-  portrait.decisionMaker = collectPortraitChipField('decisionMaker');
-  portrait.stage = collectPortraitChipField('stage');
-  portrait.regions = [
-    ...new Set([
-      ...collectPortraitChipField('regions'),
-      ...parseCustomRegions(document.getElementById('brain-regions-custom')?.value),
-    ]),
-  ];
-  portrait.budget = collectPortraitChipField('budget');
-  portrait.urgency = collectPortraitChipField('urgency');
-  portrait.painPoints = collectPortraitChipField('painPoints');
-  portrait.linkedinSignals = collectPortraitChipField('linkedinSignals');
-  portrait.need = document.getElementById('brain-portrait-need')?.value?.trim() || '';
-  portrait.greenFlags = document.getElementById('brain-portrait-green')?.value?.trim() || '';
-  portrait.nonFit = document.getElementById('brain-portrait-nonfit')?.value?.trim() || '';
+  const base = normalizePortraitFromSettings(settings?.brain?.portrait || {});
+  const hasAny =
+    document.querySelector('[data-portrait-field]') ||
+    document.getElementById('brain-portrait-need') ||
+    document.getElementById('brain-regions-custom');
+  if (!hasAny) return base;
+  const pick = (field, fallback) => {
+    const v = collectPortraitChipField(field);
+    return v == null ? fallback : v;
+  };
+  const portrait = { ...base };
+  portrait.roles = pick('roles', base.roles);
+  portrait.industries = pick('industries', base.industries);
+  portrait.companySize = pick('companySize', base.companySize);
+  portrait.decisionMaker = pick('decisionMaker', base.decisionMaker);
+  portrait.stage = pick('stage', base.stage);
+  const regionChips = collectPortraitChipField('regions');
+  const customEl = document.getElementById('brain-regions-custom');
+  if (regionChips != null || customEl) {
+    portrait.regions = [
+      ...new Set([...(regionChips || []), ...parseCustomRegions(customEl?.value)]),
+    ];
+  }
+  portrait.budget = pick('budget', base.budget);
+  portrait.urgency = pick('urgency', base.urgency);
+  portrait.painPoints = pick('painPoints', base.painPoints);
+  portrait.linkedinSignals = pick('linkedinSignals', base.linkedinSignals);
+  if (document.getElementById('brain-portrait-need')) {
+    portrait.need = document.getElementById('brain-portrait-need').value.trim() || '';
+  }
+  if (document.getElementById('brain-portrait-green')) {
+    portrait.greenFlags = document.getElementById('brain-portrait-green').value.trim() || '';
+  }
+  if (document.getElementById('brain-portrait-nonfit')) {
+    portrait.nonFit = document.getElementById('brain-portrait-nonfit').value.trim() || '';
+  }
   return portrait;
 }
 
@@ -3674,9 +3748,6 @@ function renderBrain() {
   const notesEmpty = !String(b.strategyNotes || '').trim();
   const outcome = b.outcome || 'book_a_call';
   const portrait = normalizePortraitFromSettings(b.portrait);
-  const liSearch = normalizeLinkedInSearchFromSettings(b.linkedInSearch);
-  const searchOverride = b.searchUrlOverride || '';
-  const ps = b.prospectSearch || {};
   const ns = strategyNotesStatus(b, st, notesEmpty);
   const preview = notesPreviewLine(b.strategyNotes);
 
@@ -3762,40 +3833,10 @@ function renderBrain() {
           <header class="brain-panel-head brain-panel-head-compact">
             <h3 class="brain-panel-title">${brainIco('sales')} Sales ${brainInfoIcon('Target portrait & desired outcome — injected only on inbound replies (Reply mode).')}</h3>
           </header>
-          <div class="brain-prospect-preview">
-            <label class="field-label-inline" for="brain-search-url-override">LinkedIn People URL override (optional) ${brainInfoIcon('Paste a LinkedIn People URL from your browser for exact facets. Leave empty to auto-build from portrait + filters below.')}</label>
-            <input type="url" id="brain-search-url-override" class="input-compact" value="${escapeAttr(searchOverride)}" placeholder="${escapeAttr(ps.searchUrl || 'https://www.linkedin.com/search/results/people/…')}" title="Leave empty to auto-build from portrait" />
-          </div>
-          <div class="brain-li-filters">
-            <span class="field-label-inline">LinkedIn People filters ${brainInfoIcon('Maps to LinkedIn search facets. Roles/Industries/Regions above also feed keywords & location.')}</span>
-            ${portraitField('Connections', 'Who you can invite from search.', `<div class="brain-chip-row" data-li-field="connectionDegree" data-multi="0">${LI_CONNECTION_DEGREE.map((opt) => {
-              const on = liSearch.connectionDegree === opt.id;
-              return `<button type="button" class="brain-chip${on ? ' is-active' : ''}" data-value="${escapeAttr(opt.id)}" aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(opt.label)}</button>`;
-            }).join('')}</div>`)}
-            <div class="brain-portrait-field-row">
-              ${portraitField('Extra keywords', null, `<input type="text" id="brain-li-keywords-extra" class="input-compact" value="${escapeAttr(liSearch.keywordsExtra)}" placeholder="e.g. B2B SaaS, launch" />`)}
-              ${portraitField('Profile language', null, `<select id="brain-li-language" class="input-compact">${LI_PROFILE_LANGUAGES.map((l) => `<option value="${escapeAttr(l.id)}"${liSearch.profileLanguage === l.id ? ' selected' : ''}>${escapeHtml(l.label)}</option>`).join('')}</select>`)}
-            </div>
-            <div class="brain-portrait-field-row">
-              ${portraitField('Current company', 'Name as on LinkedIn — added to keywords.', `<input type="text" id="brain-li-current-company" class="input-compact" value="${escapeAttr(liSearch.currentCompany)}" placeholder="Company name" />`)}
-              ${portraitField('Past company', null, `<input type="text" id="brain-li-past-company" class="input-compact" value="${escapeAttr(liSearch.pastCompany)}" placeholder="Past employer" />`)}
-            </div>
-            <div class="brain-portrait-field-row">
-              ${portraitField('Current title', 'LinkedIn title facet — exact job title filter.', `<input type="text" id="brain-li-current-title" class="input-compact" value="${escapeAttr(liSearch.currentTitle)}" placeholder="e.g. Founder, CEO" />`)}
-              ${portraitField('Industry', 'Keywords only — for strict industry URN use URL override.', `<input type="text" id="brain-li-industry" class="input-compact" value="${escapeAttr(liSearch.industryKeywords)}" placeholder="e.g. Software, Marketing" />`)}
-            </div>
-            ${portraitField('School', null, `<input type="text" id="brain-li-school" class="input-compact" value="${escapeAttr(liSearch.school)}" placeholder="University / school" />`)}
-            ${portraitField('Seniority', 'LinkedIn seniority facet.', liChipRow('seniority', LI_SENIORITY, liSearch.seniority, true))}
-            ${portraitField('Function', 'LinkedIn function facet.', liChipRow('functionArea', LI_FUNCTION, liSearch.functionArea, true))}
-            <div class="brain-portrait-field-row">
-              ${portraitField('Years of experience', null, liChipRow('yearsOfExperience', LI_YEARS_EXPERIENCE, liSearch.yearsOfExperience, true))}
-              ${portraitField('Company headcount', 'LinkedIn headcount facet (distinct from portrait company size).', liChipRow('companyHeadcount', LI_COMPANY_HEADCOUNT, liSearch.companyHeadcount, true))}
-            </div>
-          </div>
-          <div class="brain-portrait-compact">
+          <div class="brain-sales-compact">
             ${portraitBlock(
-              'Who',
-              'Job titles, industries, and who signs off on a project.',
+              'Client profile',
+              'Core ICP fields. Open all settings for LinkedIn filters, fit signals, and more.',
               `
               ${portraitField('Roles', 'Titles you target — pick all that apply.', portraitChipRow('roles', PORTRAIT_ROLES, portrait.roles, true))}
               ${portraitField('Industries', null, portraitChipRow('industries', PORTRAIT_INDUSTRIES, portrait.industries, true))}
@@ -3805,105 +3846,40 @@ function renderBrain() {
               </div>
             `
             )}
-            ${portraitBlock(
-              'Context',
-              'Stage, budget, geography, and timing.',
-              `
-              <div class="brain-portrait-field-row">
-                ${portraitField('Stage', null, portraitChipRow('stage', PORTRAIT_STAGES, portrait.stage, false))}
-                ${portraitField('Budget', null, portraitChipRow('budget', PORTRAIT_BUDGET, portrait.budget, false))}
+            <div class="brain-outcome-block brain-outcome-block-separated">
+              <div class="brain-portrait-field-label">Outcome</div>
+              <input type="hidden" id="brain-outcome" value="${escapeAttr(outcome)}" />
+              <div class="brain-outcome-grid brain-outcome-grid-compact" role="group" aria-label="Desired sales outcome">
+                ${[
+                  ['book_a_call', 'Book a call', 'Push toward a meeting'],
+                  ['purchase', 'Purchase', 'Move toward buying'],
+                  ['qualify', 'Qualify', 'Fit, budget, timing'],
+                  ['referral', 'Referral', 'Ask for intros'],
+                ]
+                  .map(([id, label, hint]) => {
+                    const isBook = id === 'book_a_call';
+                    const complete = isBook ? bookingCompleteFromDraft() : true;
+                    const warn = isBook && outcome === 'book_a_call' && !complete;
+                    return `
+                  <div class="brain-outcome-wrap${isBook ? ' has-book-settings' : ''}">
+                    <button type="button" class="brain-outcome-card brain-outcome-card-compact${outcome === id ? ' is-active' : ''}${warn ? ' needs-schedule' : ''}" data-outcome="${id}" aria-pressed="${outcome === id ? 'true' : 'false'}" title="${escapeAttr(hint)}">
+                      <span class="brain-outcome-card-label">${label}</span>
+                      ${warn ? '<span class="brain-outcome-warn" title="Complete weekly availability">!</span>' : ''}
+                    </button>
+                    ${
+                      isBook
+                        ? `<button type="button" class="brain-outcome-gear" data-book-settings title="Edit Book a call availability">${BOOK_EDIT_ICON}</button>`
+                        : ''
+                    }
+                  </div>`;
+                  })
+                  .join('')}
               </div>
-              ${portraitField('Regions', 'Pick countries/regions or type more below (comma-separated).', portraitRegionsPicker(portrait.regions))}
-              ${portraitField('Urgency', null, portraitChipRow('urgency', PORTRAIT_URGENCY, portrait.urgency, false))}
-            `
-            )}
-            ${portraitBlock(
-              'Fit signals',
-              'Why they need you — used on inbound replies only.',
-              `
-              ${portraitField('Pain points', null, portraitChipRow('painPoints', PORTRAIT_PAIN_POINTS, portrait.painPoints, true))}
-              ${portraitField('LinkedIn signals', 'Profile cues that suggest good fit.', portraitChipRow('linkedinSignals', PORTRAIT_LINKEDIN, portrait.linkedinSignals, true))}
-              ${portraitField('Need / offer fit', 'One short paragraph — what you deliver for this persona.', `<textarea id="brain-portrait-need" class="textarea-brain textarea-brain-xs" rows="2" title="Need / offer fit">${escapeHtml(portrait.need)}</textarea>`)}
-              <details class="brain-portrait-more">
-                <summary>More signals</summary>
-                ${portraitField('Green flags', null, `<input type="text" id="brain-portrait-green" class="input-compact" value="${escapeAttr(portrait.greenFlags)}" placeholder="e.g. asks pricing, mentions launch" />`)}
-              </details>
-            `
-            )}
-            ${portraitBlock(
-              'Disqualifiers',
-              'When to mark Lost instead of pushing.',
-              `
-              ${portraitField('Non-fit → Lost', null, `<textarea id="brain-portrait-nonfit" class="textarea-brain textarea-brain-xs" rows="2" title="Non-fit rules">${escapeHtml(portrait.nonFit)}</textarea>`)}
-            `
-            )}
+            </div>
+            <button type="button" class="btn ghost brain-sales-open-full" id="brain-open-sales-full" title="Open full sales settings">
+              All sales settings →
+            </button>
           </div>
-          <div class="brain-outcome-block brain-outcome-block-separated">
-            <div class="brain-portrait-field-label">Outcome</div>
-            <input type="hidden" id="brain-outcome" value="${escapeAttr(outcome)}" />
-            <div class="brain-outcome-grid brain-outcome-grid-compact" role="group" aria-label="Desired sales outcome">
-              ${[
-                ['book_a_call', 'Book a call', 'Push toward a meeting'],
-                ['purchase', 'Purchase', 'Move toward buying'],
-                ['qualify', 'Qualify', 'Fit, budget, timing'],
-                ['referral', 'Referral', 'Ask for intros'],
-              ]
-                .map(([id, label, hint]) => {
-                  const isBook = id === 'book_a_call';
-                  const complete = isBook ? bookingCompleteFromDraft() : true;
-                  const warn = isBook && outcome === 'book_a_call' && !complete;
-                  return `
-                <div class="brain-outcome-wrap${isBook ? ' has-book-settings' : ''}">
-                  <button type="button" class="brain-outcome-card brain-outcome-card-compact${outcome === id ? ' is-active' : ''}${warn ? ' needs-schedule' : ''}" data-outcome="${id}" aria-pressed="${outcome === id ? 'true' : 'false'}" title="${escapeAttr(hint)}">
-                    <span class="brain-outcome-card-label">${label}</span>
-                    ${warn ? '<span class="brain-outcome-warn" title="Complete weekly availability">!</span>' : ''}
-                  </button>
-                  ${
-                    isBook
-                      ? `<button type="button" class="brain-outcome-gear" data-book-settings title="Edit Book a call availability">${BOOK_EDIT_ICON}</button>`
-                      : ''
-                  }
-                </div>`;
-                })
-                .join('')}
-            </div>
-            ${
-              outcome === 'book_a_call' && !bookingCompleteFromDraft()
-                ? '<p class="muted brain-book-hint">Complete weekly availability before Save — every day needs free, busy, or intervals.</p>'
-                : ''
-            }
-          </div>
-          ${(() => {
-            const st = b.smartTiming || {
-              enabled: false,
-              windowStart: 9,
-              windowEnd: 17,
-              preferredStart: 9,
-              preferredEnd: 11,
-            };
-            return `
-          <div class="brain-smart-timing card" title="Timezone-aware ice-breaker sending">
-            <div class="tile-head">
-              <h3>Smart Timing ${brainInfoIcon('Send ice-breakers only during the lead’s local business hours (from CRM timezone / enrich location). Stage B replies are never delayed.')}</h3>
-              ${switchEl('smartTimingEnabled', !!st.enabled, 'Send ice-breakers in lead local business hours')}
-            </div>
-            <div class="brain-smart-timing-grid">
-              <label class="field field-tight">Send window from
-                <input type="number" id="smartTimingWindowStart" min="0" max="23" step="1" value="${Number(st.windowStart) || 9}" />
-              </label>
-              <label class="field field-tight">to
-                <input type="number" id="smartTimingWindowEnd" min="0" max="23" step="1" value="${Number(st.windowEnd) || 17}" />
-              </label>
-              <label class="field field-tight">Preferred from
-                <input type="number" id="smartTimingPrefStart" min="0" max="23" step="1" value="${Number(st.preferredStart) || 9}" />
-              </label>
-              <label class="field field-tight">to
-                <input type="number" id="smartTimingPrefEnd" min="0" max="23" step="1" value="${Number(st.preferredEnd) || 11}" />
-              </label>
-            </div>
-            <p class="muted brain-smart-timing-hint">Ice-breakers only when local time is inside the send window. Leads without timezone send anytime. Preferred hours are prioritized first.</p>
-          </div>`;
-          })()}
         </section>
 
         <section class="brain-panel brain-panel-learn" id="brain-sec-learning" title="Learning — analysis and strategy notes">
@@ -3943,6 +3919,49 @@ function renderBrain() {
     </div>
   `;
 
+  bindBrainOutcomeControls();
+
+  view.querySelectorAll('[data-brain-jump]').forEach((btn) => {
+    btn.onclick = () => highlightBrainJump(btn.getAttribute('data-brain-jump'));
+  });
+
+  document.getElementById('brain-open-sales-full')?.addEventListener('click', () => {
+    page = 'brain-sales';
+    render();
+  });
+
+  initPortraitForm();
+  initBrainPromptCarousel();
+}
+
+function brainOutcomeCardsHtml(outcome) {
+  return [
+    ['book_a_call', 'Book a call', 'Push toward a meeting'],
+    ['purchase', 'Purchase', 'Move toward buying'],
+    ['qualify', 'Qualify', 'Fit, budget, timing'],
+    ['referral', 'Referral', 'Ask for intros'],
+  ]
+    .map(([id, label, hint]) => {
+      const isBook = id === 'book_a_call';
+      const complete = isBook ? bookingCompleteFromDraft() : true;
+      const warn = isBook && outcome === 'book_a_call' && !complete;
+      return `
+    <div class="brain-outcome-wrap${isBook ? ' has-book-settings' : ''}">
+      <button type="button" class="brain-outcome-card brain-outcome-card-compact${outcome === id ? ' is-active' : ''}${warn ? ' needs-schedule' : ''}" data-outcome="${id}" aria-pressed="${outcome === id ? 'true' : 'false'}" title="${escapeAttr(hint)}">
+        <span class="brain-outcome-card-label">${label}</span>
+        ${warn ? '<span class="brain-outcome-warn" title="Complete weekly availability">!</span>' : ''}
+      </button>
+      ${
+        isBook
+          ? `<button type="button" class="brain-outcome-gear" data-book-settings title="Edit Book a call availability">${BOOK_EDIT_ICON}</button>`
+          : ''
+      }
+    </div>`;
+    })
+    .join('');
+}
+
+function bindBrainOutcomeControls() {
   view.querySelectorAll('[data-outcome]').forEach((btn) => {
     btn.onclick = () => {
       const id = btn.getAttribute('data-outcome');
@@ -3964,13 +3983,160 @@ function renderBrain() {
     e.stopPropagation();
     openBookCallSettingsModal({ activateOnSave: true });
   });
+}
 
-  view.querySelectorAll('[data-brain-jump]').forEach((btn) => {
-    btn.onclick = () => highlightBrainJump(btn.getAttribute('data-brain-jump'));
+function renderBrainSales() {
+  const b = settings.brain || {};
+  const outcome = b.outcome || 'book_a_call';
+  const portrait = normalizePortraitFromSettings(b.portrait);
+  const liSearch = normalizeLinkedInSearchFromSettings(b.linkedInSearch);
+  const searchOverride = b.searchUrlOverride || '';
+  const ps = b.prospectSearch || {};
+  const st = b.smartTiming || {
+    enabled: false,
+    windowStart: 9,
+    windowEnd: 17,
+    preferredStart: 9,
+    preferredEnd: 11,
+  };
+
+  setPageHeader('Sales settings', 'Client portrait · LinkedIn filters · outcome · timing');
+  titleEl.title = 'Sales settings';
+  view.innerHTML = `
+    <div class="brain-sales-page">
+      <div class="brain-sales-page-bar">
+        <button type="button" class="btn ghost btn-sm" id="brain-sales-back" title="Back to Brain">← Brain</button>
+        <p class="muted brain-sales-page-hint">Same settings as before — laid out in columns for easier editing.</p>
+      </div>
+      <div class="brain-sales-full-grid">
+        <section class="brain-panel brain-sales-col">
+          <header class="brain-panel-head brain-panel-head-compact">
+            <h3 class="brain-panel-title">Client portrait</h3>
+          </header>
+          ${portraitBlock(
+            'Who',
+            'Job titles, industries, and who signs off on a project.',
+            `
+            ${portraitField('Roles', 'Titles you target — pick all that apply.', portraitChipRow('roles', PORTRAIT_ROLES, portrait.roles, true))}
+            ${portraitField('Industries', null, portraitChipRow('industries', PORTRAIT_INDUSTRIES, portrait.industries, true))}
+            <div class="brain-portrait-field-row">
+              ${portraitField('Company size', null, portraitChipRow('companySize', PORTRAIT_COMPANY_SIZE, portrait.companySize, false))}
+              ${portraitField('Decision maker', null, portraitChipRow('decisionMaker', PORTRAIT_DECISION_MAKER, portrait.decisionMaker, true))}
+            </div>
+          `
+          )}
+          ${portraitBlock(
+            'Context',
+            'Stage, budget, geography, and timing.',
+            `
+            <div class="brain-portrait-field-row">
+              ${portraitField('Stage', null, portraitChipRow('stage', PORTRAIT_STAGES, portrait.stage, false))}
+              ${portraitField('Budget', null, portraitChipRow('budget', PORTRAIT_BUDGET, portrait.budget, false))}
+            </div>
+            ${portraitField('Regions', 'Pick countries/regions or type more below (comma-separated).', portraitRegionsPicker(portrait.regions))}
+            ${portraitField('Urgency', null, portraitChipRow('urgency', PORTRAIT_URGENCY, portrait.urgency, false))}
+          `
+          )}
+          ${portraitBlock(
+            'Fit signals',
+            'Why they need you — used on inbound replies only.',
+            `
+            ${portraitField('Pain points', null, portraitChipRow('painPoints', PORTRAIT_PAIN_POINTS, portrait.painPoints, true))}
+            ${portraitField('LinkedIn signals', 'Profile cues that suggest good fit.', portraitChipRow('linkedinSignals', PORTRAIT_LINKEDIN, portrait.linkedinSignals, true))}
+            ${portraitField('Need / offer fit', 'One short paragraph — what you deliver for this persona.', `<textarea id="brain-portrait-need" class="textarea-brain textarea-brain-xs" rows="2" title="Need / offer fit">${escapeHtml(portrait.need)}</textarea>`)}
+            ${portraitField('Green flags', null, `<input type="text" id="brain-portrait-green" class="input-compact" value="${escapeAttr(portrait.greenFlags)}" placeholder="e.g. asks pricing, mentions launch" />`)}
+          `
+          )}
+          ${portraitBlock(
+            'Disqualifiers',
+            'When to mark Lost instead of pushing.',
+            `${portraitField('Non-fit → Lost', null, `<textarea id="brain-portrait-nonfit" class="textarea-brain textarea-brain-xs" rows="2" title="Non-fit rules">${escapeHtml(portrait.nonFit)}</textarea>`)}`
+          )}
+        </section>
+
+        <section class="brain-panel brain-sales-col">
+          <header class="brain-panel-head brain-panel-head-compact">
+            <h3 class="brain-panel-title">LinkedIn People search</h3>
+          </header>
+          <div class="brain-prospect-preview">
+            <label class="field-label-inline" for="brain-search-url-override">URL override (optional) ${brainInfoIcon('Paste a LinkedIn People URL for exact facets. Leave empty to auto-build from portrait + filters.')}</label>
+            <input type="url" id="brain-search-url-override" class="input-compact" value="${escapeAttr(searchOverride)}" placeholder="${escapeAttr(ps.searchUrl || 'https://www.linkedin.com/search/results/people/…')}" title="Leave empty to auto-build from portrait" />
+          </div>
+          <div class="brain-li-filters">
+            ${portraitField('Connections', 'Who you can invite from search.', `<div class="brain-chip-row" data-li-field="connectionDegree" data-multi="0">${LI_CONNECTION_DEGREE.map((opt) => {
+              const on = liSearch.connectionDegree === opt.id;
+              return `<button type="button" class="brain-chip${on ? ' is-active' : ''}" data-value="${escapeAttr(opt.id)}" aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(opt.label)}</button>`;
+            }).join('')}</div>`)}
+            <div class="brain-portrait-field-row">
+              ${portraitField('Extra keywords', null, `<input type="text" id="brain-li-keywords-extra" class="input-compact" value="${escapeAttr(liSearch.keywordsExtra)}" placeholder="e.g. B2B SaaS, launch" />`)}
+              ${portraitField('Profile language', null, `<select id="brain-li-language" class="input-compact">${LI_PROFILE_LANGUAGES.map((l) => `<option value="${escapeAttr(l.id)}"${liSearch.profileLanguage === l.id ? ' selected' : ''}>${escapeHtml(l.label)}</option>`).join('')}</select>`)}
+            </div>
+            <div class="brain-portrait-field-row">
+              ${portraitField('Current company', 'Name as on LinkedIn — added to keywords.', `<input type="text" id="brain-li-current-company" class="input-compact" value="${escapeAttr(liSearch.currentCompany)}" placeholder="Company name" />`)}
+              ${portraitField('Past company', null, `<input type="text" id="brain-li-past-company" class="input-compact" value="${escapeAttr(liSearch.pastCompany)}" placeholder="Past employer" />`)}
+            </div>
+            <div class="brain-portrait-field-row">
+              ${portraitField('Current title', 'LinkedIn title facet.', `<input type="text" id="brain-li-current-title" class="input-compact" value="${escapeAttr(liSearch.currentTitle)}" placeholder="e.g. Founder, CEO" />`)}
+              ${portraitField('Industry', 'Keywords only — strict URN via URL override.', `<input type="text" id="brain-li-industry" class="input-compact" value="${escapeAttr(liSearch.industryKeywords)}" placeholder="e.g. Software, Marketing" />`)}
+            </div>
+            ${portraitField('School', null, `<input type="text" id="brain-li-school" class="input-compact" value="${escapeAttr(liSearch.school)}" placeholder="University / school" />`)}
+            ${portraitField('Seniority', null, liChipRow('seniority', LI_SENIORITY, liSearch.seniority, true))}
+            ${portraitField('Function', null, liChipRow('functionArea', LI_FUNCTION, liSearch.functionArea, true))}
+            <div class="brain-portrait-field-row">
+              ${portraitField('Years of experience', null, liChipRow('yearsOfExperience', LI_YEARS_EXPERIENCE, liSearch.yearsOfExperience, true))}
+              ${portraitField('Company headcount', null, liChipRow('companyHeadcount', LI_COMPANY_HEADCOUNT, liSearch.companyHeadcount, true))}
+            </div>
+          </div>
+        </section>
+
+        <section class="brain-panel brain-sales-col brain-sales-col-side">
+          <header class="brain-panel-head brain-panel-head-compact">
+            <h3 class="brain-panel-title">Outcome &amp; timing</h3>
+          </header>
+          <div class="brain-outcome-block">
+            <div class="brain-portrait-field-label">Outcome</div>
+            <input type="hidden" id="brain-outcome" value="${escapeAttr(outcome)}" />
+            <div class="brain-outcome-grid brain-outcome-grid-compact" role="group" aria-label="Desired sales outcome">
+              ${brainOutcomeCardsHtml(outcome)}
+            </div>
+            ${
+              outcome === 'book_a_call' && !bookingCompleteFromDraft()
+                ? '<p class="muted brain-book-hint">Complete weekly availability before Save — every day needs free, busy, or intervals.</p>'
+                : ''
+            }
+          </div>
+          <div class="brain-smart-timing card" title="Timezone-aware ice-breaker sending">
+            <div class="tile-head">
+              <h3>Smart Timing ${brainInfoIcon('Send ice-breakers only during the lead’s local business hours. Stage B replies are never delayed.')}</h3>
+              ${switchEl('smartTimingEnabled', !!st.enabled, 'Send ice-breakers in lead local business hours')}
+            </div>
+            <div class="brain-smart-timing-grid">
+              <label class="field field-tight">Send window from
+                <input type="number" id="smartTimingWindowStart" min="0" max="23" step="1" value="${Number(st.windowStart) || 9}" />
+              </label>
+              <label class="field field-tight">to
+                <input type="number" id="smartTimingWindowEnd" min="0" max="23" step="1" value="${Number(st.windowEnd) || 17}" />
+              </label>
+              <label class="field field-tight">Preferred from
+                <input type="number" id="smartTimingPrefStart" min="0" max="23" step="1" value="${Number(st.preferredStart) || 9}" />
+              </label>
+              <label class="field field-tight">to
+                <input type="number" id="smartTimingPrefEnd" min="0" max="23" step="1" value="${Number(st.preferredEnd) || 11}" />
+              </label>
+            </div>
+            <p class="muted brain-smart-timing-hint">Ice-breakers only inside the send window. Leads without timezone send anytime.</p>
+          </div>
+        </section>
+      </div>
+    </div>`;
+
+  document.getElementById('brain-sales-back')?.addEventListener('click', () => {
+    page = 'brain';
+    render();
   });
-
+  bindBrainOutcomeControls();
+  bindSwitchAutosave();
   initPortraitForm();
-  initBrainPromptCarousel();
 }
 
 function renderCrm() {
@@ -4007,7 +4173,6 @@ function renderCrm() {
           ${crmStatusFilter ? `<button type="button" class="btn ghost btn-sm" id="crm-clear-filter">Clear filter · ${escapeHtml(crmStatusFilter)}</button>` : ''}
         </div>
         <div class="crm-toolbar-right">
-          <button type="button" class="btn ghost btn-sm" id="crm-sort-score" title="Sort by ICP lead score (high → low)">Sort by Score</button>
           ${crmCardPropsMenuHtml()}
           <form class="crm-search-form" autocomplete="off" onsubmit="return false;">
             <input type="text" class="crm-autofill-trap" name="username" tabindex="-1" aria-hidden="true" autocomplete="username" value="" />
@@ -5182,39 +5347,6 @@ function renderComing(name) {
     <strong>${name}</strong><br/>Coming soon
     <span class="coming-sub">This channel is being developed and will be available in a future update.</span>
   </div>`;
-}
-
-function renderEmail() {
-  setPageHeader('Email Outreach', 'Automated cold email sequences');
-  titleEl.title = 'Email channel — coming soon';
-  view.innerHTML = `
-    <div class="coming coming-email" title="Email channel not connected yet">
-      <div class="coming-email-icon-wrap" aria-hidden="true">
-        <svg class="coming-icon coming-icon-pulse" viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-      </div>
-      <strong>Coming Soon</strong>
-      <span class="coming-sub">Email outreach is being integrated. You'll be able to run parallel LinkedIn + Email campaigns from one dashboard.</span>
-      <ul class="coming-feature-list">
-        <li>SMTP / Gmail / Outlook integration</li>
-        <li>AI-generated email sequences</li>
-        <li>Automatic warmup</li>
-        <li>Unified CRM — LinkedIn + Email leads in one pipeline</li>
-        <li>Bounce &amp; reply tracking</li>
-      </ul>
-      <form class="coming-notify-form" id="email-notify-form" autocomplete="off">
-        <input type="email" id="email-notify-input" class="input-compact" placeholder="you@company.com" aria-label="Email for notify" />
-        <button type="submit" class="btn primary" id="email-notify-btn">Notify Me</button>
-      </form>
-    </div>`;
-  const form = document.getElementById('email-notify-form');
-  if (form) {
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      toast("You'll be notified when Email is ready");
-      const input = document.getElementById('email-notify-input');
-      if (input) input.value = '';
-    };
-  }
 }
 
 function secretBlockHtml(it) {
@@ -6636,12 +6768,13 @@ function render() {
   if (page === 'dashboard') renderDashboard();
   else if (page === 'crm') renderCrm();
   else if (page === 'linkedin') renderLinkedIn();
-  else if (page === 'email') renderEmail();
+  else if (page === 'email') renderComing('Email');
   else if (page === 'x') renderComing('X');
   else if (page === 'telegram') renderComing('Telegram');
   else if (page === 'integrations') renderIntegrations();
   else if (page === 'profile') renderProfile();
   else if (page === 'brain') renderBrain();
+  else if (page === 'brain-sales') renderBrainSales();
   else if (page === 'faq') renderFaq();
 }
 
