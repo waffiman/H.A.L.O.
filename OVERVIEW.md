@@ -308,7 +308,7 @@ Stored in `sales_policy.json` → `smartTiming` (`enabled`, `windowStart`/`windo
 
 ### Lead score (LinkedIn ICP)
 
-After Apify enrich, [`leadScoring.js`](leadScoring.js) scores the profile vs Brain **Client portrait**. **Primary:** Brain **Inspector** LLM (`scoreLeadIcpFit` in [`salesBrain.js`](salesBrain.js)) with the same OpenRouter/shared fallback as other roles. **Fallback:** deterministic rubric (role / industry / size / region / seniority / completeness → **1–10**). Disable LLM with `LEAD_SCORE_LLM=0`. Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)). CRM: optional card property **Lead score** (gear; off by default) shows a red→green gauge; sort/filter via the CRM settings wheel. Dashboard **Lead Quality** tile summarizes loaded kanban scores. Does **not** change send order. X / Email / Telegram scoring later.
+After Apify enrich, [`leadScoring.js`](leadScoring.js) scores the profile vs Brain **Client portrait**. **Primary:** Brain **Inspector** LLM (`scoreLeadIcpFit` in [`salesBrain.js`](salesBrain.js)) with the same OpenRouter/shared fallback as other roles. **Fallback:** deterministic rubric (role / industry / size / region / seniority / completeness → **1–10**). Disable LLM with `LEAD_SCORE_LLM=0`. Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)). CRM **open lead drawer always shows** the red→green gauge; kanban card preview is optional via Properties (**Lead score (kanban preview)**). Sort/filter via the CRM settings wheel. Dashboard **Lead Quality** tile summarizes loaded kanban scores. Does **not** change send order. X / Email / Telegram scoring later.
 
 LinkedIn filter mapping (auto URL):
 

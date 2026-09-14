@@ -104,7 +104,7 @@ const CRM_CARD_PROP_DEFS = [
   { id: 'location', label: 'Location' },
   { id: 'email', label: 'Email' },
   { id: 'ice', label: 'Ice-breaker' },
-  { id: 'leadScore', label: 'Lead score' },
+  { id: 'leadScore', label: 'Lead score (kanban preview)' },
   { id: 'last', label: 'Last contact' },
   { id: 'body', label: 'Body' },
 ];
@@ -881,20 +881,34 @@ function leadScoreTooltip(breakdown) {
     .join('\n');
 }
 
-function leadScoreGaugeHtml(score, breakdown) {
-  const n = Math.max(1, Math.min(10, Math.round(Number(score))));
-  if (!Number.isFinite(n)) return '';
-  const pct = ((n - 1) / 9) * 100;
-  return `<div class="crm-prop crm-prop-score">
-    <span class="crm-prop-label">Score</span>
-    <div class="lead-score-gauge" title="${escapeAttr(leadScoreTooltip(breakdown))}">
-      <div class="lead-score-track" aria-hidden="true"></div>
-      <div class="lead-score-pointer" style="left:${pct}%">
+function leadScoreGaugeHtml(score, breakdown, { always = false, compact = true } = {}) {
+  const raw = Number(score);
+  const has = score != null && score !== '' && Number.isFinite(raw);
+  if (!has && !always) return '';
+  const n = has ? Math.max(1, Math.min(10, Math.round(raw))) : null;
+  const pct = n == null ? 50 : ((n - 1) / 9) * 100;
+  const tip = has ? leadScoreTooltip(breakdown) : 'ICP score appears after Apify enrich';
+  const pointer = has
+    ? `<div class="lead-score-pointer" style="left:${pct}%">
         <span class="lead-score-pointer-val">${n}</span>
         <span class="lead-score-pointer-arrow"></span>
-      </div>
+      </div>`
+    : `<div class="lead-score-pointer lead-score-pointer-empty" style="left:50%">
+        <span class="lead-score-pointer-val">—</span>
+        <span class="lead-score-pointer-arrow"></span>
+      </div>`;
+  const wrapCls = compact ? 'crm-prop crm-prop-score' : 'crm-drawer-score';
+  const label = compact
+    ? '<span class="crm-prop-label">Score</span>'
+    : '<h4 class="crm-drawer-section-title">Lead score</h4>';
+  return `<div class="${wrapCls}${has ? '' : ' is-empty'}" title="${escapeAttr(tip)}">
+    ${label}
+    <div class="lead-score-gauge${!compact ? ' lead-score-gauge-lg' : ''}">
+      <div class="lead-score-track" aria-hidden="true"></div>
+      ${pointer}
       <div class="lead-score-ends"><span>1</span><span>10</span></div>
     </div>
+    ${!compact && !has ? '<p class="muted crm-drawer-hint">Filled after enrich vs Client portrait (Inspector).</p>' : ''}
   </div>`;
 }
 
@@ -948,8 +962,8 @@ function crmKanbanCardHtml(lead) {
       `<div class="crm-prop"><span class="crm-prop-label">Ice</span><span class="crm-prop-val">${ice ? escapeHtml(ice) : '—'}</span></div>`
     );
   }
-  if (crmCardProps.leadScore && lead.leadScore != null && lead.leadScore !== '') {
-    props.push(leadScoreGaugeHtml(lead.leadScore, lead.scoreBreakdown));
+  if (crmCardProps.leadScore) {
+    props.push(leadScoreGaugeHtml(lead.leadScore, lead.scoreBreakdown, { always: true, compact: true }));
   }
   if (crmCardProps.last) {
     const proc = lead.processingAt ? formatCrmDate(lead.processingAt) : '—';
@@ -1443,6 +1457,9 @@ function crmDrawerHtml(lead) {
               <label class="field">Messenger<select id="crm-d-messenger-app">${msgOpts}</select></label>
               <label class="field crm-drawer-field-wide">Phone / profile link<input type="text" id="crm-d-messenger-value" value="${escapeAttr(lead.messengerValue || '')}" /></label>
             </div>
+          </section>
+          <section class="crm-drawer-section crm-drawer-section-score">
+            ${leadScoreGaugeHtml(lead.leadScore, lead.scoreBreakdown, { always: true, compact: false })}
           </section>
           <section class="crm-drawer-section">
             <h4 class="crm-drawer-section-title">Ice-breaker</h4>
@@ -3836,44 +3853,14 @@ function renderBrain() {
           <div class="brain-sales-compact">
             ${portraitBlock(
               'Client profile',
-              'Core ICP fields. Open all settings for LinkedIn filters, fit signals, and more.',
-              `
-              ${portraitField('Roles', 'Titles you target — pick all that apply.', portraitChipRow('roles', PORTRAIT_ROLES, portrait.roles, true))}
-              ${portraitField('Industries', null, portraitChipRow('industries', PORTRAIT_INDUSTRIES, portrait.industries, true))}
-              <div class="brain-portrait-field-row">
-                ${portraitField('Company size', null, portraitChipRow('companySize', PORTRAIT_COMPANY_SIZE, portrait.companySize, false))}
-                ${portraitField('Decision maker', null, portraitChipRow('decisionMaker', PORTRAIT_DECISION_MAKER, portrait.decisionMaker, true))}
-              </div>
-            `
+              'Roles only here — open all settings for industries, filters, and more.',
+              `${portraitField('Roles', 'Titles you target.', portraitChipRow('roles', PORTRAIT_ROLES, portrait.roles, true))}`
             )}
             <div class="brain-outcome-block brain-outcome-block-separated">
               <div class="brain-portrait-field-label">Outcome</div>
               <input type="hidden" id="brain-outcome" value="${escapeAttr(outcome)}" />
               <div class="brain-outcome-grid brain-outcome-grid-compact" role="group" aria-label="Desired sales outcome">
-                ${[
-                  ['book_a_call', 'Book a call', 'Push toward a meeting'],
-                  ['purchase', 'Purchase', 'Move toward buying'],
-                  ['qualify', 'Qualify', 'Fit, budget, timing'],
-                  ['referral', 'Referral', 'Ask for intros'],
-                ]
-                  .map(([id, label, hint]) => {
-                    const isBook = id === 'book_a_call';
-                    const complete = isBook ? bookingCompleteFromDraft() : true;
-                    const warn = isBook && outcome === 'book_a_call' && !complete;
-                    return `
-                  <div class="brain-outcome-wrap${isBook ? ' has-book-settings' : ''}">
-                    <button type="button" class="brain-outcome-card brain-outcome-card-compact${outcome === id ? ' is-active' : ''}${warn ? ' needs-schedule' : ''}" data-outcome="${id}" aria-pressed="${outcome === id ? 'true' : 'false'}" title="${escapeAttr(hint)}">
-                      <span class="brain-outcome-card-label">${label}</span>
-                      ${warn ? '<span class="brain-outcome-warn" title="Complete weekly availability">!</span>' : ''}
-                    </button>
-                    ${
-                      isBook
-                        ? `<button type="button" class="brain-outcome-gear" data-book-settings title="Edit Book a call availability">${BOOK_EDIT_ICON}</button>`
-                        : ''
-                    }
-                  </div>`;
-                  })
-                  .join('')}
+                ${brainOutcomeCardsHtml(outcome)}
               </div>
             </div>
             <button type="button" class="btn ghost brain-sales-open-full" id="brain-open-sales-full" title="Open full sales settings">

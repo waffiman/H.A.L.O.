@@ -674,16 +674,37 @@ button.profile-tile-link:hover {
 .brain-panel-prompts {
   min-height: 0;
 }
+.brain-panel-prompts .brain-mode-carousel {
+  flex: 1 1 auto;
+  min-height: 280px;
+}
+.brain-panel-prompts .brain-mode-viewport {
+  height: 100%;
+  min-height: 240px;
+}
+.brain-panel-prompts .brain-mode-card {
+  height: 100%;
+}
+.brain-panel-prompts .textarea-brain-mode {
+  height: 100%;
+  min-height: 220px;
+  box-sizing: border-box;
+}
 .brain-panel-sales {
   overflow: hidden;
   max-height: none;
+  justify-content: flex-start;
 }
 .brain-sales-compact {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
+}
+.brain-sales-compact .brain-portrait-block-body .brain-chip-row {
+  max-height: 4.8rem;
+  overflow: hidden;
 }
 .brain-sales-open-full {
   margin-top: auto;
@@ -6118,6 +6139,25 @@ html[data-theme="light"] .analytics-date-field input {
   width: 100%;
   padding: 18px 4px 0;
   box-sizing: border-box;
+}
+.lead-score-gauge-lg {
+  padding-top: 22px;
+  max-width: 420px;
+}
+.crm-drawer-score {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.crm-drawer-section-score {
+  padding-top: 4px;
+}
+.lead-score-pointer-empty .lead-score-pointer-val {
+  background: #64748b;
+  color: #e2e8f0;
+}
+.crm-prop-score.is-empty {
+  opacity: 0.72;
 }
 .lead-score-track {
   height: 8px;
