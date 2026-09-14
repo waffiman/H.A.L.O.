@@ -662,28 +662,58 @@ function parseIcpScoreJson(raw) {
 }
 
 /**
- * Inspector role scores lead vs Client portrait (1–10). Uses primary Inspector
- * then OpenRouter/shared fallback via callRole. Returns null on total failure.
+ * Compact Apify profile for Inspector — all useful sections, drop photo URLs.
+ * Inspector scores lead vs Client portrait (1–10) via callRole + fallbacks.
  */
-export async function scoreLeadIcpFit({ profile = {}, portrait = {} } = {}) {
-  const profileBlob = {
-    name: profile.name || '',
-    headline: profile.headline || '',
-    topRole: profile.topRole || profile.currentTitle || '',
-    company: profile.company || '',
-    about: String(profile.about || '').slice(0, 1200),
-    location: profile.location || '',
-    industry: profile.industry || '',
-    companySize: profile.companySize || profile.employeeCount || '',
+export function profilePayloadForIcpScore(profile = {}) {
+  const {
+    apifyRaw,
+    profilePicture,
+    hasPhoto,
+    ...rest
+  } = profile || {};
+  const fromRaw =
+    apifyRaw && typeof apifyRaw === 'object'
+      ? {
+          basic_info: apifyRaw.basic_info,
+          experience: apifyRaw.experience,
+          education: apifyRaw.education,
+          skills: apifyRaw.skills,
+          certifications: apifyRaw.certifications ?? apifyRaw.licenses_and_certifications,
+          languages: apifyRaw.languages,
+          projects: apifyRaw.projects,
+          honors: apifyRaw.honors ?? apifyRaw.honors_and_awards,
+          volunteer: apifyRaw.volunteer ?? apifyRaw.volunteer_experience,
+          publications: apifyRaw.publications,
+          courses: apifyRaw.courses,
+          recommendations: apifyRaw.recommendations,
+          organizations: apifyRaw.organizations,
+          contact_info: apifyRaw.contact_info,
+        }
+      : null;
+  const payload = {
+    ...rest,
+    hasPhoto: Boolean(hasPhoto || profilePicture),
+    ...(fromRaw ? { apifySections: fromRaw } : {}),
   };
+  // Drop empty keys to save tokens.
+  for (const k of Object.keys(payload)) {
+    const v = payload[k];
+    if (v == null || v === '' || (Array.isArray(v) && !v.length)) delete payload[k];
+  }
+  return payload;
+}
+
+export async function scoreLeadIcpFit({ profile = {}, portrait = {} } = {}) {
+  const profileBlob = profilePayloadForIcpScore(profile);
   const user = [
     'CLIENT PORTRAIT (ICP):',
     JSON.stringify(portrait || {}, null, 0).slice(0, 4000),
     '',
-    'LINKEDIN PROFILE:',
-    JSON.stringify(profileBlob, null, 0),
+    'LINKEDIN PROFILE (full Apify-derived fields — use all sections for ICP fit):',
+    JSON.stringify(profileBlob, null, 0).slice(0, 14000),
     '',
-    'Score ICP fit 1–10. JSON only.',
+    'Score ICP fit 1–10. Use role, industry, company size, region, seniority, skills, education, experience, and any other relevant signals. JSON only.',
   ].join('\n');
   const raw = await callRole('inspector', ICP_SCORE_SYSTEM, user, { temperature: 0.15 });
   if (!raw || raw.length < 8) return null;

@@ -518,33 +518,65 @@ const LI_CHALLENGE_COPY = {
   },
   pin: {
     title: 'Verification code needed',
-    body: 'LinkedIn sent a code. Open the repair page below to enter it, or check SMS / email.',
-    toast: 'LinkedIn wants a verification code — open repair page',
+    body: 'LinkedIn emailed or texted a code. Enter it in the field above.',
+    toast: 'Enter the email/SMS code in the form',
     notifyTitle: 'LinkedIn verification code',
-    notifyBody: 'Enter the code on the repair page',
+    notifyBody: 'Enter the code on the LinkedIn page in H.A.L.O.',
   },
   captcha: {
     title: 'Security check required',
-    body: 'Complete the security step on the repair page below.',
+    body: 'Complete the security step on the repair page below. If LinkedIn emailed a code instead, use the code field when it appears.',
     toast: 'LinkedIn security check — open repair page',
     notifyTitle: 'LinkedIn security check',
     notifyBody: 'Complete verification on the repair page',
   },
-  // Same primary CTA as app_approval — most "generic" checkpoints are phone Approve.
-  // Repair page is only a fallback if the app push never arrives.
   generic: {
     title: 'Action required: approve in LinkedIn app',
-    body: 'Open the LinkedIn app on your phone and tap Yes / Approve on the sign-in request. This page updates automatically. Only use the repair page if no app notification appears.',
-    toast: 'Open LinkedIn app → tap Approve on the sign-in request',
+    body: 'Open the LinkedIn app and tap Yes / Approve if a Sign-in request appears. If you only got an email/SMS code, the form will switch to a code field automatically.',
+    toast: 'Approve in LinkedIn app if asked',
     notifyTitle: 'LinkedIn sign-in waiting',
-    notifyBody: 'Tap Approve in your LinkedIn app now',
+    notifyBody: 'Approve in app, or wait for email code field',
   },
 };
+
+function setLinkedInAuthStage(stage) {
+  const root = document.getElementById('li-auth-stage');
+  if (!root) return;
+  const next = stage === 'otp' ? 'otp' : 'credentials';
+  root.dataset.stage = next;
+  const cred = document.getElementById('li-auth-credentials');
+  const otp = document.getElementById('li-auth-otp');
+  if (cred) cred.setAttribute('aria-hidden', next === 'otp' ? 'true' : 'false');
+  if (otp) otp.setAttribute('aria-hidden', next === 'otp' ? 'false' : 'true');
+  const user = document.getElementById('li-username');
+  const pass = document.getElementById('li-password');
+  const code = document.getElementById('li-email-code');
+  if (user) user.required = next === 'credentials';
+  if (pass) pass.required = next === 'credentials';
+  if (code) {
+    code.required = next === 'otp';
+    if (next === 'otp') setTimeout(() => code.focus(), 400);
+  }
+}
 
 function showLinkedInChallengeUI(st, els) {
   const kind = st.challengeKind || 'app_approval';
   const copy = LI_CHALLENGE_COPY[kind] || LI_CHALLENGE_COPY.app_approval;
   const { statusEl, bannerEl, repairLink } = els;
+
+  if (kind === 'pin') {
+    setLinkedInAuthStage('otp');
+    if (bannerEl) bannerEl.classList.add('hidden');
+    if (statusEl) statusEl.textContent = 'Enter the code LinkedIn sent to your email/phone.';
+    const signBtn = document.getElementById('li-signin-btn');
+    if (signBtn) {
+      signBtn.disabled = false;
+      signBtn.classList.remove('is-loading');
+    }
+    return;
+  }
+
+  setLinkedInAuthStage('credentials');
   if (bannerEl) {
     bannerEl.classList.remove('hidden');
     const t = bannerEl.querySelector('.li-challenge-title');
@@ -553,11 +585,10 @@ function showLinkedInChallengeUI(st, els) {
     if (t) t.textContent = copy.title;
     if (b) b.textContent = copy.body;
     if (foot) {
-      const needsRepair = kind === 'pin' || kind === 'captcha';
+      const needsRepair = kind === 'captcha';
       foot.innerHTML = needsRepair
-        ? 'Open the <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> to enter the code / complete the check.'
+        ? 'Open the <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> to complete the check.'
         : 'Usually no extra page is needed — approve in the LinkedIn app. Fallback: <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> (live screenshot).';
-      // re-bind repairLink after innerHTML replace
       const newLink = bannerEl.querySelector('#li-repair-link');
       if (newLink && st.token) {
         newLink.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
@@ -567,7 +598,7 @@ function showLinkedInChallengeUI(st, els) {
   }
   if (statusEl) {
     statusEl.textContent =
-      kind === 'pin' || kind === 'captcha'
+      kind === 'captcha'
         ? 'Complete verification — waiting for server…'
         : 'Approve in LinkedIn app — waiting for server…';
   }
@@ -577,7 +608,8 @@ function showLinkedInChallengeUI(st, els) {
 }
 
 function hideLinkedInChallengeUI(els) {
-  const { bannerEl } = els;
+  setLinkedInAuthStage('credentials');
+  const { bannerEl } = els || {};
   if (bannerEl) bannerEl.classList.add('hidden');
   stopLinkedInTitleAlert();
   toastEl.classList.remove('warn', 'sticky');
@@ -888,14 +920,18 @@ function leadScoreGaugeHtml(score, breakdown, { always = false, compact = true }
   const n = has ? Math.max(1, Math.min(10, Math.round(raw))) : null;
   const pct = n == null ? 50 : ((n - 1) / 9) * 100;
   const tip = has ? leadScoreTooltip(breakdown) : 'ICP score appears after Apify enrich';
+  const color = has && typeof leadScoreColor === 'function' ? leadScoreColor(n) : null;
+  const pointerStyle = color
+    ? `left:${pct}%;--lead-score-pointer-bg:${color};--lead-score-pointer-fg:#0b1220`
+    : `left:${pct}%`;
   const pointer = has
-    ? `<div class="lead-score-pointer" style="left:${pct}%">
+    ? `<div class="lead-score-pointer" style="${pointerStyle}" aria-label="Lead score ${n} of 10">
         <span class="lead-score-pointer-val">${n}</span>
-        <span class="lead-score-pointer-arrow"></span>
+        <span class="lead-score-pointer-arrow" aria-hidden="true"></span>
       </div>`
-    : `<div class="lead-score-pointer lead-score-pointer-empty" style="left:50%">
+    : `<div class="lead-score-pointer lead-score-pointer-empty" style="left:50%" aria-label="Lead score empty">
         <span class="lead-score-pointer-val">—</span>
-        <span class="lead-score-pointer-arrow"></span>
+        <span class="lead-score-pointer-arrow" aria-hidden="true"></span>
       </div>`;
   const wrapCls = compact ? 'crm-prop crm-prop-score' : 'crm-drawer-score';
   const label = compact
@@ -4235,17 +4271,32 @@ function renderLinkedIn() {
           </div>
         </div>
         <form id="li-session-form" class="li-session-form" autocomplete="on">
-          <label class="field" for="li-username">Email or phone
-            <input id="li-username" name="username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required />
-          </label>
-          <label class="field" for="li-password">Password
-            <div class="pass-wrap">
-              <input id="li-password" name="password" type="password" autocomplete="current-password" required />
-              <button type="button" class="pass-toggle" id="li-pass-toggle" aria-label="Show password">Show</button>
+          <div class="li-auth-stage" id="li-auth-stage" data-stage="credentials">
+            <div class="li-auth-track">
+              <div class="li-auth-panel li-auth-credentials" id="li-auth-credentials">
+                <label class="field" for="li-username">Email or phone
+                  <input id="li-username" name="username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required />
+                </label>
+                <label class="field" for="li-password">Password
+                  <div class="pass-wrap">
+                    <input id="li-password" name="password" type="password" autocomplete="current-password" required />
+                    <button type="button" class="pass-toggle" id="li-pass-toggle" aria-label="Show password">Show</button>
+                  </div>
+                </label>
+                <div class="row section-actions">
+                  <button type="submit" class="btn primary" id="li-signin-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Sign in</span></button>
+                </div>
+              </div>
+              <div class="li-auth-panel li-auth-otp" id="li-auth-otp" aria-hidden="true">
+                <p class="li-otp-hint muted">LinkedIn emailed or texted a code. Enter it below — no app push needed.</p>
+                <label class="field" for="li-email-code">Email / SMS code
+                  <input id="li-email-code" name="emailCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />
+                </label>
+                <div class="row section-actions">
+                  <button type="button" class="btn primary" id="li-code-submit-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Submit code</span></button>
+                </div>
+              </div>
             </div>
-          </label>
-          <div class="row section-actions">
-            <button type="submit" class="btn primary" id="li-signin-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Sign in</span></button>
           </div>
           <p class="muted" id="li-session-status" role="status"></p>
           <div class="li-session-challenge-banner hidden" id="li-session-challenge-banner" role="alert" aria-live="assertive">
@@ -4397,8 +4448,13 @@ function bindLinkedInSessionForm() {
   const bannerEl = document.getElementById('li-session-challenge-banner');
   const repairLink = document.getElementById('li-repair-link');
   const btn = document.getElementById('li-signin-btn');
+  const codeBtn = document.getElementById('li-code-submit-btn');
+  const codeEl = document.getElementById('li-email-code');
   const toggle = document.getElementById('li-pass-toggle');
   const challengeEls = { statusEl, bannerEl, repairLink };
+  let activeLoginToken = '';
+
+  setLinkedInAuthStage('credentials');
 
   if (toggle && passEl) {
     toggle.onclick = () => {
@@ -4408,8 +4464,56 @@ function bindLinkedInSessionForm() {
     };
   }
 
+  const submitEmailCode = async () => {
+    const code = String(codeEl?.value || '').trim();
+    if (!code) {
+      if (statusEl) statusEl.textContent = 'Enter the verification code from your email/SMS.';
+      return;
+    }
+    if (!activeLoginToken) {
+      if (statusEl) statusEl.textContent = 'Sign-in session expired — press Sign in again.';
+      return;
+    }
+    if (codeBtn) {
+      codeBtn.disabled = true;
+      codeBtn.classList.add('is-loading');
+    }
+    if (statusEl) statusEl.textContent = 'Submitting code to remote Chromium…';
+    try {
+      await api('/api/linkedin/repair/input', {
+        method: 'POST',
+        body: JSON.stringify({ token: activeLoginToken, type: 'submitCode', text: code }),
+      });
+      if (statusEl) statusEl.textContent = 'Code sent — waiting for LinkedIn to finish…';
+      // Keep spinner until pollLinkedInLogin hits Active / error.
+      pollLinkedInLogin(activeLoginToken, challengeEls, { keepCodeLoading: true });
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+      toast(err.message, true);
+      if (codeBtn) {
+        codeBtn.disabled = false;
+        codeBtn.classList.remove('is-loading');
+      }
+    }
+  };
+
+  if (codeBtn) codeBtn.onclick = () => submitEmailCode();
+  if (codeEl) {
+    codeEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitEmailCode();
+      }
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const stage = document.getElementById('li-auth-stage')?.dataset?.stage;
+    if (stage === 'otp') {
+      await submitEmailCode();
+      return;
+    }
     const username = document.getElementById('li-username')?.value?.trim() || '';
     const password = passEl?.value || '';
     if (!username || !password) {
@@ -4431,6 +4535,7 @@ function bindLinkedInSessionForm() {
         method: 'POST',
         body: JSON.stringify({ username, password }),
       });
+      activeLoginToken = res.token || '';
       if (statusEl) statusEl.textContent = 'Signing in on remote Chromium…';
       if (repairLink && res.url) repairLink.href = res.url;
       pollLinkedInLogin(res.token, challengeEls);
@@ -4445,14 +4550,26 @@ function bindLinkedInSessionForm() {
   });
 }
 
-function pollLinkedInLogin(token, challengeEls = {}) {
+function pollLinkedInLogin(token, challengeEls = {}, opts = {}) {
   if (linkedInLoginPoll) clearTimeout(linkedInLoginPoll);
   const statusEl = challengeEls.statusEl || document.getElementById('li-session-status');
   const bannerEl = challengeEls.bannerEl || document.getElementById('li-session-challenge-banner');
   const repairLink = challengeEls.repairLink || document.getElementById('li-repair-link');
   const els = { statusEl, bannerEl, repairLink };
   const btn = document.getElementById('li-signin-btn');
+  const codeBtn = document.getElementById('li-code-submit-btn');
   let pollN = 0;
+
+  const clearLoading = () => {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+    }
+    if (codeBtn) {
+      codeBtn.disabled = false;
+      codeBtn.classList.remove('is-loading');
+    }
+  };
 
   const tick = async () => {
     if (page !== 'linkedin') {
@@ -4469,6 +4586,7 @@ function pollLinkedInLogin(token, challengeEls = {}) {
         if (data.settings?.session?.ok === true && data.settings?.cookies?.present) {
           linkedInChallengeAlerted = false;
           hideLinkedInChallengeUI(els);
+          clearLoading();
           settings = data.settings;
           if (settings.notifications) notifications = settings.notifications;
           updateBell();
@@ -4482,6 +4600,7 @@ function pollLinkedInLogin(token, challengeEls = {}) {
       if (st.status === 'captured' || st.liAtCaptured) {
         linkedInChallengeAlerted = false;
         hideLinkedInChallengeUI(els);
+        clearLoading();
         if (statusEl) statusEl.textContent = 'Session restored.';
         toast('LinkedIn session Active');
         const data = await api('/api/settings');
@@ -4498,10 +4617,7 @@ function pollLinkedInLogin(token, challengeEls = {}) {
         const msg = st.lastSignInError || st.error || 'Wrong email or password — try again.';
         if (statusEl) statusEl.textContent = msg;
         toast(msg, true, 8000);
-        if (btn) {
-          btn.disabled = false;
-          btn.classList.remove('is-loading');
-        }
+        clearLoading();
         linkedInLoginPoll = null;
         return;
       }
@@ -4510,10 +4626,7 @@ function pollLinkedInLogin(token, challengeEls = {}) {
         hideLinkedInChallengeUI(els);
         if (statusEl) statusEl.textContent = st.error || st.status;
         toast(st.error || 'Login timed out', true, 6000);
-        if (btn) {
-          btn.disabled = false;
-          btn.classList.remove('is-loading');
-        }
+        clearLoading();
         return;
       }
       if (st.stale && !st.workerAlive) {
@@ -4521,10 +4634,7 @@ function pollLinkedInLogin(token, challengeEls = {}) {
         hideLinkedInChallengeUI(els);
         if (statusEl) statusEl.textContent = 'Login worker stopped — click Sign in again.';
         toast('Login worker stopped — press Sign in again', true, 8000);
-        if (btn) {
-          btn.disabled = false;
-          btn.classList.remove('is-loading');
-        }
+        clearLoading();
         linkedInLoginPoll = null;
         try {
           const data = await api('/api/settings');
@@ -4539,7 +4649,15 @@ function pollLinkedInLogin(token, challengeEls = {}) {
         const kind = st.challengeKind || 'app_approval';
         const copy = LI_CHALLENGE_COPY[kind] || LI_CHALLENGE_COPY.app_approval;
         showLinkedInChallengeUI(st, els);
-        startLinkedInTitleAlert();
+        if (kind === 'pin') {
+          stopLinkedInTitleAlert();
+          if (opts.keepCodeLoading && codeBtn) {
+            codeBtn.disabled = true;
+            codeBtn.classList.add('is-loading');
+          }
+        } else {
+          startLinkedInTitleAlert();
+        }
         if (!linkedInChallengeAlerted) {
           linkedInChallengeAlerted = true;
           toastWarn(copy.toast, 0);
@@ -4548,9 +4666,7 @@ function pollLinkedInLogin(token, challengeEls = {}) {
       } else if (statusEl) {
         if (st.lastSignInError && st.status === 'running') {
           statusEl.textContent = st.lastSignInError;
-          // Surface repair page so user can see what Chromium sees
           if (bannerEl && repairLink) {
-            const copy = LI_CHALLENGE_COPY.generic;
             bannerEl.classList.remove('hidden');
             const t = bannerEl.querySelector('.li-challenge-title');
             const b = bannerEl.querySelector('.li-challenge-body');
@@ -5667,12 +5783,14 @@ function renderSupabaseKeepaliveBlock() {
 
   const reasonLabels = {
     agent_covers_crm: 'Agent touches CRM often enough — no wake pings needed.',
+    agent_container_stopped: 'linkedin-agent is stopped — wake pings keep Supabase awake.',
     linkedin_channel_off: 'LinkedIn channel is off — automation will not hit Supabase.',
     outreach_paused: 'Outreach is paused — automation will not hit Supabase.',
     both_stages_off: 'Both stages are off — automation will not hit Supabase.',
     both_intervals_over_week: 'Both stage intervals are longer than 7 days.',
     stage_a_interval_over_week: 'Stage A interval is longer than 7 days.',
     stage_b_interval_over_week: 'Stage B interval is longer than 7 days.',
+    crm_idle: 'No reliable CRM traffic — wake pings active.',
   };
   const reasonText = reasonLabels[ka.reason] || '';
 
@@ -5699,7 +5817,7 @@ function renderSupabaseKeepaliveBlock() {
 
   return `<div class="sc-keepalive sc-keepalive-active">
     <p class="sc-keepalive-title"><span class="sc-keepalive-dot"></span> Pause guard active</p>
-    <p class="sc-keepalive-desc">Free-tier Supabase pauses after ~7 days without traffic. The dashboard sends a read-only ping every ${ka.intervalDays} days when the agent would not touch CRM — no writes, no stage runs.</p>
+    <p class="sc-keepalive-desc">Free-tier Supabase pauses after ~7 days without traffic. The dashboard process (not your browser tab) sends a read-only ping every ${ka.intervalDays} days when stages are off or the agent container is stopped — closing cabinet tabs does not stop it.</p>
     <p class="sc-keepalive-meta muted">${escapeHtml(reasonText)}</p>
     <p class="sc-keepalive-meta muted">${escapeHtml(lastPing)}${nextDue ? ` · ${escapeHtml(nextDue)}` : ''}</p>
     ${errLine}

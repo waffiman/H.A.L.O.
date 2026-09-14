@@ -2071,6 +2071,33 @@ select {
 .li-session-form { display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
 .li-session-form .pass-wrap { position: relative; }
 .li-session-form .pass-wrap input { padding-right: 72px; width: 100%; }
+.li-auth-stage {
+  overflow: hidden;
+  width: 100%;
+}
+.li-auth-track {
+  display: flex;
+  width: 200%;
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.li-auth-stage[data-stage="otp"] .li-auth-track {
+  transform: translateX(-50%);
+}
+.li-auth-panel {
+  width: 50%;
+  flex: 0 0 50%;
+  box-sizing: border-box;
+  padding-right: 2px;
+}
+.li-auth-otp .li-otp-hint {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .li-auth-track { transition: none; }
+}
 .li-session-challenge-banner {
   display: flex;
   align-items: flex-start;
@@ -6176,16 +6203,23 @@ html[data-theme="light"] .analytics-date-field input {
   z-index: 1;
 }
 .lead-score-pointer-val {
-  min-width: 1.35rem;
-  padding: 1px 5px;
+  min-width: 1.55rem;
+  padding: 2px 6px;
   border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 750;
-  line-height: 1.2;
-  color: #0b1220;
-  background: #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--lead-score-pointer-fg, #0b1220);
+  background: var(--lead-score-pointer-bg, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   text-align: center;
+  border: 1px solid rgba(11, 18, 32, 0.18);
+}
+.lead-score-gauge-lg .lead-score-pointer-val {
+  min-width: 1.75rem;
+  font-size: 0.9rem;
+  padding: 3px 7px;
 }
 .lead-score-pointer-arrow {
   width: 0;
@@ -6193,7 +6227,7 @@ html[data-theme="light"] .analytics-date-field input {
   margin-top: 1px;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-top: 6px solid #e2e8f0;
+  border-top: 6px solid var(--lead-score-pointer-bg, #e2e8f0);
 }
 .lead-score-ends {
   display: flex;

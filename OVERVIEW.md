@@ -308,7 +308,7 @@ Stored in `sales_policy.json` → `smartTiming` (`enabled`, `windowStart`/`windo
 
 ### Lead score (LinkedIn ICP)
 
-After Apify enrich, [`leadScoring.js`](leadScoring.js) scores the profile vs Brain **Client portrait**. **Primary:** Brain **Inspector** LLM (`scoreLeadIcpFit` in [`salesBrain.js`](salesBrain.js)) with the same OpenRouter/shared fallback as other roles. **Fallback:** deterministic rubric (role / industry / size / region / seniority / completeness → **1–10**). Disable LLM with `LEAD_SCORE_LLM=0`. Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)). CRM **open lead drawer always shows** the red→green gauge; kanban card preview is optional via Properties (**Lead score (kanban preview)**). Sort/filter via the CRM settings wheel. Dashboard **Lead Quality** tile summarizes loaded kanban scores. Does **not** change send order. X / Email / Telegram scoring later.
+After Apify returns a profile, [`enrichAndWrite.js`](enrichAndWrite.js) **immediately** runs ICP scoring then ice-breaker in the same enrich call (score is never deferred to a later Stage). [`leadScoring.js`](leadScoring.js) uses the normalized Apify profile vs Brain **Client portrait**. Normalization keeps Apify sections (experience, education, skills, certifications, languages, projects, honors, volunteer, …) plus `apifyRaw` for the Inspector. **Primary:** Brain **Inspector** LLM (`scoreLeadIcpFit` in [`salesBrain.js`](salesBrain.js)) with OpenRouter/shared fallback. **Fallback:** deterministic rubric (role / industry / size / region / seniority / completeness → **1–10**). Disable LLM with `LEAD_SCORE_LLM=0`. Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)). CRM **open lead drawer always shows** the red→green gauge with the numeric score on the pointer; kanban card preview is optional via Properties (**Lead score (kanban preview)**). Does **not** change send order. X / Email / Telegram scoring later.
 
 LinkedIn filter mapping (auto URL):
 
@@ -374,6 +374,8 @@ Confirmed in production runs — add new ones here when discovered:
 | Stage B scanning **all** P2 via profile composer every tick | Many profile navigations → auth wall | Unread-only P2 opens (`STAGE_B_SCAN_ALL_P2=1` only for debug) |
 
 Dashboard paste: [`dashboard/lib/ops.js`](dashboard/lib/ops.js) `ingestCookiePaste` (EditThisCookie JSON or raw `li_at`).
+
+**Dashboard Sign in challenge (2026-09-14):** after email/password, [`sessionRepairWorker.js`](sessionRepairWorker.js) classifies Chromium (`app_approval` | `pin` | `captcha`). **App approve** → amber banner. **Email/SMS code (`pin`)** → login/password fields swipe left; inline code field + Submit pushes `submitCode` to the repair worker (no separate repair tab required). Spinner stays until `li_at` is captured.
 
 ---
 

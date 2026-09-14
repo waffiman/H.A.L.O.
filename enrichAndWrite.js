@@ -101,6 +101,170 @@ async function apifyFetchProfile(slug, token) {
   return data[0];
 }
 
+function asArray(v) {
+  if (Array.isArray(v)) return v;
+  if (v == null || v === '') return [];
+  return [v];
+}
+
+function pickFirst(...vals) {
+  for (const v of vals) {
+    if (v == null || v === '') continue;
+    if (typeof v === 'string' && !v.trim()) continue;
+    return v;
+  }
+  return null;
+}
+
+function skillLabels(skills) {
+  return asArray(skills)
+    .map((s) => {
+      if (typeof s === 'string') return s.trim();
+      if (!s || typeof s !== 'object') return '';
+      return String(s.name || s.title || s.skill || s.label || '').trim();
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Normalize Apify `apimaestro/linkedin-profile-detail` (and compatible) raw item
+ * into a scoring/ice profile. Keeps every useful section the actor returns.
+ */
+export function normalizeApifyProfile(raw, slug = '') {
+  const b = raw?.basic_info && typeof raw.basic_info === 'object' ? raw.basic_info : {};
+  const exp = asArray(raw?.experience ?? b.experience);
+  const exp0 = exp[0] || null;
+  const edu = asArray(raw?.education ?? b.education);
+  const certifications = asArray(
+    raw?.certifications ?? raw?.certificate ?? raw?.licenses_and_certifications ?? b.certifications
+  );
+  const languages = asArray(raw?.languages ?? b.languages);
+  const skills = skillLabels(raw?.skills ?? b.skills ?? raw?.top_skills);
+  const projects = asArray(raw?.projects ?? b.projects);
+  const honors = asArray(raw?.honors ?? raw?.honors_and_awards ?? raw?.awards ?? b.honors);
+  const volunteer = asArray(raw?.volunteer ?? raw?.volunteer_experience ?? b.volunteer);
+  const publications = asArray(raw?.publications ?? b.publications);
+  const courses = asArray(raw?.courses ?? b.courses);
+  const recommendations = asArray(raw?.recommendations ?? b.recommendations);
+  const organizations = asArray(raw?.organizations ?? b.organizations);
+
+  const loc = b.location || raw?.location || {};
+  const location =
+    (typeof loc === 'string' ? loc : loc.full || loc.city || loc.country || '').trim() ||
+    [loc.city, loc.country].filter(Boolean).join(', ').trim();
+
+  const email = String(
+    pickFirst(
+      b.email,
+      b.emails?.[0],
+      raw?.email,
+      raw?.emails?.[0],
+      raw?.contact_info?.email,
+      raw?.email_resolution?.email
+    ) || ''
+  )
+    .trim()
+    .toLowerCase();
+
+  const employeeCount = Number(
+    pickFirst(
+      b.company_employee_count,
+      b.employee_count,
+      raw?.company_employee_count,
+      b.current_company_employee_count,
+      exp0?.company_employee_count,
+      exp0?.employee_count
+    )
+  );
+
+  const companyObj =
+    (typeof b.current_company === 'object' && b.current_company) ||
+    (typeof exp0?.company === 'object' && exp0.company) ||
+    null;
+  const companyName = String(
+    pickFirst(
+      typeof b.current_company === 'string' ? b.current_company : null,
+      companyObj?.name,
+      typeof exp0?.company === 'string' ? exp0.company : null,
+      b.company
+    ) || ''
+  ).trim();
+
+  const profile = {
+    name: String(pickFirst(b.fullname, raw?.fullName, raw?.name) || '').trim(),
+    firstName: String(pickFirst(b.first_name, b.firstName, raw?.firstName) || '').trim(),
+    lastName: String(pickFirst(b.last_name, b.lastName, raw?.lastName) || '').trim(),
+    headline: String(pickFirst(b.headline, raw?.headline) || '').trim(),
+    about: String(pickFirst(b.about, b.summary, raw?.about, raw?.summary) || '').trim(),
+    company: companyName,
+    companyUrn: String(pickFirst(companyObj?.urn, companyObj?.id, b.current_company_urn) || '').trim(),
+    companyUrl: String(pickFirst(companyObj?.url, companyObj?.linkedin_url, b.current_company_url) || '').trim(),
+    industry: String(
+      pickFirst(
+        b.industry,
+        raw?.industry,
+        b.current_company_industry,
+        companyObj?.industry,
+        exp0?.industry
+      ) || ''
+    ).trim(),
+    employeeCount: Number.isFinite(employeeCount) && employeeCount > 0 ? employeeCount : null,
+    companySizeText: String(
+      pickFirst(
+        b.company_size,
+        b.current_company_size,
+        raw?.company_size,
+        companyObj?.company_size,
+        companyObj?.size
+      ) || ''
+    ).trim(),
+    location,
+    country: String(pickFirst(typeof loc === 'object' ? loc.country : null, b.country) || '').trim(),
+    city: String(pickFirst(typeof loc === 'object' ? loc.city : null, b.city) || '').trim(),
+    email,
+    timezone: timezoneFromLocation(location),
+    topRole: exp0
+      ? `${exp0.title || exp0.position || ''} at ${
+          typeof exp0.company === 'string' ? exp0.company : exp0.company?.name || companyName
+        }`.trim()
+      : '',
+    currentTitle: String(
+      pickFirst(exp0?.title, exp0?.position, b.occupation, b.job_title, raw?.position) || ''
+    ).trim(),
+    connectionCount: Number(
+      pickFirst(b.connection_count, b.connections, raw?.connection_count, raw?.connections)
+    ) || null,
+    followerCount: Number(pickFirst(b.follower_count, b.followers, raw?.follower_count, raw?.followers)) || null,
+    experience: exp,
+    education: edu,
+    certifications,
+    languages,
+    skills,
+    projects,
+    honors,
+    volunteer,
+    publications,
+    courses,
+    recommendations,
+    organizations,
+    hasPhoto: Boolean(
+      b.profile_picture_url || b.profile_picture || raw?.profilePic || raw?.profile_pic_url
+    ),
+    profilePicture: String(
+      pickFirst(b.profile_picture_url, b.profile_picture, raw?.profilePic, raw?.profile_pic_url) || ''
+    ),
+    publicIdentifier: String(pickFirst(b.public_identifier, b.publicIdentifier, slug) || slug).trim(),
+    linkedinUrl: String(
+      pickFirst(b.profile_url, b.url, raw?.url, slug ? `https://www.linkedin.com/in/${slug}/` : null) ||
+        ''
+    ).trim(),
+    slug,
+    // Full actor payload for LLM scoring (no truncation of sections).
+    apifyRaw: raw && typeof raw === 'object' ? raw : {},
+  };
+  return profile;
+}
+
 export async function scrapeLinkedInProfile(url) {
   const slug = linkedInSlug(url);
   if (!slug) throw new Error(`Bad LinkedIn URL: ${url}`);
@@ -112,54 +276,7 @@ export async function scrapeLinkedInProfile(url) {
     try {
       console.log(`Apify scrape slug=${slug} (token #${i + 1})`);
       const raw = await apifyFetchProfile(slug, tokens[i]);
-      const b = raw.basic_info || {};
-      const exp = Array.isArray(raw.experience) ? raw.experience : [];
-      const exp0 = exp[0] || null;
-      const edu = Array.isArray(raw.education) ? raw.education : [];
-      const loc = b.location || {};
-      const location =
-        (typeof loc === 'string' ? loc : loc.full || loc.city || loc.country || '').trim() ||
-        [loc.city, loc.country].filter(Boolean).join(', ').trim();
-      const email = String(
-        b.email ||
-          b.emails?.[0] ||
-          raw.email ||
-          raw.emails?.[0] ||
-          raw.contact_info?.email ||
-          ''
-      )
-        .trim()
-        .toLowerCase();
-      const employeeCount = Number(
-        b.company_employee_count ||
-          b.employee_count ||
-          raw.company_employee_count ||
-          b.current_company_employee_count ||
-          NaN
-      );
-      const profile = {
-        name: (b.fullname || raw.fullName || '').trim(),
-        headline: (b.headline || '').trim(),
-        about: (b.about || b.summary || '').trim(),
-        company: (b.current_company || exp0?.company || '').trim(),
-        industry: String(b.industry || raw.industry || b.current_company_industry || '').trim(),
-        employeeCount: Number.isFinite(employeeCount) && employeeCount > 0 ? employeeCount : null,
-        companySizeText: String(
-          b.company_size || b.current_company_size || raw.company_size || ''
-        ).trim(),
-        location,
-        email,
-        timezone: timezoneFromLocation(location),
-        topRole: exp0 ? `${exp0.title || ''} at ${exp0.company || ''}`.trim() : '',
-        currentTitle: String(exp0?.title || b.occupation || '').trim(),
-        experience: exp,
-        education: edu,
-        hasPhoto: Boolean(
-          b.profile_picture_url || b.profile_picture || raw.profilePic || raw.profile_pic_url
-        ),
-        profilePicture: b.profile_picture_url || b.profile_picture || '',
-        slug,
-      };
+      const profile = normalizeApifyProfile(raw, slug);
       if (!profile.name && !profile.headline) {
         throw new Error('Apify profile missing name and headline');
       }
@@ -278,9 +395,11 @@ export async function enrichOneLead(lead) {
       `  Profile: ${nameForIce || '(no name)'} | ${profile.company || profile.headline || ''}` +
         (profile.location ? ` | ${profile.location}` : '') +
         (profile.timezone ? ` | tz=${profile.timezone}` : '') +
-        (profile.email ? ` | ${profile.email}` : '')
+        (profile.email ? ` | ${profile.email}` : '') +
+        (profile.skills?.length ? ` | skills=${profile.skills.length}` : '') +
+        (profile.experience?.length ? ` | exp=${profile.experience.length}` : '')
     );
-    const ice = await generateIceBreaker({ ...profile, name: nameForIce || apifyName });
+    // Immediately after Apify: ICP score, then ice-breaker (same run — never deferred).
     let leadScore = null;
     let scoreBreakdown = null;
     try {
@@ -293,6 +412,7 @@ export async function enrichOneLead(lead) {
     } catch (e) {
       console.error('  Lead score skipped:', e.message);
     }
+    const ice = await generateIceBreaker({ ...profile, name: nameForIce || apifyName });
     const setProcessingAt = !lead.processingAt;
     await updateNotionNameAndIceBreaker(lead.id, {
       name: nameForNotion,

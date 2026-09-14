@@ -4,6 +4,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import { APP_ROOT, readEnvFile } from './env.js';
 import { crmBackend, supabaseConfigured } from './crmApi.js';
 import { readHostCycleLock, connectOneShotRunning, repairContainerRunning } from './sessionRepair.js';
@@ -22,6 +23,18 @@ const STATE_PATH = path.join(APP_ROOT, 'supabase_keepalive_state.json');
 let timer = null;
 let pingInFlight = false;
 let schedulerStarted = false;
+
+function linkedinAgentRunning() {
+  try {
+    const out = execFileSync('docker', ['inspect', '-f', '{{.State.Running}}', 'linkedin-agent'], {
+      encoding: 'utf8',
+      timeout: 8000,
+    }).trim();
+    return out === 'true';
+  } catch {
+    return false;
+  }
+}
 
 function readState() {
   try {
@@ -71,15 +84,21 @@ export function analyzeSupabaseKeepaliveNeed(env = readEnvFile()) {
       reason: 'not_supabase',
       effectiveTouchMs: null,
       effectiveTouchDays: null,
+      agentRunning: false,
     };
   }
 
   const rt = stageRuntime(env);
   const touchMs = effectiveCrmTouchMs(env);
-  const needed = touchMs > WEEK_MS;
+  const agentRunning = linkedinAgentRunning();
+  // Stages "on" only keep the project awake if the agent container is actually running.
+  const agentCovers = agentRunning && Number.isFinite(touchMs) && touchMs <= WEEK_MS;
+  const needed = !agentCovers;
 
   let reason = 'agent_covers_crm';
-  if (!rt.linkedinOn || !rt.outreachOn) {
+  if (!agentRunning && Number.isFinite(touchMs) && touchMs <= WEEK_MS) {
+    reason = 'agent_container_stopped';
+  } else if (!rt.linkedinOn || !rt.outreachOn) {
     reason = !rt.linkedinOn ? 'linkedin_channel_off' : 'outreach_paused';
   } else if (!rt.stageAOn && !rt.stageBOn) {
     reason = 'both_stages_off';
@@ -93,8 +112,9 @@ export function analyzeSupabaseKeepaliveNeed(env = readEnvFile()) {
 
   return {
     needed,
-    reason,
+    reason: needed ? (reason === 'agent_covers_crm' ? 'crm_idle' : reason) : 'agent_covers_crm',
     ...rt,
+    agentRunning,
     effectiveTouchMs: Number.isFinite(touchMs) ? touchMs : null,
     effectiveTouchDays: Number.isFinite(touchMs) ? Math.round(touchMs / 86400000) : null,
   };

@@ -411,8 +411,9 @@ async function detectChallengeKind(page) {
           t
         );
       if (appApproval) return 'app_approval';
+      // Email / SMS one-time codes — check before generic "security" captcha copy.
       if (
-        /enter the code|verification code|one-time|enter code|\bpin\b|код підтвердження|код подтверждения|введіть код|введите код|code de v[eé]rification|c[oó]digo de verificaci[oó]n|c[oó]digo de verifica[cç][aã]o|verifizierungscode|codice di verifica|kod weryfikacyjny|doğrulama kodu|認証コード|验证码|رمز التحقق/.test(
+        /enter the code|verification code|one-time|enter code|\bpin\b|код підтвердження|код подтверждения|введіть код|введите код|code de v[eé]rification|c[oó]digo de verificaci[oó]n|c[oó]digo de verifica[cç][aã]o|verifizierungscode|codice di verifica|kod weryfikacyjny|doğrulama kodu|認証コード|验证码|رمز التحقق|we (emailed|sent).{0,40}code|email.{0,20}code|code.{0,20}(email|inbox|phone|sms)|check your email|sent (you )?a code|otp|one.time password/.test(
           t
         )
       ) {
@@ -430,8 +431,18 @@ async function detectChallengeKind(page) {
     .catch(() => null);
 
   if (fromDom) return fromDom;
-  // Checkpoint URLs almost always mean phone Approve — don't fall through to "generic/repair".
+  // Checkpoint URLs: prefer email/SMS pin when a code field is present.
   if (/checkpoint|challenge|manage\/challenge|two-step|add-phone/i.test(url)) {
+    const hasCodeField = await page
+      .evaluate(() =>
+        Boolean(
+          document.querySelector(
+            'input[name="pin"], input#input__phone_verification_pin, input[autocomplete="one-time-code"], input[inputmode="numeric"]'
+          )
+        )
+      )
+      .catch(() => false);
+    if (hasCodeField) return 'pin';
     return 'app_approval';
   }
   return 'generic';
@@ -462,10 +473,10 @@ async function notifyChallengeNeeded(page) {
   const messages = {
     app_approval:
       'Open the LinkedIn app on your phone and tap Yes / Approve on the sign-in request. H.A.L.O. will continue automatically — no need to sign in again here.',
-    pin: 'Enter the code LinkedIn sent, or open the repair page from the LinkedIn dashboard.',
+    pin: 'Enter the code LinkedIn emailed or texted you on the repair page (or in the dashboard prompt). App push is not always offered — LinkedIn chooses email/SMS for some logins.',
     captcha: 'Complete the security check on the repair page from the LinkedIn dashboard.',
     generic:
-      'Open the LinkedIn app on your phone and tap Yes / Approve if LinkedIn sent a sign-in request. H.A.L.O. continues automatically.',
+      'Open the LinkedIn app on your phone and tap Yes / Approve if LinkedIn sent a sign-in request. If you got an email/SMS code instead, open the repair page and enter it there.',
   };
   try {
     const { notify } = await import('./notify.js');

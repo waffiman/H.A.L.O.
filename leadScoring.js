@@ -64,10 +64,52 @@ function synonymHit(hay, word) {
   return false;
 }
 
+function experienceBlob(profile) {
+  const exp = Array.isArray(profile.experience) ? profile.experience : [];
+  return exp
+    .slice(0, 8)
+    .map((e) => {
+      if (!e || typeof e !== 'object') return String(e || '');
+      const co = typeof e.company === 'string' ? e.company : e.company?.name || '';
+      return [e.title || e.position, co, e.description || e.summary || e.duration]
+        .filter(Boolean)
+        .join(' ');
+    })
+    .join(' | ');
+}
+
+function educationBlob(profile) {
+  const edu = Array.isArray(profile.education) ? profile.education : [];
+  return edu
+    .slice(0, 6)
+    .map((e) => {
+      if (!e || typeof e !== 'object') return String(e || '');
+      return [e.school, e.degree, e.field_of_study || e.field, e.description]
+        .filter(Boolean)
+        .join(' ');
+    })
+    .join(' | ');
+}
+
+function skillsBlob(profile) {
+  const skills = Array.isArray(profile.skills) ? profile.skills : [];
+  return skills
+    .map((s) => (typeof s === 'string' ? s : s?.name || s?.title || ''))
+    .filter(Boolean)
+    .join(', ');
+}
+
 function scoreRole(profile, portrait) {
   const roles = Array.isArray(portrait?.roles) ? portrait.roles : [];
   if (!roles.length) return { points: 15, max: 30, detail: 'no portrait roles — neutral' };
-  const blob = [profile.headline, profile.topRole, profile.currentTitle, profile.about]
+  const blob = [
+    profile.headline,
+    profile.topRole,
+    profile.currentTitle,
+    profile.about,
+    experienceBlob(profile),
+    skillsBlob(profile),
+  ]
     .filter(Boolean)
     .join(' | ');
   let best = 0;
@@ -95,7 +137,15 @@ function scoreRole(profile, portrait) {
 function scoreIndustry(profile, portrait) {
   const industries = Array.isArray(portrait?.industries) ? portrait.industries : [];
   if (!industries.length) return { points: 10, max: 20, detail: 'no portrait industries — neutral' };
-  const blob = [profile.industry, profile.headline, profile.about, profile.company]
+  const blob = [
+    profile.industry,
+    profile.headline,
+    profile.about,
+    profile.company,
+    experienceBlob(profile),
+    educationBlob(profile),
+    skillsBlob(profile),
+  ]
     .filter(Boolean)
     .join(' | ');
   for (const ind of industries) {
@@ -163,7 +213,7 @@ function continentHint(location) {
 function scoreRegion(profile, portrait) {
   const regions = Array.isArray(portrait?.regions) ? portrait.regions : [];
   if (!regions.length) return { points: 8, max: 15, detail: 'no portrait regions — neutral' };
-  const loc = profile.location || '';
+  const loc = [profile.location, profile.country, profile.city].filter(Boolean).join(', ');
   for (const r of regions) {
     if (fuzzyIncludes(loc, r) || fuzzyIncludes(r, loc)) {
       return { points: 15, max: 15, detail: `matched “${r}”` };
@@ -177,7 +227,9 @@ function scoreRegion(profile, portrait) {
 }
 
 function scoreSeniority(profile, portrait) {
-  const blob = [profile.headline, profile.topRole, profile.currentTitle].filter(Boolean).join(' ');
+  const blob = [profile.headline, profile.topRole, profile.currentTitle, experienceBlob(profile)]
+    .filter(Boolean)
+    .join(' ');
   const dm = Array.isArray(portrait?.decisionMaker) ? portrait.decisionMaker : [];
   let points = 0;
   let detail = 'junior / unclear';
@@ -210,24 +262,42 @@ function scoreCompleteness(profile) {
   let points = 0;
   const parts = [];
   if (profile.hasPhoto || profile.profilePicture || profile.photoUrl) {
-    points += 2;
+    points += 1;
     parts.push('photo');
   }
   if (String(profile.about || '').trim().length > 40) {
-    points += 3;
+    points += 2;
     parts.push('about');
   }
   const exp = Array.isArray(profile.experience) ? profile.experience : [];
   if (exp.length > 0 || profile.topRole) {
-    points += 3;
+    points += 2;
     parts.push('experience');
   }
   const edu = Array.isArray(profile.education) ? profile.education : [];
   if (edu.length > 0) {
-    points += 2;
+    points += 1;
     parts.push('education');
   }
-  return { points, max: 10, detail: parts.length ? parts.join(', ') : 'sparse profile' };
+  if (Array.isArray(profile.skills) && profile.skills.length > 0) {
+    points += 2;
+    parts.push('skills');
+  }
+  const extras =
+    (Array.isArray(profile.certifications) && profile.certifications.length) ||
+    (Array.isArray(profile.languages) && profile.languages.length) ||
+    (Array.isArray(profile.projects) && profile.projects.length) ||
+    (Array.isArray(profile.honors) && profile.honors.length) ||
+    (Array.isArray(profile.volunteer) && profile.volunteer.length);
+  if (extras) {
+    points += 2;
+    parts.push('extras');
+  }
+  return {
+    points: Math.min(10, points),
+    max: 10,
+    detail: parts.length ? parts.join(', ') : 'sparse profile',
+  };
 }
 
 function resolvePortrait(salesPolicyOrPortrait = null) {
