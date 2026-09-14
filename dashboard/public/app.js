@@ -2,6 +2,7 @@ const ICONS = {
   dashboard: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 12 L17.2 8.2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round"/><circle cx="12" cy="12" r="1.55" fill="currentColor"/><path d="M6.2 15.8 A7.2 7.2 0 0 1 17.8 15.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/><path d="M7.1 14.6 A5.8 5.8 0 0 1 12 7.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
   crm: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
   linkedin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 8.5A2 2 0 1 1 6.5 4.5a2 2 0 0 1 0 4zM4.75 10h3.5V20h-3.5V10zM13 10.2c1.4-1.5 3.7-1.6 5.2-.3.8.7 1.3 1.8 1.3 3V20h-3.5v-5.5c0-1-.4-1.7-1.3-1.7-.9 0-1.4.6-1.4 1.7V20H9.8V10h3.4v.2z"/></svg>',
+  email: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>',
   x: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.9 2H22l-6.8 7.8L23 22h-6.5l-5.1-6.7L5.7 22H2.6l7.3-8.4L1 2h6.7l4.6 6.1L18.9 2zm-1.1 18h1.8L7.3 3.9H5.4L17.8 20z"/></svg>',
   telegram: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M21.8 4.2 2.9 11.5c-1.3.5-1.3 1.2-.2 1.5l4.8 1.5 1.9 5.7c.2.7.4 1 .9 1 .6 0 .8-.2 1.1-.5l2.6-2.5 5.4 4c1 .5 1.7.3 2-.9L23.9 5.5c.4-1.5-.5-2.2-1.6-1.7l-.5.4zM9.4 14.7l-.2 3.3 1.1-2 8.2-7.4c.3-.2-.1-.4-.4-.2L9.4 14.7z"/></svg>',
   integrations: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>',
@@ -21,6 +22,7 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', title: 'Overview, stages, channels' },
   { id: 'crm', label: 'CRM', title: 'Pipeline, leads, and CRM backend' },
   { id: 'linkedin', label: 'LinkedIn', title: 'LinkedIn channel settings and session' },
+  { id: 'email', label: 'Email', title: 'Email outreach channel (coming soon)' },
   { id: 'x', label: 'X', title: 'X channel (coming soon)' },
   { id: 'telegram', label: 'Telegram', title: 'Telegram channel (coming soon)' },
   { id: 'profile', label: 'Settings', title: 'Account, billing, and integrations' },
@@ -577,7 +579,7 @@ function unitSelect(id, unit) {
 
 const NAV_GROUPS = [
   { label: 'Overview', ids: ['dashboard', 'crm'] },
-  { label: 'Channels', ids: ['linkedin', 'x', 'telegram'] },
+  { label: 'Channels', ids: ['linkedin', 'email', 'x', 'telegram'] },
   { label: 'Account', ids: ['profile'] },
   { label: 'Help', ids: ['faq'] },
 ];
@@ -826,9 +828,33 @@ function crmKanbanCardHtml(lead) {
     );
   }
   if (crmCardProps.location) {
-    const loc = crmTextPreview(lead.location, 48);
+    const loc = crmTextPreview(lead.location, 40);
+    const tz = String(lead.timezone || '').trim();
+    const tzShort = tz.includes('/') ? tz.split('/').pop().replace(/_/g, ' ') : tz;
+    const timing = settings?.brain?.smartTiming;
+    let timingHint = '';
+    if (timing?.enabled && tz) {
+      try {
+        const hour = Number(
+          new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(
+            new Date()
+          )
+        );
+        const start = Number(timing.windowStart ?? 9);
+        const end = Number(timing.windowEnd ?? 17);
+        const inWin = start === end ? true : start < end ? hour >= start && hour < end : hour >= start || hour < end;
+        if (!inWin) {
+          timingHint = ` · next ${String(start).padStart(2, '0')}:00`;
+        }
+      } catch (_) {}
+    }
+    const locLine = [loc || null, tzShort || null].filter(Boolean).join(' · ') || '—';
     props.push(
-      `<div class="crm-prop"><span class="crm-prop-label">Loc</span><span class="crm-prop-val" title="${escapeAttr(lead.location || '')}">${loc ? escapeHtml(loc) : '—'}</span></div>`
+      `<div class="crm-prop"><span class="crm-prop-label">Loc</span><span class="crm-prop-val" title="${escapeAttr(
+        [lead.location, tz, timingHint ? timingHint.replace(/^ · /, '') : '']
+          .filter(Boolean)
+          .join(' · ')
+      )}">${escapeHtml(locLine)}${timingHint ? `<span class="crm-tz-wait" title="Outside Smart Timing window">🕐${escapeHtml(timingHint)}</span>` : ''}</span></div>`
     );
   }
   if (crmCardProps.email) {
@@ -3742,6 +3768,37 @@ function renderBrain() {
                 : ''
             }
           </div>
+          ${(() => {
+            const st = b.smartTiming || {
+              enabled: false,
+              windowStart: 9,
+              windowEnd: 17,
+              preferredStart: 9,
+              preferredEnd: 11,
+            };
+            return `
+          <div class="brain-smart-timing card" title="Timezone-aware ice-breaker sending">
+            <div class="tile-head">
+              <h3>Smart Timing ${brainInfoIcon('Send ice-breakers only during the lead’s local business hours (from CRM timezone / enrich location). Stage B replies are never delayed.')}</h3>
+              ${switchEl('smartTimingEnabled', !!st.enabled, 'Send ice-breakers in lead local business hours')}
+            </div>
+            <div class="brain-smart-timing-grid">
+              <label class="field field-tight">Send window from
+                <input type="number" id="smartTimingWindowStart" min="0" max="23" step="1" value="${Number(st.windowStart) || 9}" />
+              </label>
+              <label class="field field-tight">to
+                <input type="number" id="smartTimingWindowEnd" min="0" max="23" step="1" value="${Number(st.windowEnd) || 17}" />
+              </label>
+              <label class="field field-tight">Preferred from
+                <input type="number" id="smartTimingPrefStart" min="0" max="23" step="1" value="${Number(st.preferredStart) || 9}" />
+              </label>
+              <label class="field field-tight">to
+                <input type="number" id="smartTimingPrefEnd" min="0" max="23" step="1" value="${Number(st.preferredEnd) || 11}" />
+              </label>
+            </div>
+            <p class="muted brain-smart-timing-hint">Ice-breakers only when local time is inside the send window. Leads without timezone send anytime. Preferred hours are prioritized first.</p>
+          </div>`;
+          })()}
         </section>
 
         <section class="brain-panel brain-panel-learn" id="brain-sec-learning" title="Learning — analysis and strategy notes">
@@ -5019,6 +5076,39 @@ function renderComing(name) {
     <strong>${name}</strong><br/>Coming soon
     <span class="coming-sub">This channel is being developed and will be available in a future update.</span>
   </div>`;
+}
+
+function renderEmail() {
+  setPageHeader('Email Outreach', 'Automated cold email sequences');
+  titleEl.title = 'Email channel — coming soon';
+  view.innerHTML = `
+    <div class="coming coming-email" title="Email channel not connected yet">
+      <div class="coming-email-icon-wrap" aria-hidden="true">
+        <svg class="coming-icon coming-icon-pulse" viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      </div>
+      <strong>Coming Soon</strong>
+      <span class="coming-sub">Email outreach is being integrated. You'll be able to run parallel LinkedIn + Email campaigns from one dashboard.</span>
+      <ul class="coming-feature-list">
+        <li>SMTP / Gmail / Outlook integration</li>
+        <li>AI-generated email sequences</li>
+        <li>Automatic warmup</li>
+        <li>Unified CRM — LinkedIn + Email leads in one pipeline</li>
+        <li>Bounce &amp; reply tracking</li>
+      </ul>
+      <form class="coming-notify-form" id="email-notify-form" autocomplete="off">
+        <input type="email" id="email-notify-input" class="input-compact" placeholder="you@company.com" aria-label="Email for notify" />
+        <button type="submit" class="btn primary" id="email-notify-btn">Notify Me</button>
+      </form>
+    </div>`;
+  const form = document.getElementById('email-notify-form');
+  if (form) {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      toast("You'll be notified when Email is ready");
+      const input = document.getElementById('email-notify-input');
+      if (input) input.value = '';
+    };
+  }
 }
 
 function secretBlockHtml(it) {
@@ -6316,6 +6406,13 @@ function collectPatch() {
       outcome: outcomeVal,
       searchUrlOverride: document.getElementById('brain-search-url-override')?.value?.trim() ?? '',
       booking,
+      smartTiming: {
+        enabled: document.getElementById('smartTimingEnabled')?.checked === true,
+        windowStart: Number(document.getElementById('smartTimingWindowStart')?.value ?? 9),
+        windowEnd: Number(document.getElementById('smartTimingWindowEnd')?.value ?? 17),
+        preferredStart: Number(document.getElementById('smartTimingPrefStart')?.value ?? 9),
+        preferredEnd: Number(document.getElementById('smartTimingPrefEnd')?.value ?? 11),
+      },
     };
     document.querySelectorAll('[data-prompt-key]').forEach((ta) => {
       const key = ta.dataset.promptKey;
@@ -6418,7 +6515,7 @@ function setNotifyOpen(open) {
 
 function updateSaveVisibility() {
   if (!topActions) return;
-  const hide = page === 'x' || page === 'telegram' || page === 'faq';
+  const hide = page === 'x' || page === 'telegram' || page === 'email' || page === 'faq';
   topActions.classList.toggle('no-save', hide);
 }
 
@@ -6433,6 +6530,7 @@ function render() {
   if (page === 'dashboard') renderDashboard();
   else if (page === 'crm') renderCrm();
   else if (page === 'linkedin') renderLinkedIn();
+  else if (page === 'email') renderEmail();
   else if (page === 'x') renderComing('X');
   else if (page === 'telegram') renderComing('Telegram');
   else if (page === 'integrations') renderIntegrations();

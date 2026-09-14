@@ -3132,6 +3132,67 @@ html[data-theme="light"] .analytics-date-field input {
   font-size: 0.82rem;
   color: var(--sidebar-muted);
 }
+.coming-email { max-width: 520px; margin: 24px auto; }
+.coming-email-icon-wrap {
+  display: inline-flex;
+  margin-bottom: 8px;
+}
+.coming-icon-pulse {
+  opacity: 0.85 !important;
+  color: var(--accent);
+  animation: coming-pulse 2.4s ease-in-out infinite;
+}
+@keyframes coming-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+.coming-feature-list {
+  list-style: none;
+  padding: 16px 0 8px;
+  margin: 0 auto;
+  text-align: left;
+  max-width: 360px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.coming-feature-list li {
+  position: relative;
+  padding: 4px 0 4px 22px;
+}
+.coming-feature-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+.coming-notify-form {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.coming-notify-form .input-compact { min-width: 200px; }
+.brain-smart-timing {
+  margin-top: 16px;
+  padding: 14px 16px;
+}
+.brain-smart-timing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.crm-tz-wait {
+  margin-left: 4px;
+  font-size: 0.78em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .brain-smart-timing-grid { grid-template-columns: 1fr 1fr; }
+}
 
 /* ─── Workspace ─── */
 .workspace {

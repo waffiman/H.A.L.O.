@@ -11,6 +11,7 @@ import {
   normalizeBookingSchedule,
   validateBookingSchedule,
 } from './bookingSchedule.js';
+import { normalizeSmartTiming } from './timezoneResolver.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -87,6 +88,7 @@ export function readSalesPolicy(root = process.cwd()) {
         if (legacy) portrait = { ...portrait, need: legacy };
       }
       const booking = normalizeBookingSchedule(raw.booking);
+      const smartTiming = normalizeSmartTiming(raw.smartTiming);
       return {
         outcome,
         portrait,
@@ -94,6 +96,7 @@ export function readSalesPolicy(root = process.cwd()) {
         searchUrlOverride: String(raw.searchUrlOverride || '').trim(),
         booking,
         bookingComplete: validateBookingSchedule(booking).ok,
+        smartTiming,
       };
     }
   } catch {
@@ -108,6 +111,7 @@ export function readSalesPolicy(root = process.cwd()) {
     searchUrlOverride: '',
     booking,
     bookingComplete: false,
+    smartTiming: normalizeSmartTiming(),
   };
 }
 
@@ -120,9 +124,14 @@ export function writeSalesPolicy(policy, root = process.cwd()) {
   const linkedInSearch = normalizeLinkedInSearchFields(policy?.linkedInSearch);
   const searchUrlOverride = String(policy?.searchUrlOverride || '').trim();
   const booking = normalizeBookingSchedule(policy?.booking);
+  const smartTiming = normalizeSmartTiming(policy?.smartTiming);
   fs.writeFileSync(
     salesPolicyPath(root),
-    JSON.stringify({ outcome, portrait, linkedInSearch, searchUrlOverride, booking }, null, 2),
+    JSON.stringify(
+      { outcome, portrait, linkedInSearch, searchUrlOverride, booking, smartTiming },
+      null,
+      2
+    ),
     'utf8'
   );
   writeTargetPortrait(compilePortraitMarkdown(portrait), root);

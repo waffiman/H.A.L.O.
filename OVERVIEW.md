@@ -297,6 +297,15 @@ Runtime ([`bookingSchedule.js`](bookingSchedule.js) + [`salesBrain.js`](salesBra
 
 Dashboard: Brain popup for weekly availability + Meet URL. FAQ: **Book a call outcome**.
 
+### Smart Timing (ice-breakers)
+
+Stored in `sales_policy.json` → `smartTiming` (`enabled`, `windowStart`/`windowEnd`, `preferredStart`/`preferredEnd`). **Default OFF.**
+
+- Enrich already writes lead `timezone` from location ([`locationTimezone.js`](locationTimezone.js) / [`timezoneResolver.js`](timezoneResolver.js)).
+- When enabled, Stage A **ice sends only** if the lead’s local hour is inside the send window; otherwise the lead stays Lead😴 for the next run. Preferred hours are sorted first.
+- Stage B replies and silence closings are **not** delayed.
+- Dashboard: Brain → Sales → **Smart Timing** card. CRM location prop shows timezone + 🕐 next window when outside hours.
+
 LinkedIn filter mapping (auto URL):
 
 | LinkedIn UI filter | Brain control |
@@ -414,7 +423,7 @@ Analytics: [`dashboard/lib/analytics.js`](dashboard/lib/analytics.js) → `GET /
 1. **Dashboard** — master pause, Stage A/B toggles + intervals (Stage B min **6 min**, jitter hint), silence, channels (LinkedIn: **Connection invites per Stage A**), **analytics chart** (Pipeline / Outreach / Session tabs, 7d–90d range, smooth curves + metric toggles)  
 2. **CRM** — Notion status counts  
 3. **LinkedIn** — session + cookie paste, **Stage A prospecting** (one toggle + invite cap), **Auto-dialog** info (always on), test URL filter  
-4. X / Telegram — coming soon (UI placeholders; wiring later)  
+4. Email / X / Telegram — coming soon (UI placeholders; wiring later)  
 5. **Integrations** (key icon) — API keys, Telegram  
 6. **Brain** (pinned bottom nav) — master prompt carousel, **Sales** (portrait + LinkedIn People filters + URL override + outcome; **Book a call** ⚙ availability + Meet URL), Learning (analysis + strategy notes)  
 7. **FAQ** — setup guide + tiles (includes Book a call)

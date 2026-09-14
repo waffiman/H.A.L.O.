@@ -15,6 +15,8 @@ COPY dashboard/package.json dashboard/package-lock.json ./
 RUN npm ci --omit=dev
 COPY dashboard/ ./
 COPY bookingSchedule.js ./bookingSchedule.js
+COPY timezoneResolver.js ./timezoneResolver.js
+COPY locationTimezone.js ./locationTimezone.js
 # server.js resolves the site at path.join(__dirname, '..', 'marketing', 'dist').
 COPY --from=marketing /build/dist /marketing/dist
 ENV PORT=3080

@@ -48,6 +48,7 @@ import {
   normalizeBookingSchedule,
   validateBookingSchedule,
 } from '../bookingSchedule.js';
+import { normalizeSmartTiming } from '../timezoneResolver.js';
 
 export function notionConfigured(env = readEnvFile()) {
   if (String(env.CRM_BACKEND || 'notion').trim().toLowerCase() === 'supabase') {
@@ -190,6 +191,7 @@ function readBrainSalesPolicy(cp = cabinetPaths()) {
         linkedInSearch: normalizeLinkedInSearchFields(raw.linkedInSearch),
         searchUrlOverride: String(raw.searchUrlOverride || '').trim(),
         booking: normalizeBookingSchedule(raw.booking),
+        smartTiming: normalizeSmartTiming(raw.smartTiming),
       };
     }
   } catch {
@@ -204,6 +206,7 @@ function readBrainSalesPolicy(cp = cabinetPaths()) {
     linkedInSearch: normalizeLinkedInSearchFields(),
     searchUrlOverride: '',
     booking: defaultBookingSchedule(),
+    smartTiming: normalizeSmartTiming(),
   };
 }
 
@@ -313,9 +316,14 @@ function writeBrainSalesPolicy(policy, cp = cabinetPaths()) {
   const linkedInSearch = normalizeLinkedInSearchFields(policy?.linkedInSearch);
   const searchUrlOverride = String(policy?.searchUrlOverride || '').trim();
   const booking = normalizeBookingSchedule(policy?.booking);
+  const smartTiming = normalizeSmartTiming(policy?.smartTiming);
   fs.writeFileSync(
     cp.salesPolicy,
-    JSON.stringify({ outcome, portrait, linkedInSearch, searchUrlOverride, booking }, null, 2),
+    JSON.stringify(
+      { outcome, portrait, linkedInSearch, searchUrlOverride, booking, smartTiming },
+      null,
+      2
+    ),
     'utf8'
   );
   writeBrainTargetPortrait(compilePortraitMarkdownFromFields(portrait), cp);
@@ -785,6 +793,7 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
       searchUrlOverride: salesPolicy.searchUrlOverride,
       booking: salesPolicy.booking,
       bookingComplete: validateBookingSchedule(salesPolicy.booking).ok,
+      smartTiming: salesPolicy.smartTiming,
       prospectSearch: await readProspectSearchPreview(cp),
     },
     integrations,
@@ -1213,6 +1222,9 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
         );
       }
       policy.booking = check.schedule;
+    }
+    if (body.brain.smartTiming != null) {
+      policy.smartTiming = normalizeSmartTiming(body.brain.smartTiming);
     }
     if (policy.outcome === 'book_a_call' && !validateBookingSchedule(policy.booking).ok) {
       throw new Error('Book a call requires a complete weekly availability schedule');

@@ -2172,6 +2172,15 @@ async function runStageA() {
     };
     if (targetSlug) console.log(`TARGET_LINKEDIN_URL filter: ${targetSlug}`);
 
+    let smartTimingCfg = { enabled: false };
+    try {
+      const { readSalesPolicy } = await import('./brainStore.js');
+      smartTimingCfg = readSalesPolicy().smartTiming || smartTimingCfg;
+    } catch (e) {
+      console.error('smartTiming policy load:', e.message);
+    }
+    let smartTimingSkipCount = 0;
+
     async function sendIceAndPromote(lead) {
       if (!lead?.name || lead.name.length < 2) {
         console.log(`Skip send — missing Name for ${lead?.url}`);
@@ -2180,6 +2189,17 @@ async function runStageA() {
       if (!hasRealIceBreaker(lead.msg || lead.ice)) {
         console.log(`Skip send — no ice-breaker for ${lead.url}`);
         return false;
+      }
+      if (smartTimingCfg?.enabled) {
+        const { isWithinSendWindow } = await import('./timezoneResolver.js');
+        const check = isWithinSendWindow(smartTimingCfg, lead.timezone);
+        if (!check.ok) {
+          smartTimingSkipCount++;
+          console.log(
+            `⏰ Smart Timing: skipping ${lead.name} — ${check.reason || 'outside window'}`
+          );
+          return 'deferred';
+        }
       }
       const sendLead = { ...lead, msg: lead.msg || lead.ice, dmKind: 'ice_breaker' };
       const ok = await sendMessageToLead(page, browser, statePath, sendLead);
@@ -2265,6 +2285,19 @@ async function runStageA() {
       console.log(
         `Lead😴 messageable: ${backlog.length} (ice-ready: ${leftoverIceReadyLeft})`
       );
+      if (smartTimingCfg?.enabled) {
+        try {
+          const { isInPreferredWindow, isWithinSendWindow } = await import('./timezoneResolver.js');
+          backlog.sort((a, b) => {
+            const ap = isInPreferredWindow(smartTimingCfg, a.timezone) ? 0 : 1;
+            const bp = isInPreferredWindow(smartTimingCfg, b.timezone) ? 0 : 1;
+            if (ap !== bp) return ap - bp;
+            const aw = isWithinSendWindow(smartTimingCfg, a.timezone).ok ? 0 : 1;
+            const bw = isWithinSendWindow(smartTimingCfg, b.timezone).ok ? 0 : 1;
+            return aw - bw;
+          });
+        } catch (_) {}
+      }
       for (const lead of backlog) {
         if (phase1DmOk >= sendCap) {
           console.log(`STAGE_A_SEND_MAX=${sendMaxRaw} reached during leftover drain.`);
@@ -2296,7 +2329,7 @@ async function runStageA() {
         }
         if (!browser || !page) await resumeBrowserForSend();
         const sent = await sendIceAndPromote(working);
-        if (sent) {
+        if (sent === true) {
           leftoverSentThisRun++;
           leftoverIceReadyLeft = Math.max(0, leftoverIceReadyLeft - 1);
         }
@@ -2304,7 +2337,7 @@ async function runStageA() {
           console.log('Session dead after leftover send — stopping Stage A.');
           break;
         }
-        if (!sent && (await pageLooksLikeAuthWall(page))) {
+        if (sent === false && (await pageLooksLikeAuthWall(page))) {
           console.log('Auth wall after leftover send — stopping Stage A.');
           break;
         }
@@ -2498,7 +2531,7 @@ async function runStageA() {
               console.log('Session dead after pipeline send — stopping.');
               break;
             }
-            if (!sent && (await pageLooksLikeAuthWall(page))) {
+            if (sent === false && (await pageLooksLikeAuthWall(page))) {
               console.log('Auth wall after failed send — stopping Stage A.');
               break;
             }
@@ -2548,9 +2581,24 @@ async function runStageA() {
       )
       .filter(isIceReady).length;
     console.log(
-      `[Stage A SUMMARY] imported: ${imported}, ice→Conversation: ${phase1NotionOk}, DM ok: ${phase1DmOk}, leftover ice-ready left: ${leftoverIceReadyLeft}, cycleCap: ${cycleCap}`
+      `[Stage A SUMMARY] imported: ${imported}, ice→Conversation: ${phase1NotionOk}, DM ok: ${phase1DmOk}, leftover ice-ready left: ${leftoverIceReadyLeft}, smartTiming deferred: ${smartTimingSkipCount}, cycleCap: ${cycleCap}`
     );
     if (phase1NamesOk.length) console.log(`Ice sent (Lead→Conversation) names: ${phase1NamesOk.join('; ')}`);
+    if (smartTimingSkipCount > 0) {
+      try {
+        const { notify } = await import('./notify.js');
+        await notify({
+          key: `smart_timing_skip_${new Date().toISOString().slice(0, 13)}`,
+          type: 'smart_timing_skip',
+          severity: 'info',
+          skipTelegram: true,
+          title: 'Smart Timing deferred sends',
+          message: `${smartTimingSkipCount} ice-breaker(s) deferred — outside lead local business hours.`,
+        });
+      } catch (e) {
+        console.error('smart timing notify:', e.message);
+      }
+    }
 
     // Never advance Stage A clock after dead session, leftovers, or sync found nobody to import.
     if (
