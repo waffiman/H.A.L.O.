@@ -2353,6 +2353,9 @@ body.li-captcha-modal-open .main {
 .li-captcha-stage {
   position: relative;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .li-captcha-composite {
   width: 100%;
@@ -2360,6 +2363,15 @@ body.li-captcha-modal-open .main {
   overflow: hidden;
   background: #111;
   margin-bottom: 8px;
+  position: relative;
+}
+.li-captcha-composite--compact {
+  /* ~half the previous full-width size */
+  width: min(50%, 260px);
+  margin-left: auto;
+  margin-right: auto;
+  /* Hide Google VERIFY footer; HALO has its own Verify */
+  clip-path: inset(0 0 var(--trim-bottom, 16%) 0);
 }
 .li-captcha-composite.hidden { display: none; }
 .li-captcha-composite img {
@@ -2375,15 +2387,23 @@ body.li-captcha-modal-open .main {
 .li-captcha-prompt.hidden { display: none !important; }
 .li-captcha-grid--overlay {
   position: absolute;
-  left: 1%;
-  top: 28%;
-  width: 98%;
-  height: 70%;
+  left: 0;
+  top: 26%;
+  width: 100%;
+  height: 58%;
   right: auto;
   bottom: auto;
-  gap: 2px;
+  gap: 1px;
   z-index: 2;
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+.li-captcha-verify-row {
+  width: min(50%, 260px);
+  margin-left: auto;
+  margin-right: auto;
+  justify-content: center;
 }
 .li-captcha-grid--overlay .li-captcha-tile {
   background: transparent;

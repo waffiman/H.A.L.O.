@@ -873,10 +873,17 @@ function updateLinkedInCaptchaNative(st) {
     }
     const cols = Number(st.captchaCols) === 4 ? 4 : 3;
     const rev = st.captchaGridRev || Date.now();
-    const ov = st.captchaOverlay || { top: 28, left: 1, width: 98, height: 70 };
+    const ov = st.captchaOverlay || { top: 26, left: 0, width: 100, height: 58 };
+    const footerTrim = Math.max(10, Math.min(28, Number(st.captchaFooterTrim) || 16));
 
     if (composite) {
       composite.classList.remove('hidden');
+      composite.classList.add('li-captcha-composite--compact');
+      composite.style.setProperty('--trim-bottom', `${footerTrim}%`);
+      // Keep overlay inside the clipped image so % match the full bframe shot.
+      if (grid && grid.parentElement !== composite) {
+        composite.appendChild(grid);
+      }
       const img = composite.querySelector('img');
       if (img && token) {
         const challengeSrc = `/api/linkedin/repair/captcha-challenge?token=${encodeURIComponent(token)}&r=${encodeURIComponent(rev)}`;
@@ -899,15 +906,15 @@ function updateLinkedInCaptchaNative(st) {
     if (grid) {
       grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
       grid.classList.add('li-captcha-grid--overlay');
-      grid.style.top = `${Number(ov.top) || 28}%`;
-      grid.style.left = `${Number(ov.left) || 1}%`;
-      grid.style.width = `${Number(ov.width) || 98}%`;
-      grid.style.height = `${Number(ov.height) || 70}%`;
+      grid.style.top = `${Number(ov.top) || 26}%`;
+      grid.style.left = `${Number(ov.left) || 0}%`;
+      grid.style.width = `${Number(ov.width) || 100}%`;
+      grid.style.height = `${Number(ov.height) || 58}%`;
       grid.style.right = 'auto';
       grid.style.bottom = 'auto';
       const cellCount = cols * cols;
       const prevRev = grid.dataset.rev;
-      const gridKey = `${rev}:overlay:${cols}:${Math.round(ov.top)}:${Math.round(ov.height)}`;
+      const gridKey = `${rev}:overlay:${cols}:${Math.round(ov.top)}:${Math.round(ov.height)}:${Math.round(footerTrim)}`;
       if (prevRev !== gridKey || grid.childElementCount !== cellCount) {
         grid.dataset.rev = gridKey;
         grid.innerHTML = '';
@@ -923,7 +930,10 @@ function updateLinkedInCaptchaNative(st) {
     }
     if (verifyRow) verifyRow.classList.remove('hidden');
     if (verifyBtn) verifyBtn.disabled = false;
-    if (hint) hint.textContent = '';
+    if (hint) {
+      hint.textContent =
+        'Tap matching tiles, then Verify. Some puzzles replace a tile with a new image after you tap — that is normal.';
+    }
   } else if (phase === 'waiting' || st.captchaUiChecked || linkedInCaptchaUserChecked) {
     setCaptchaDeckPhase('waiting');
     if (robotBtn) {
