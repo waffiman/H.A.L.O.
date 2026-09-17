@@ -582,11 +582,11 @@ async function getRecaptchaState(page) {
       const visible = await el.isVisible().catch(() => false);
       const box = await el.boundingBox().catch(() => null);
       if (!visible || !box) continue;
-      // Real image puzzle is a large panel; tiny/hidden preload iframes are ~0 or tiny.
+      // Keep the largest visible bframe box for clipping; only tiles confirm "open".
       if (box.width >= 180 && box.height >= 180) {
-        state.imageChallengeOpen = true;
-        state.bframeBox = box;
-        break;
+        if (!state.bframeBox || box.width * box.height > state.bframeBox.width * state.bframeBox.height) {
+          state.bframeBox = box;
+        }
       }
     }
   } catch {
@@ -611,9 +611,10 @@ async function getRecaptchaState(page) {
         })
         .catch(() => ({ tiles: 0, prompt: '' }));
       if (meta.tiles > 0) state.hasVisibleTiles = true;
-      // Visible large host iframe already set imageChallengeOpen; also accept painted tiles/prompt
-      // even if Playwright reports the host iframe as not "visible" (common with nested frames).
-      if (meta.tiles > 0 || /select all|click verify/i.test(meta.prompt)) {
+      // Only real painted tiles (or a large visible host bframe) count as an open puzzle.
+      // Prompt text alone is not enough — Google preloads bframe copy while the checkbox
+      // is still unchecked, which previously flipped the dashboard to Verify too early.
+      if (meta.tiles > 0) {
         state.imageChallengeOpen = true;
       }
       continue;
@@ -771,39 +772,29 @@ async function syncCaptchaNativeUi(page, opts = {}) {
       captchaCols: 3,
       captchaMode: null,
       captchaHasChallengeJpg: false,
+      captchaHasTiles: false,
     });
     return;
   }
   const state = await getRecaptchaState(page);
-  if (!state.imageChallengeOpen) {
-    // Don't yank the UI back to checkbox while LinkedIn flickers the bframe,
-    // or right after the user already tapped "I'm not a robot".
-    const recentImage =
-      prev.captchaPhase === 'image' &&
-      Number(prev.captchaGridRev || 0) > 0 &&
-      Date.now() - Number(prev.captchaGridRev || 0) < 20000;
-    if (recentImage) {
-      writeState({
-        captchaPhase: 'image',
-        captchaChecked: true,
-      });
-      return;
-    }
+  // Image UI only when tiles are actually painted — never promote on prompt/preload alone.
+  if (!state.hasVisibleTiles) {
     if (prev.captchaUiChecked || state.checked) {
-      // LinkedIn often resets to an empty checkbox after a while — keep waiting UI
-      // but allow another explicit clickRecaptcha (force) to re-check.
       writeState({
         captchaPhase: 'waiting',
         captchaChecked: !!state.checked,
-        captchaPrompt: state.checked
-          ? prev.captchaPrompt
-          : 'LinkedIn reset the checkbox — tap I’m not a robot again if the live screen shows it empty.',
+        captchaHasTiles: false,
+        captchaPrompt: null,
+        captchaTileCount: 0,
+        captchaHasChallengeJpg: false,
+        captchaMode: null,
       });
       return;
     }
     writeState({
       captchaPhase: 'checkbox',
       captchaChecked: false,
+      captchaHasTiles: false,
       captchaPrompt: null,
       captchaTileCount: 0,
       captchaCols: 3,
@@ -818,6 +809,7 @@ async function syncCaptchaNativeUi(page, opts = {}) {
     !force &&
     Date.now() - lastCaptchaSyncAt < 2800 &&
     prev.captchaPhase === 'image' &&
+    prev.captchaHasTiles &&
     prev.captchaHasChallengeJpg
   ) {
     return;
@@ -918,16 +910,8 @@ async function syncCaptchaNativeUi(page, opts = {}) {
     }
   }
 
-  // 3) Fall back to the live repair frame (same image user sees on live screenshot).
-  if (!hasChallenge && fs.existsSync(FRAME_PATH)) {
-    try {
-      fs.copyFileSync(FRAME_PATH, path.join(staging, 'challenge.jpg'));
-      hasChallenge = true;
-      console.log('Captcha challenge via live frame copy');
-    } catch (e) {
-      console.log('captcha frame copy:', e.message);
-    }
-  }
+  // Never copy the live repair frame here — it often still shows the unchecked
+  // checkbox page and falsely flipped the dashboard to Verify + "cars" prompt.
 
   let saved = 0;
   if (box && box.width > 40 && tileRects.length > 0) {
@@ -957,22 +941,20 @@ async function syncCaptchaNativeUi(page, opts = {}) {
   const publishCount = hasChallenge ? cols * cols : saved;
 
   if (!hasChallenge && saved === 0) {
-    // Keep previous files if we failed this pass.
     try {
       fs.rmSync(staging, { recursive: true, force: true });
     } catch {
       /* ignore */
     }
+    // DOM says tiles exist but we couldn't screenshot them yet — stay waiting.
     writeState({
-      captchaPhase: 'image',
+      captchaPhase: 'waiting',
       captchaChecked: true,
-      captchaPrompt: prompt || prev.captchaPrompt || 'Select all images that match the prompt',
-      captchaTileCount: prev.captchaTileCount || 0,
-      captchaCols: prev.captchaCols || cols,
-      captchaMode: prev.captchaMode || 'empty',
-      captchaHasChallengeJpg: !!prev.captchaHasChallengeJpg,
+      captchaHasTiles: false,
+      captchaPrompt: null,
+      captchaHasChallengeJpg: false,
     });
-    console.log('Captcha sync keep previous — new capture empty');
+    console.log('Captcha sync — tiles in DOM but capture empty; stay waiting');
     return;
   }
 
@@ -981,6 +963,7 @@ async function syncCaptchaNativeUi(page, opts = {}) {
   writeState({
     captchaPhase: 'image',
     captchaChecked: true,
+    captchaHasTiles: true,
     captchaPrompt: prompt || 'Select all images that match the prompt',
     captchaTileCount: publishCount,
     captchaCols: cols,
@@ -1549,11 +1532,45 @@ async function drainInputs(page) {
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'clickRecaptcha') {
         // Explicit dashboard checkbox — force past phantom hidden bframes.
-        const clicked = await tryClickRecaptcha(page, { force: true });
+        writeState({
+          captchaUiChecked: true,
+          captchaPhase: 'waiting',
+          captchaHasTiles: false,
+          captchaPrompt: null,
+          lastFillError: null,
+        });
+        let clicked = await tryClickRecaptcha(page, { force: true });
         console.log('Repair clickRecaptcha →', clicked ? 'clicked' : 'no-op');
-        writeState({ captchaUiChecked: true, captchaPhase: 'waiting' });
-        await page.waitForTimeout(1500);
-        await syncCaptchaNativeUi(page, { force: true }).catch((e) => console.log('syncCaptchaNativeUi:', e.message));
+        // Google often needs a beat before aria-checked / tiles appear; retry if still empty.
+        for (let i = 0; i < 8; i++) {
+          await page.waitForTimeout(700);
+          const st = await getRecaptchaState(page);
+          if (st.checked || st.hasVisibleTiles) {
+            console.log(
+              `Repair clickRecaptcha settled checked=${st.checked} tiles=${st.hasVisibleTiles} after ${i + 1} polls`
+            );
+            break;
+          }
+          if (i === 2 || i === 5) {
+            clicked = await tryClickRecaptcha(page, { force: true });
+            console.log('Repair clickRecaptcha retry →', clicked ? 'clicked' : 'no-op');
+          }
+        }
+        const after = await getRecaptchaState(page);
+        if (!after.checked && !after.hasVisibleTiles) {
+          writeState({
+            captchaPhase: 'waiting',
+            captchaUiChecked: true,
+            captchaChecked: false,
+            captchaHasTiles: false,
+            lastFillError:
+              'LinkedIn checkbox stayed empty — tap I’m not a robot again (or wait a few seconds).',
+          });
+          console.log('Repair clickRecaptcha — LinkedIn checkbox still unchecked');
+        }
+        await syncCaptchaNativeUi(page, { force: true }).catch((e) =>
+          console.log('syncCaptchaNativeUi:', e.message)
+        );
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'clickCaptchaTile' && Number.isFinite(Number(ev.index))) {
         await clickCaptchaTile(page, Number(ev.index));

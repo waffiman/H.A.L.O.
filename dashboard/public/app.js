@@ -847,9 +847,11 @@ function updateLinkedInCaptchaNative(st) {
     fallback.href = `/repair.html?token=${encodeURIComponent(token)}`;
   }
 
+  // Only swipe to tiles / show Verify when worker confirmed real painted tiles.
   const tilesReady =
     phase === 'image' &&
-    ((Number(st.captchaTileCount) || 0) > 0 || st.captchaHasChallengeJpg || st.captchaMode === 'composite');
+    !!st.captchaHasTiles &&
+    ((Number(st.captchaTileCount) || 0) > 0 || !!st.captchaHasChallengeJpg);
 
   // Sticky local check — poll must not clear the tick while LinkedIn is still catching up.
   if (st.captchaUiChecked || st.captchaChecked || phase === 'waiting' || tilesReady) {
@@ -920,12 +922,12 @@ function updateLinkedInCaptchaNative(st) {
       robotBtn.setAttribute('aria-pressed', 'true');
       robotBtn.disabled = true;
     }
+    if (promptEl) promptEl.textContent = '';
     if (verifyRow) verifyRow.classList.add('hidden');
     if (hint) {
-      hint.textContent =
-        phase === 'checkbox' && linkedInCaptchaUserChecked
-          ? 'Waiting for LinkedIn… if the live screenshot shows an empty checkbox again, tap once more.'
-          : 'Checkbox sent — waiting for LinkedIn image challenge…';
+      hint.textContent = st.lastFillError
+        ? String(st.lastFillError)
+        : 'Checkbox sent — waiting for LinkedIn image challenge…';
     }
   } else {
     setCaptchaDeckPhase('checkbox');
@@ -934,6 +936,7 @@ function updateLinkedInCaptchaNative(st) {
       robotBtn.classList.remove('is-loading', 'is-checked');
       robotBtn.setAttribute('aria-pressed', 'false');
     }
+    if (promptEl) promptEl.textContent = '';
     if (verifyRow) verifyRow.classList.add('hidden');
     if (hint) hint.textContent = 'Tap the HALO tile — LinkedIn must check it on the live session.';
   }
