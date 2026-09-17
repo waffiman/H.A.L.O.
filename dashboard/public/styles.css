@@ -2413,16 +2413,28 @@ body.li-captcha-modal-open .main {
 }
 .li-challenge-extra.hidden { display: none !important; }
 .li-challenge-extra-block.hidden { display: none !important; }
-.li-challenge-extra .field { margin: 0; }
+.li-challenge-extra .field { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.li-challenge-extra .field > span {
+  font-size: 0.8rem;
+  color: #9aa0a6;
+  font-weight: 600;
+}
 .li-challenge-extra input {
+  display: block;
   width: 100%;
+  min-height: 46px;
   padding: 12px 14px;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
   background: #0d1118;
-  color: inherit;
-  font-size: 1.05rem;
-  letter-spacing: 0.08em;
+  color: #e8edf5;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  box-sizing: border-box;
+}
+.li-challenge-extra input:focus {
+  outline: 2px solid #3d9a6a;
+  border-color: transparent;
 }
 .li-challenge-status {
   margin: 0;

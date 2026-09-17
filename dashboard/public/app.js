@@ -704,6 +704,9 @@ function updateLinkedInChallengeModal(st) {
   if (kind === 'pin') {
     showExtra('pin');
     const copy = LI_CHALLENGE_COPY[linkedInChallengeCopyKey(st)] || LI_CHALLENGE_COPY.pin;
+    // Avoid duplicating the same sentence under the title.
+    const bodyEl = document.getElementById('li-captcha-modal-body');
+    if (bodyEl) bodyEl.textContent = '';
     if (pinHint) pinHint.textContent = copy.body;
     if (pinLabel) {
       pinLabel.textContent =
@@ -772,8 +775,14 @@ function syncLinkedInCaptchaModalCopy(copy, st) {
 
 function ensureLinkedInCaptchaModalOnBody() {
   let modal = document.getElementById('li-captcha-modal');
-  // Drop stale shells from older deploys.
-  if (modal && (!modal.querySelector('#li-captcha-deck') || !modal.querySelector('#li-challenge-extra'))) {
+  // Drop stale shells from older deploys (missing extra pane or destroyed OTP input).
+  if (
+    modal &&
+    (!modal.querySelector('#li-captcha-deck') ||
+      !modal.querySelector('#li-challenge-extra') ||
+      !modal.querySelector('#li-modal-email-code') ||
+      !modal.querySelector('#li-modal-pin-label'))
+  ) {
     modal.remove();
     modal = null;
   }
@@ -824,8 +833,9 @@ function ensureLinkedInCaptchaModalOnBody() {
           <div class="li-challenge-extra hidden" id="li-challenge-extra">
             <div class="li-challenge-extra-block hidden" id="li-challenge-pin-block">
               <p class="li-challenge-status" id="li-modal-pin-hint"></p>
-              <label class="field" for="li-modal-email-code" id="li-modal-pin-label">Verification code
-                <input id="li-modal-email-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />
+              <label class="field li-modal-pin-field" for="li-modal-email-code">
+                <span id="li-modal-pin-label">Verification code</span>
+                <input id="li-modal-email-code" name="halo-li-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />
               </label>
               <div class="row section-actions">
                 <button type="button" class="btn primary" id="li-modal-submit-code">
