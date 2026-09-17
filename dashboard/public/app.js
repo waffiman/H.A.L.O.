@@ -688,12 +688,18 @@ function updateLinkedInChallengeModal(st) {
   }
 
   const showExtra = (which) => {
-    if (deck) deck.classList.toggle('hidden', which !== 'captcha');
-    if (extra) extra.classList.toggle('hidden', which === 'captcha');
-    if (pinBlock) pinBlock.classList.toggle('hidden', which !== 'pin');
-    if (emailBlock) emailBlock.classList.toggle('hidden', which !== 'email');
-    if (appBlock) appBlock.classList.toggle('hidden', which !== 'app');
-    if (genericBlock) genericBlock.classList.toggle('hidden', which !== 'generic');
+    const setHidden = (el, hide) => {
+      if (!el) return;
+      el.classList.toggle('hidden', hide);
+      el.style.display = hide ? 'none' : '';
+      el.setAttribute('aria-hidden', hide ? 'true' : 'false');
+    };
+    setHidden(deck, which !== 'captcha');
+    setHidden(extra, which === 'captcha');
+    setHidden(pinBlock, which !== 'pin');
+    setHidden(emailBlock, which !== 'email');
+    setHidden(appBlock, which !== 'app');
+    setHidden(genericBlock, which !== 'generic');
   };
 
   if (kind === 'captcha') {
