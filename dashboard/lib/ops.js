@@ -758,7 +758,12 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
       portraitProspecting: env.STAGE_A_OUTBOUND_CONNECT === '1',
       acceptanceMonitor: env.STAGE_A_ACCEPTANCE === '1',
       legacySync: env.STAGE_A_LEGACY_SYNC !== '0',
-      connectMaxPerRun: Number(env.CONNECT_MAX_PER_RUN || 15),
+      connectMaxPerRun: (() => {
+        const raw = env.CONNECT_MAX_PER_RUN;
+        if (raw === undefined || raw === null || String(raw).trim() === '') return 15;
+        const n = Number(raw);
+        return Number.isFinite(n) ? Math.max(0, Math.min(n, 100)) : 15;
+      })(),
       connectAcceptExpire: env.CONNECT_ACCEPT_EXPIRE !== '0',
       connectAcceptWaitDays: Number(env.CONNECT_ACCEPT_WAIT_DAYS ?? 21) || 21,
       connectDryRun: env.CONNECT_DRY_RUN === '1',
@@ -1155,9 +1160,11 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
       updates.STAGE_A_LEGACY_SYNC = li.legacySync ? '1' : '0';
     }
     if (li.connectMaxPerRun != null && li.connectMaxPerRun !== '') {
-      // 0 = Stage A drains existing CRM only (no new connection invites)
-      const n = Math.max(0, Math.min(Number(li.connectMaxPerRun) || 0, 100));
-      updates.CONNECT_MAX_PER_RUN = String(n);
+      // 0 = Stage A drains existing CRM only (no new connection invites).
+      // Use Number.isFinite — do not use `n || fallback` (0 is valid).
+      const n = Number(li.connectMaxPerRun);
+      const capped = Number.isFinite(n) ? Math.max(0, Math.min(Math.round(n), 100)) : 0;
+      updates.CONNECT_MAX_PER_RUN = String(capped);
     }
     if (typeof li.connectAcceptExpire === 'boolean') {
       updates.CONNECT_ACCEPT_EXPIRE = li.connectAcceptExpire ? '1' : '0';
