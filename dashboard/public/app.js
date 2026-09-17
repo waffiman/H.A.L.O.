@@ -866,11 +866,14 @@ function updateLinkedInCaptchaNative(st) {
       robotBtn.setAttribute('aria-pressed', 'true');
       robotBtn.disabled = true;
     }
-    if (promptEl) promptEl.textContent = st.captchaPrompt || 'Select all matching images';
+    if (promptEl) {
+      // Blue reCAPTCHA header already shows the goal — keep our line short.
+      promptEl.textContent = '';
+      promptEl.classList.add('hidden');
+    }
     const cols = Number(st.captchaCols) === 4 ? 4 : 3;
     const rev = st.captchaGridRev || Date.now();
-    // Prefer the live frame endpoint (same bytes as repair.html) — always works with token.
-    const showComposite = !!token;
+    const ov = st.captchaOverlay || { top: 28, left: 1, width: 98, height: 70 };
 
     if (composite) {
       composite.classList.remove('hidden');
@@ -896,9 +899,15 @@ function updateLinkedInCaptchaNative(st) {
     if (grid) {
       grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
       grid.classList.add('li-captcha-grid--overlay');
+      grid.style.top = `${Number(ov.top) || 28}%`;
+      grid.style.left = `${Number(ov.left) || 1}%`;
+      grid.style.width = `${Number(ov.width) || 98}%`;
+      grid.style.height = `${Number(ov.height) || 70}%`;
+      grid.style.right = 'auto';
+      grid.style.bottom = 'auto';
       const cellCount = cols * cols;
       const prevRev = grid.dataset.rev;
-      const gridKey = `${rev}:overlay:${cols}`;
+      const gridKey = `${rev}:overlay:${cols}:${Math.round(ov.top)}:${Math.round(ov.height)}`;
       if (prevRev !== gridKey || grid.childElementCount !== cellCount) {
         grid.dataset.rev = gridKey;
         grid.innerHTML = '';
@@ -936,7 +945,10 @@ function updateLinkedInCaptchaNative(st) {
       robotBtn.classList.remove('is-loading', 'is-checked');
       robotBtn.setAttribute('aria-pressed', 'false');
     }
-    if (promptEl) promptEl.textContent = '';
+    if (promptEl) {
+      promptEl.textContent = '';
+      promptEl.classList.add('hidden');
+    }
     if (verifyRow) verifyRow.classList.add('hidden');
     if (hint) hint.textContent = 'Tap the HALO tile — LinkedIn must check it on the live session.';
   }
@@ -4995,8 +5007,16 @@ function bindLinkedInCaptchaNativeControls(getToken) {
               : 'Tile selected — pick more or Verify…';
       }
     } catch (err) {
-      if (statusEl) statusEl.textContent = err.message;
-      toast(err.message, true);
+      const msg = String(err?.message || err || '');
+      const hint = document.getElementById('li-recaptcha-hint');
+      if (document.body.classList.contains('li-captcha-modal-open') && hint) {
+        hint.textContent = /failed to fetch|networkerror|load failed/i.test(msg)
+          ? 'Temporary network blip — keep the popup open and tap again if needed.'
+          : msg;
+      } else if (statusEl) {
+        statusEl.textContent = msg;
+      }
+      if (!/failed to fetch|networkerror|load failed/i.test(msg)) toast(msg, true);
     } finally {
       if (loadingBtn) {
         loadingBtn.disabled = false;
@@ -5178,7 +5198,15 @@ function pollLinkedInLogin(token, challengeEls = {}, opts = {}) {
         }
       }
     } catch (e) {
-      if (statusEl) statusEl.textContent = e.message;
+      const msg = String(e?.message || e || '');
+      // Don't paint transient fetch blips onto the page behind the captcha modal.
+      if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+        if (!document.body.classList.contains('li-captcha-modal-open') && statusEl) {
+          /* keep last status */
+        }
+      } else if (statusEl) {
+        statusEl.textContent = msg;
+      }
     }
     linkedInLoginPoll = setTimeout(tick, 1200);
   };

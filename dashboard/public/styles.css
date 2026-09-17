@@ -2372,14 +2372,18 @@ body.li-captcha-modal-open .main {
   gap: 6px;
   grid-template-columns: repeat(3, 1fr);
 }
+.li-captcha-prompt.hidden { display: none !important; }
 .li-captcha-grid--overlay {
   position: absolute;
-  left: 3%;
-  right: 3%;
-  top: 22%;
-  bottom: 14%;
-  gap: 3px;
+  left: 1%;
+  top: 28%;
+  width: 98%;
+  height: 70%;
+  right: auto;
+  bottom: auto;
+  gap: 2px;
   z-index: 2;
+  box-sizing: border-box;
 }
 .li-captcha-grid--overlay .li-captcha-tile {
   background: transparent;
