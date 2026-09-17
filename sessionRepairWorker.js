@@ -448,7 +448,15 @@ async function detectChallengeKind(page) {
         if (authenticatorPrimary || (hasVisibleOtp && authenticatorMention && !emailSmsPrimary)) {
           pinSource = 'authenticator';
         } else if (emailSmsPrimary || (hasVisibleOtp && emailSmsLoose)) {
-          pinSource = 'email_sms';
+          const emailOnly =
+            /we emailed|emailed you|check your (email|inbox)|sent.{0,40}(to your )?email|code.{0,20}email/.test(t) &&
+            !/texted|sms|text message/.test(t);
+          const smsOnly =
+            /we texted|texted you|sms|text message|sent.{0,40}(to your )?phone/.test(t) &&
+            !/email|inbox/.test(t);
+          if (emailOnly) pinSource = 'email';
+          else if (smsOnly) pinSource = 'sms';
+          else pinSource = 'email_sms';
         }
         return { kind: 'pin', pinSource };
       }
@@ -1240,10 +1248,10 @@ async function notifyChallengeNeeded(page) {
   const changed = kind !== prev;
   const rank = {
     identity_document: 5,
+    email_update: 5, // must beat leftover app_approval / captcha after email checkpoint
     pin: 4,
-    app_approval: 4, // same weight as pin — do not lose to leftover captcha
+    app_approval: 4,
     captcha: 3,
-    email_update: 3,
     generic: 1,
     signing_in: 0,
   };
@@ -1261,18 +1269,21 @@ async function notifyChallengeNeeded(page) {
     app_approval: 'Approve LinkedIn sign-in in your app',
     pin: 'LinkedIn wants a verification code',
     captcha: 'LinkedIn security check',
+    email_update: 'LinkedIn asks for a new email',
     identity_document: 'LinkedIn asks for an ID document',
     generic: 'LinkedIn verification needed',
   };
   const messages = {
     app_approval:
       'Open the LinkedIn app on your phone and tap Yes / Approve on the sign-in request. H.A.L.O. will continue automatically — no need to sign in again here.',
-    pin: 'Enter the code from your authenticator app or email/SMS on the H.A.L.O. LinkedIn page.',
+    pin: 'Enter the verification code in the H.A.L.O. popup.',
     captcha: 'Complete the security check in the H.A.L.O. captcha popup (I’m not a robot / image tiles).',
+    email_update:
+      'LinkedIn asks for a new email. H.A.L.O. fills the email you used at Sign in and continues automatically.',
     identity_document:
       'LinkedIn is asking for a government ID. H.A.L.O. cannot complete this step. Finish ID verification in your personal browser on a normal home/office network, then paste fresh cookies — or cancel Sign in.',
     generic:
-      'Watch the live LinkedIn screen. If you see an authenticator / email code field, enter the code on the H.A.L.O. LinkedIn page. If you see I’m not a robot, use the captcha popup.',
+      'Complete the step shown in the H.A.L.O. LinkedIn popup (captcha, code, email, or app approve).',
   };
   try {
     const { notify } = await import('./notify.js');
@@ -1288,6 +1299,30 @@ async function notifyChallengeNeeded(page) {
     console.error('challenge notify:', e.message);
   }
   console.log('Challenge detected — user action needed:', kind);
+}
+
+/** Auto-fill LinkedIn "Provide a new email" with the Sign-in email. */
+async function maybeAutoFillEmailUpdate(page) {
+  const st = readState() || {};
+  if (st.challengeKind !== 'email_update') return false;
+  if (st.emailUpdateAttempted) return false;
+  const email = String(st.signInUsername || '').trim();
+  if (!email || !email.includes('@')) {
+    writeState({
+      emailUpdateAttempted: true,
+      emailUpdateStatus: 'failed',
+      lastFillError: 'No Sign-in email available to auto-fill.',
+    });
+    console.log('Repair email_update skip — no signInUsername');
+    return false;
+  }
+  writeState({ emailUpdateAttempted: true, emailUpdateStatus: 'filling' });
+  console.log('Repair email_update auto-fill', email.replace(/(^.).*(@.*$)/, '$1***$2'));
+  const ok = await fillEmailUpdate(page, email, '');
+  writeState({ emailUpdateStatus: ok ? 'submitted' : 'failed' });
+  await page.waitForTimeout(600);
+  await captureFrame(page, 'challenge');
+  return ok;
 }
 
 async function detectUiMode(page) {
@@ -1556,6 +1591,9 @@ async function applySignIn(page, username, password) {
     challengeKind: null,
     lastSignInAt: new Date().toISOString(),
     lastSignInError: null,
+    signInUsername: String(username || '').trim(),
+    emailUpdateAttempted: false,
+    emailUpdateStatus: null,
   });
   await captureFrame(page, 'form');
 
@@ -1564,7 +1602,13 @@ async function applySignIn(page, username, password) {
     await page.waitForTimeout(1500);
     const earlyMode = await detectUiMode(page);
     const earlyKind = await resolveChallengeKind(page);
-    if (earlyMode === 'challenge' || earlyKind === 'app_approval' || earlyKind === 'pin' || earlyKind === 'captcha') {
+    if (
+      earlyMode === 'challenge' ||
+      earlyKind === 'app_approval' ||
+      earlyKind === 'pin' ||
+      earlyKind === 'captcha' ||
+      earlyKind === 'email_update'
+    ) {
       await captureFrame(page, 'challenge');
       return;
     }
@@ -1935,6 +1979,9 @@ async function runRepair() {
         const mode = await detectUiMode(page);
         if (mode === 'challenge') {
           await captureFrame(page, 'challenge');
+          await maybeAutoFillEmailUpdate(page).catch((e) =>
+            console.log('maybeAutoFillEmailUpdate:', e.message)
+          );
         }
         const cur = readState();
         const since = cur?.challengeSince ? Date.parse(cur.challengeSince) : 0;
@@ -1983,10 +2030,16 @@ async function runRepair() {
             uiMode: 'challenge',
             challengeKind: liveKind || cur?.challengeKind || 'generic',
           });
-          // Captcha: never navigate away / reload / re-click checkbox — that kills the image puzzle.
-          if (liveKind === 'captcha' && cur?.challengeKind !== 'app_approval') {
-            console.log('Post-challenge passive wait — captcha (stay on page)…');
-            await page.waitForTimeout(2500);
+          // Captcha / pin / email_update: stay on page — never feed-probe mid-form.
+          if (liveKind === 'captcha' || liveKind === 'pin' || liveKind === 'email_update') {
+            console.log('Post-challenge passive wait —', liveKind, '(stay on page)…');
+            if (liveKind === 'email_update') {
+              await maybeAutoFillEmailUpdate(page).catch((e) =>
+                console.log('maybeAutoFillEmailUpdate:', e.message)
+              );
+            } else {
+              await page.waitForTimeout(2000);
+            }
           } else if (nudgeN >= 6 && nudgeN % 6 === 0 && liveKind === 'app_approval') {
             // App-only: occasional feed probe after a long wait (not for captcha/pin).
             console.log('Post-challenge feed fallback (after waiting on app approval)…');

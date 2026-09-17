@@ -522,8 +522,8 @@ const LI_CHALLENGE_COPY = {
   },
   pin: {
     title: 'Verification code needed',
-    body: 'Enter the 6-digit code LinkedIn asked for (authenticator app or email/SMS).',
-    toast: 'Enter the verification code in the form',
+    body: 'Enter the 6-digit code LinkedIn asked for.',
+    toast: 'Enter the verification code in the popup',
     notifyTitle: 'LinkedIn verification code',
     notifyBody: 'Enter the code LinkedIn requested',
   },
@@ -534,10 +534,24 @@ const LI_CHALLENGE_COPY = {
     notifyTitle: 'LinkedIn authenticator code',
     notifyBody: 'Enter the 6-digit code from Google Authenticator',
   },
+  pin_email: {
+    title: 'Email code needed',
+    body: 'LinkedIn emailed a code. Enter the 6-digit code below.',
+    toast: 'Enter the code from your email',
+    notifyTitle: 'LinkedIn email code',
+    notifyBody: 'Enter the 6-digit code from your email',
+  },
+  pin_sms: {
+    title: 'SMS code needed',
+    body: 'LinkedIn texted a code to your phone. Enter the 6-digit code below.',
+    toast: 'Enter the code from SMS',
+    notifyTitle: 'LinkedIn SMS code',
+    notifyBody: 'Enter the 6-digit code from SMS',
+  },
   pin_email_sms: {
-    title: 'Email / SMS code needed',
-    body: 'LinkedIn emailed or texted a code. Enter the 6-digit code below.',
-    toast: 'Enter the email/SMS code in the form',
+    title: 'Email or SMS code needed',
+    body: 'LinkedIn sent a code by email or SMS. Enter the 6-digit code below.',
+    toast: 'Enter the email/SMS code in the popup',
     notifyTitle: 'LinkedIn email/SMS code',
     notifyBody: 'Enter the code from email or SMS',
   },
@@ -548,6 +562,13 @@ const LI_CHALLENGE_COPY = {
     notifyTitle: 'LinkedIn security check',
     notifyBody: 'Complete I’m not a robot / image tiles in the popup',
   },
+  email_update: {
+    title: 'New email address required',
+    body: 'LinkedIn asks you to confirm a sign-in email. H.A.L.O. fills it with the email you used at Sign in and continues automatically.',
+    toast: '',
+    notifyTitle: 'LinkedIn new email step',
+    notifyBody: 'Confirming your Sign-in email automatically',
+  },
   identity_document: {
     title: 'LinkedIn asks for an ID document',
     body: 'LinkedIn wants a government ID (passport / driver’s license). H.A.L.O. cannot upload documents from the VPS. Finish this in your personal browser on a normal network, then paste fresh cookies — or cancel Sign in.',
@@ -557,18 +578,20 @@ const LI_CHALLENGE_COPY = {
   },
   generic: {
     title: 'LinkedIn verification needed',
-    body: 'Watch for the next step: authenticator / email code, captcha popup, or app approve. The banner updates when LinkedIn’s screen is classified.',
-    toast: 'LinkedIn verification — check the live step',
+    body: 'Watch the popup for the next step (captcha, code, new email, or app approve). The live screenshot updates as LinkedIn changes screens.',
+    toast: 'LinkedIn verification — check the popup',
     notifyTitle: 'LinkedIn verification',
-    notifyBody: 'Enter authenticator/email code, or complete captcha / app approve',
+    notifyBody: 'Complete the step shown in the H.A.L.O. popup',
   },
 };
 
 function linkedInChallengeCopyKey(st) {
-  const kind = st?.challengeKind || 'app_approval';
+  const kind = st?.challengeKind || 'generic';
   if (kind === 'pin') {
     const src = st.challengePinSource || 'unknown';
     if (src === 'authenticator') return 'pin_authenticator';
+    if (src === 'email') return 'pin_email';
+    if (src === 'sms') return 'pin_sms';
     if (src === 'email_sms') return 'pin_email_sms';
   }
   return kind;
@@ -595,48 +618,17 @@ function setLinkedInAuthStage(stage) {
 }
 
 function showLinkedInChallengeUI(st, els) {
-  const kind = st.challengeKind || 'app_approval';
+  const kind = st.challengeKind || 'generic';
   const copyKey = linkedInChallengeCopyKey(st);
-  const copy = LI_CHALLENGE_COPY[copyKey] || LI_CHALLENGE_COPY[kind] || LI_CHALLENGE_COPY.app_approval;
+  const copy = LI_CHALLENGE_COPY[copyKey] || LI_CHALLENGE_COPY[kind] || LI_CHALLENGE_COPY.generic;
   const { statusEl, bannerEl, repairLink } = els;
 
-  if (kind === 'pin') {
-    setLinkedInAuthStage('otp');
-    if (bannerEl) {
-      bannerEl.classList.remove('hidden');
-      const t = bannerEl.querySelector('.li-challenge-title');
-      const b = bannerEl.querySelector('.li-challenge-body');
-      const foot = bannerEl.querySelector('.li-challenge-foot');
-      if (t) t.textContent = copy.title;
-      if (b) b.textContent = copy.body;
-      if (foot) {
-        foot.innerHTML =
-          'Paste the code below and press Submit. Fallback: <a id="li-repair-link" href="#" target="_blank" rel="noopener">live screenshot</a>.';
-        const newLink = bannerEl.querySelector('#li-repair-link');
-        if (newLink && st.token) newLink.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
-        if (els) els.repairLink = newLink || repairLink;
-      }
-    }
-    closeLinkedInCaptchaModal();
-    const hint =
-      st.challengePinSource === 'authenticator'
-        ? 'Enter the code from Google Authenticator / verification app.'
-        : st.challengePinSource === 'email_sms'
-          ? 'Enter the code from email or SMS.'
-          : 'Enter the verification code (authenticator app or email/SMS).';
-    if (statusEl) statusEl.textContent = hint;
-    const otpHint = document.querySelector('.li-otp-hint');
-    if (otpHint) otpHint.textContent = copy.body;
-    const signBtn = document.getElementById('li-signin-btn');
-    if (signBtn) {
-      signBtn.disabled = false;
-      signBtn.classList.remove('is-loading');
-    }
-    return;
-  }
+  // Keep credentials stage on the page — all live challenges stay in the popup.
+  setLinkedInAuthStage('credentials');
+  if (bannerEl) bannerEl.classList.add('hidden');
+  dismissLinkedInChallengeToast();
 
   if (kind === 'identity_document') {
-    setLinkedInAuthStage('credentials');
     closeLinkedInCaptchaModal();
     if (bannerEl) {
       bannerEl.classList.remove('hidden');
@@ -662,43 +654,98 @@ function showLinkedInChallengeUI(st, els) {
     return;
   }
 
-  setLinkedInAuthStage('credentials');
+  if (statusEl) {
+    statusEl.textContent =
+      kind === 'pin'
+        ? copy.title
+        : kind === 'email_update'
+          ? 'Confirming Sign-in email automatically…'
+          : kind === 'app_approval'
+            ? 'Approve in LinkedIn app — waiting…'
+            : 'Complete verification in the popup…';
+  }
+
+  ensureLinkedInCaptchaModalOnBody();
+  syncLinkedInCaptchaModalCopy(copy, st);
+  openLinkedInCaptchaModal();
+  updateLinkedInChallengeModal(st);
+}
+
+function updateLinkedInChallengeModal(st) {
+  const kind = st?.challengeKind || 'generic';
+  const deck = document.getElementById('li-captcha-deck');
+  const extra = document.getElementById('li-challenge-extra');
+  const pinBlock = document.getElementById('li-challenge-pin-block');
+  const emailBlock = document.getElementById('li-challenge-email-block');
+  const appBlock = document.getElementById('li-challenge-app-block');
+  const genericBlock = document.getElementById('li-challenge-generic-block');
+  const pinHint = document.getElementById('li-modal-pin-hint');
+  const pinLabel = document.getElementById('li-modal-pin-label');
+  const emailStatus = document.getElementById('li-modal-email-status');
+  const fallback = document.getElementById('li-captcha-repair-fallback');
+  if (fallback && st.token) {
+    fallback.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
+  }
+
+  const showExtra = (which) => {
+    if (deck) deck.classList.toggle('hidden', which !== 'captcha');
+    if (extra) extra.classList.toggle('hidden', which === 'captcha');
+    if (pinBlock) pinBlock.classList.toggle('hidden', which !== 'pin');
+    if (emailBlock) emailBlock.classList.toggle('hidden', which !== 'email');
+    if (appBlock) appBlock.classList.toggle('hidden', which !== 'app');
+    if (genericBlock) genericBlock.classList.toggle('hidden', which !== 'generic');
+  };
+
   if (kind === 'captcha') {
-    // Captcha lives only in the opaque modal — no page banner, no sticky top toast.
-    if (bannerEl) bannerEl.classList.add('hidden');
-    dismissLinkedInChallengeToast();
-    if (statusEl) statusEl.textContent = 'Complete verification in the popup…';
-    ensureLinkedInCaptchaModalOnBody();
-    syncLinkedInCaptchaModalCopy(copy, st);
-    openLinkedInCaptchaModal();
+    showExtra('captcha');
     updateLinkedInCaptchaNative(st);
     return;
   }
-
-  closeLinkedInCaptchaModal();
-  if (bannerEl) {
-    bannerEl.classList.remove('hidden');
-    const t = bannerEl.querySelector('.li-challenge-title');
-    const b = bannerEl.querySelector('.li-challenge-body');
-    const foot = bannerEl.querySelector('.li-challenge-foot');
-    if (t) t.textContent = copy.title;
-    if (b) b.textContent = copy.body;
-    if (foot) {
-      foot.innerHTML =
-        'Usually no extra page is needed — approve in the LinkedIn app. Fallback: <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> (live screenshot).';
-      const newLink = bannerEl.querySelector('#li-repair-link');
-      if (newLink && st.token) {
-        newLink.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
-      }
-      if (els) els.repairLink = newLink || repairLink;
+  if (kind === 'pin') {
+    showExtra('pin');
+    const copy = LI_CHALLENGE_COPY[linkedInChallengeCopyKey(st)] || LI_CHALLENGE_COPY.pin;
+    if (pinHint) pinHint.textContent = copy.body;
+    if (pinLabel) {
+      pinLabel.textContent =
+        st.challengePinSource === 'authenticator'
+          ? 'Authenticator code'
+          : st.challengePinSource === 'email'
+            ? 'Email code'
+            : st.challengePinSource === 'sms'
+              ? 'SMS code'
+              : 'Verification code';
     }
+    const pinInput = document.getElementById('li-modal-email-code');
+    if (pinInput && document.activeElement !== pinInput) {
+      setTimeout(() => pinInput.focus(), 200);
+    }
+    return;
   }
-  if (statusEl) {
-    statusEl.textContent = 'Approve in LinkedIn app — waiting for server…';
+  if (kind === 'email_update') {
+    showExtra('email');
+    const email = String(st.signInUsername || '').trim();
+    const status = st.emailUpdateStatus || (st.emailUpdateAttempted ? 'submitted' : 'pending');
+    if (emailStatus) {
+      if (!email || !email.includes('@')) {
+        emailStatus.textContent =
+          'No Sign-in email on file — open live screenshot and fill the LinkedIn form manually.';
+      } else if (status === 'filling') {
+        emailStatus.textContent = `Filling ${email} into LinkedIn’s new-email form…`;
+      } else if (status === 'failed') {
+        emailStatus.textContent = `Could not auto-fill ${email}. Open live screenshot and continue there.`;
+      } else if (status === 'submitted') {
+        emailStatus.textContent = `Submitted ${email}. Waiting for LinkedIn’s next step…`;
+      } else {
+        emailStatus.textContent = `Will fill ${email} automatically…`;
+      }
+    }
+    return;
   }
-  if (repairLink && st.token && repairLink.isConnected) {
-    repairLink.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
+  if (kind === 'app_approval') {
+    showExtra('app');
+    return;
   }
+  showExtra('generic');
 }
 
 function dismissLinkedInChallengeToast() {
@@ -726,7 +773,7 @@ function syncLinkedInCaptchaModalCopy(copy, st) {
 function ensureLinkedInCaptchaModalOnBody() {
   let modal = document.getElementById('li-captcha-modal');
   // Drop stale shells from older deploys.
-  if (modal && !modal.querySelector('#li-captcha-deck')) {
+  if (modal && (!modal.querySelector('#li-captcha-deck') || !modal.querySelector('#li-challenge-extra'))) {
     modal.remove();
     modal = null;
   }
@@ -774,8 +821,31 @@ function ensureLinkedInCaptchaModalOnBody() {
               </div>
             </div>
           </div>
+          <div class="li-challenge-extra hidden" id="li-challenge-extra">
+            <div class="li-challenge-extra-block hidden" id="li-challenge-pin-block">
+              <p class="li-challenge-status" id="li-modal-pin-hint"></p>
+              <label class="field" for="li-modal-email-code" id="li-modal-pin-label">Verification code
+                <input id="li-modal-email-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />
+              </label>
+              <div class="row section-actions">
+                <button type="button" class="btn primary" id="li-modal-submit-code">
+                  <span class="btn-spinner" aria-hidden="true"></span>
+                  <span class="btn-label">Submit code</span>
+                </button>
+              </div>
+            </div>
+            <div class="li-challenge-extra-block hidden" id="li-challenge-email-block">
+              <p class="li-challenge-status" id="li-modal-email-status">Preparing to fill your Sign-in email…</p>
+            </div>
+            <div class="li-challenge-extra-block hidden" id="li-challenge-app-block">
+              <p class="li-challenge-status">Open the LinkedIn app on your phone and tap <strong>Yes / Approve</strong> on the sign-in request. Keep this popup open — H.A.L.O. continues automatically.</p>
+            </div>
+            <div class="li-challenge-extra-block hidden" id="li-challenge-generic-block">
+              <p class="li-challenge-status">LinkedIn is still deciding the next step. Keep this popup open; it will update when captcha, code, email, or app approve appears.</p>
+            </div>
+          </div>
           <p class="muted li-captcha-fallback">
-            If tiles fail to load,
+            If something looks wrong,
             <a id="li-captcha-repair-fallback" href="#" target="_blank" rel="noopener">open live screenshot</a>.
           </p>
         </div>
@@ -798,7 +868,7 @@ function openLinkedInCaptchaModal() {
   const panel = modal.querySelector('.li-captcha-modal-panel');
   if (panel) {
     panel.style.cssText =
-      'position:relative;z-index:1;width:min(460px,100%);max-height:min(86vh,720px);overflow:auto;border-radius:14px;border:1px solid rgba(252,211,77,0.35);background:#181d26;background-color:#181d26;color:#e8edf5;opacity:1;isolation:isolate;box-shadow:0 28px 72px rgba(0,0,0,0.65);padding:16px 18px 18px;';
+      'position:relative;z-index:1;width:min(520px,100%);max-height:min(90vh,820px);overflow:auto;border-radius:14px;border:1px solid rgba(252,211,77,0.35);background:#181d26;background-color:#181d26;color:#e8edf5;opacity:1;isolation:isolate;box-shadow:0 28px 72px rgba(0,0,0,0.65);padding:16px 18px 18px;';
   }
   const backdrop = modal.querySelector('.li-captcha-modal-backdrop');
   if (backdrop) {
@@ -830,7 +900,7 @@ function updateLinkedInCaptchaNative(st) {
   if (!panel) return;
   const kind = st?.challengeKind || '';
   if (kind !== 'captcha') {
-    closeLinkedInCaptchaModal();
+    // Parent modal handler switches slides — do not close the popup here.
     return;
   }
   const token = st.token || '';
@@ -5057,9 +5127,33 @@ function bindLinkedInCaptchaNativeControls(getToken) {
       if (!tile) return;
       const index = Number(tile.dataset.index);
       if (!Number.isFinite(index)) return;
-      tile.classList.toggle('is-selected');
+      // Optimistic highlight — don't wait for the VPS round-trip.
+      tile.classList.add('is-selected');
       void send({ type: 'clickCaptchaTile', index });
     });
+  }
+  const modalCodeBtn = document.getElementById('li-modal-submit-code');
+  const modalCodeInput = document.getElementById('li-modal-email-code');
+  if (modalCodeBtn && !modalCodeBtn.dataset.bound) {
+    modalCodeBtn.dataset.bound = '1';
+    const submitModalCode = () => {
+      const code = String(modalCodeInput?.value || '').trim();
+      if (!code) {
+        const hint = document.getElementById('li-modal-pin-hint');
+        if (hint) hint.textContent = 'Enter the 6-digit code first.';
+        return;
+      }
+      void send({ type: 'submitCode', text: code }, { loadingBtn: modalCodeBtn });
+    };
+    modalCodeBtn.onclick = submitModalCode;
+    if (modalCodeInput) {
+      modalCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitModalCode();
+        }
+      });
+    }
   }
 }
 
@@ -5160,32 +5254,26 @@ function pollLinkedInLogin(token, challengeEls = {}, opts = {}) {
         return;
       }
       if (st.uiMode === 'challenge' || (st.challengeSince && !st.liAtCaptured && st.status === 'running')) {
-        const kind = st.challengeKind || 'app_approval';
+        const kind = st.challengeKind || 'generic';
         const copy =
           LI_CHALLENGE_COPY[linkedInChallengeCopyKey(st)] ||
           LI_CHALLENGE_COPY[kind] ||
-          LI_CHALLENGE_COPY.app_approval;
+          LI_CHALLENGE_COPY.generic;
         showLinkedInChallengeUI(st, els);
-        if (kind === 'pin') {
-          stopLinkedInTitleAlert();
-          if (opts.keepCodeLoading && codeBtn) {
-            codeBtn.disabled = true;
-            codeBtn.classList.add('is-loading');
-          }
-        } else if (kind === 'identity_document' || kind === 'captcha') {
-          stopLinkedInTitleAlert();
-        } else {
+        if (kind === 'app_approval') {
           startLinkedInTitleAlert();
+        } else {
+          stopLinkedInTitleAlert();
         }
         if (!linkedInChallengeAlerted) {
           linkedInChallengeAlerted = true;
-          if (kind === 'captcha') {
+          if (kind === 'captcha' || kind === 'email_update' || kind === 'pin') {
             dismissLinkedInChallengeToast();
           } else if (copy.toast) {
             toastWarn(copy.toast, 0);
           }
           browserNotify(copy.notifyTitle, copy.notifyBody);
-        } else if (kind === 'captcha') {
+        } else if (kind === 'captcha' || kind === 'email_update' || kind === 'pin') {
           dismissLinkedInChallengeToast();
         }
       } else if (statusEl) {
