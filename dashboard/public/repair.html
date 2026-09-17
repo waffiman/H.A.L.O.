@@ -49,25 +49,26 @@
     @keyframes btn-spin { to { transform:rotate(360deg); } }
     .challenge { display:none; margin-top:16px; }
     .challenge.show { display:block; }
-    .frame-wrap { background:#111; border-radius:10px; overflow:hidden; }
-    .frame-wrap img { display:block; width:100%; height:auto; max-height:55dvh; object-fit:contain; background:#0a0a0a; user-select:none; -webkit-user-drag:none; }
+    .frame-wrap { background:#111; border-radius:10px; overflow:hidden; cursor:crosshair; touch-action:manipulation; }
+    .frame-wrap img { display:block; width:100%; height:auto; max-height:65dvh; object-fit:contain; background:#0a0a0a; user-select:none; -webkit-user-drag:none; }
     .challenge-hint { color:var(--muted); font-size:0.85rem; margin:10px 0; line-height:1.45; }
+    #login-form.hidden { display:none; }
   </style>
 </head>
 <body>
   <header>
     <h1>LinkedIn session repair</h1>
-    <p class="sub">Sign in here. If LinkedIn asks to verify, approve the sign-in request in your LinkedIn mobile app.</p>
+    <p class="sub" id="sub">If you already signed in on the dashboard, wait for the live LinkedIn screen below — do not enter the password again.</p>
   </header>
   <div id="status" class="status">Starting remote browser…</div>
   <div class="card">
-    <form id="login-form" autocomplete="on">
+    <form id="login-form" class="hidden" autocomplete="off">
       <label for="username">Email or phone</label>
-      <input id="username" name="username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required />
+      <input id="username" name="halo-li-user" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" required />
 
       <label for="password">Password</label>
       <div class="pass-wrap">
-        <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <input id="password" name="halo-li-pass" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" required />
         <button type="button" class="pass-toggle" id="btn-pass-toggle" aria-label="Show password">Show</button>
       </div>
 
@@ -77,12 +78,23 @@
     </form>
 
     <div id="challenge" class="challenge">
-      <p class="challenge-hint">
-        Open the <strong>LinkedIn app</strong> on your phone and tap <strong>Yes</strong> on the sign-in request.
-        Leave <strong>Recognize this device</strong> checked on the screen below if you see it — later repairs may skip this step.
-        This page refreshes automatically; wait here until the session is restored.
+      <p class="challenge-hint" id="challenge-hint">
+        Tap the live screen below to complete LinkedIn’s check (e.g. <strong>I’m not a robot</strong>).
+        If you see an app approve request instead, open the LinkedIn app and tap Yes.
       </p>
-      <div class="frame-wrap">
+      <div id="pin-bar" class="actions" style="display:none;margin:12px 0">
+        <label for="pin-code" style="margin:0 0 6px">Email / SMS code</label>
+        <input id="pin-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />
+        <button type="button" id="btn-pin-submit" class="primary" style="margin-top:10px"><span class="btn-label">Submit code</span></button>
+      </div>
+      <div id="email-bar" class="actions" style="display:none;margin:12px 0;flex-direction:column;gap:8px">
+        <label for="new-email" style="margin:0">New email address (LinkedIn form)</label>
+        <input id="new-email" type="email" autocomplete="email" placeholder="you@email.com" />
+        <label for="profile-url" style="margin:0">Public profile URL (optional)</label>
+        <input id="profile-url" type="url" placeholder="https://www.linkedin.com/in/…" />
+        <button type="button" id="btn-email-submit" class="primary"><span class="btn-label">Fill &amp; Continue</span></button>
+      </div>
+      <div class="frame-wrap" id="frame-wrap">
         <img id="frame" alt="LinkedIn verification" />
       </div>
     </div>
@@ -95,10 +107,12 @@
     const btnSignin = document.getElementById('btn-signin');
     const passEl = document.getElementById('password');
     const challenge = document.getElementById('challenge');
+    const hintEl = document.getElementById('challenge-hint');
     const frame = document.getElementById('frame');
     let done = false;
     let submitting = false;
     let uiMode = 'form';
+    let lastVp = { width: 390, height: 844 };
     const queue = [];
     let flushing = false;
 
@@ -145,6 +159,80 @@
       await api('/api/linkedin/repair/start', { method: 'POST', body: JSON.stringify({ token }) });
     }
 
+    function mapClickToPage(clientX, clientY) {
+      const rect = frame.getBoundingClientRect();
+      const natW = frame.naturalWidth || lastVp.width;
+      const natH = frame.naturalHeight || lastVp.height;
+      if (!natW || !natH || !rect.width || !rect.height) return null;
+      const scale = Math.min(rect.width / natW, rect.height / natH);
+      const dispW = natW * scale;
+      const dispH = natH * scale;
+      const offsetX = (rect.width - dispW) / 2;
+      const offsetY = (rect.height - dispH) / 2;
+      const x = (clientX - rect.left - offsetX) / scale;
+      const y = (clientY - rect.top - offsetY) / scale;
+      if (x < 0 || y < 0 || x > natW || y > natH) return null;
+      // Screenshot is full viewport — scale natural image → viewport coords.
+      const pageX = (x / natW) * (lastVp.width || natW);
+      const pageY = (y / natH) * (lastVp.height || natH);
+      return { x: Math.round(pageX), y: Math.round(pageY) };
+    }
+
+    const pinBar = document.getElementById('pin-bar');
+    const pinCode = document.getElementById('pin-code');
+    const btnPin = document.getElementById('btn-pin-submit');
+    const emailBar = document.getElementById('email-bar');
+    const newEmail = document.getElementById('new-email');
+    const profileUrl = document.getElementById('profile-url');
+    const btnEmail = document.getElementById('btn-email-submit');
+
+    document.getElementById('frame-wrap').addEventListener('click', (e) => {
+      if (done) return;
+      if (uiMode !== 'challenge' && uiMode !== 'signing') return;
+      const pt = mapClickToPage(e.clientX, e.clientY);
+      if (!pt) return;
+      setStatus(`Clicked (${pt.x}, ${pt.y}) — waiting for LinkedIn…`);
+      // Coordinate click only — worker decides checkbox vs image tiles.
+      // Do NOT also fire clickRecaptcha: that re-clicks "I'm not a robot" and resets the puzzle.
+      sendInput({ type: 'click', x: pt.x, y: pt.y });
+    });
+
+    function submitPinCode() {
+      const code = String(pinCode.value || '').trim();
+      if (!code) {
+        setStatus('Enter the verification code from your email/SMS.', 'bad');
+        return;
+      }
+      setStatus('Submitting code to remote Chromium…');
+      btnPin.disabled = true;
+      sendInput({ type: 'submitCode', text: code });
+      setTimeout(() => { btnPin.disabled = false; }, 2000);
+    }
+    btnPin.onclick = submitPinCode;
+    pinCode.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitPinCode();
+      }
+    });
+
+    function submitEmailUpdate() {
+      const email = String(newEmail.value || '').trim();
+      if (!email || !email.includes('@')) {
+        setStatus('Enter the email LinkedIn should use for this account.', 'bad');
+        return;
+      }
+      setStatus('Filling LinkedIn email form…');
+      btnEmail.disabled = true;
+      sendInput({
+        type: 'fillEmail',
+        email,
+        profileUrl: String(profileUrl.value || '').trim(),
+      });
+      setTimeout(() => { btnEmail.disabled = false; }, 2500);
+    }
+    btnEmail.onclick = submitEmailUpdate;
+
     document.getElementById('btn-pass-toggle').onclick = () => {
       const show = passEl.type === 'password';
       passEl.type = show ? 'text' : 'password';
@@ -165,17 +253,107 @@
       btnSignin.classList.add('is-loading');
       setStatus('Signing in on remote Chromium…');
       sendInput({ type: 'signin', username, password });
-      // Keep spinner until challenge UI or success — do not re-enable after 2.5s
     });
+
+    function showSigningUI(st) {
+      form.classList.add('hidden');
+      challenge.classList.add('show');
+      uiMode = 'signing';
+      setStatus('Signing in remotely — credentials already sent. Wait…');
+      hintEl.innerHTML =
+        'H.A.L.O. is filling LinkedIn for you. <strong>Do not type</strong> email/password here. The live screen updates in a few seconds (security check or app approve).';
+      frame.src = '/api/linkedin/repair/frame?token=' + encodeURIComponent(token) + '&t=' + Date.now();
+    }
+
+    function showChallengeUI(st) {
+      form.classList.add('hidden');
+      challenge.classList.add('show');
+      uiMode = 'challenge';
+      const kind = st.challengeKind || 'generic';
+      if (kind === 'captcha') {
+        setStatus('Security check — use the captcha popup on the H.A.L.O. LinkedIn page (or tap below).');
+        hintEl.innerHTML =
+          'Prefer the <strong>popup on the dashboard LinkedIn page</strong>. Here you can also tap “I’m not a robot” / tiles on the live screen, then <strong>Verify</strong>.';
+        pinBar.style.display = 'none';
+        emailBar.style.display = 'none';
+      } else if (kind === 'identity_document') {
+        setStatus('LinkedIn asks for a government ID — H.A.L.O. cannot complete this.');
+        hintEl.innerHTML =
+          'LinkedIn is requesting an <strong>identification document</strong>. Cancel Sign in in H.A.L.O., finish ID verification in your <strong>personal browser</strong> (home/office network), then paste fresh cookies. Do not upload your passport through the VPS screenshot.';
+        pinBar.style.display = 'none';
+        emailBar.style.display = 'none';
+      } else if (kind === 'pin') {
+        const src = st.challengePinSource || 'unknown';
+        if (src === 'authenticator') {
+          setStatus('Enter the code from Google Authenticator / verification app, then Submit.');
+          hintEl.innerHTML =
+            'Open your <strong>authenticator app</strong>, copy the 6-digit code, paste it above, then <strong>Submit code</strong>.';
+        } else if (src === 'email_sms') {
+          setStatus('Enter the email/SMS code below, then Submit.');
+          hintEl.innerHTML =
+            'LinkedIn emailed or texted a code. Paste it above and press <strong>Submit code</strong>.';
+        } else {
+          setStatus('Enter the verification code (authenticator or email/SMS), then Submit.');
+          hintEl.innerHTML =
+            'Paste the 6-digit code from your <strong>authenticator app</strong> or <strong>email/SMS</strong>, then <strong>Submit code</strong>.';
+        }
+        pinBar.style.display = 'flex';
+        pinBar.style.flexDirection = 'column';
+        emailBar.style.display = 'none';
+        setTimeout(() => pinCode.focus(), 200);
+      } else if (kind === 'email_update') {
+        setStatus('LinkedIn asks for a new email — fill the form below.');
+        hintEl.innerHTML =
+          'This is LinkedIn’s identity step (not H.A.L.O.). Enter the <strong>same email you use for LinkedIn</strong> (usually the one you signed in with), optional profile URL, then <strong>Fill &amp; Continue</strong>.';
+        pinBar.style.display = 'none';
+        emailBar.style.display = 'flex';
+        setTimeout(() => newEmail.focus(), 200);
+      } else if (kind === 'app_approval') {
+        setStatus('Approve the sign-in request in your LinkedIn app — waiting…');
+        hintEl.innerHTML =
+          'Open the <strong>LinkedIn app</strong> and tap <strong>Yes</strong>. Leave this tab open until the session is restored.';
+        pinBar.style.display = 'none';
+        emailBar.style.display = 'none';
+      } else {
+        // generic / unknown — do NOT claim app approval
+        setStatus('LinkedIn verification in progress — watch the live screen…');
+        hintEl.innerHTML =
+          'Wait for the live LinkedIn screen to update. If you see <strong>I’m not a robot</strong>, tap it. If LinkedIn asks for a new email, use the email fields when they appear.';
+        pinBar.style.display = 'none';
+        emailBar.style.display = 'none';
+      }
+      frame.src = '/api/linkedin/repair/frame?token=' + encodeURIComponent(token) + '&t=' + Date.now();
+    }
+
+    function showFormUI(st) {
+      form.classList.remove('hidden');
+      challenge.classList.remove('show');
+      uiMode = 'form';
+      // Never show browser-autofilled foreign LinkedIn logins (dashboard already signed in).
+      const u = document.getElementById('username');
+      const p = document.getElementById('password');
+      if (u) u.value = '';
+      if (p) p.value = '';
+      if (!submitting) {
+        setStatus(
+          st.status === 'running' || st.status === 'awaiting_user' || st.status === 'starting'
+            ? 'Remote browser ready — enter LinkedIn email and password, then Sign in.'
+            : 'Status: ' + (st.status || '…')
+        );
+      }
+    }
 
     async function poll() {
       if (done) return;
       try {
         const st = await api('/api/linkedin/repair/status?token=' + encodeURIComponent(token));
-        uiMode = st.uiMode || 'form';
+        if (st.viewport && st.viewport.width) lastVp = st.viewport;
+        const serverMode = st.uiMode || 'form';
+
         if (st.status === 'captured' || st.liAtCaptured) {
           done = true;
           challenge.classList.remove('show');
+          form.classList.add('hidden');
           setStatus('Session restored. You can close this tab.', 'ok');
           btnSignin.disabled = true;
           btnSignin.classList.remove('is-loading');
@@ -187,6 +365,7 @@
           submitting = false;
           btnSignin.disabled = false;
           btnSignin.classList.remove('is-loading');
+          showFormUI(st);
           setStatus(st.lastSignInError || st.error || 'Wrong email or password — try again.', 'bad');
           return;
         }
@@ -194,21 +373,24 @@
           submitting = false;
           btnSignin.disabled = false;
           btnSignin.classList.remove('is-loading');
-          setStatus((st.error || st.status) + ' — fix credentials and Sign in again.', 'bad');
-        } else if (uiMode === 'challenge') {
-          challenge.classList.add('show');
-          setStatus('Approve the sign-in request in your LinkedIn app — waiting…');
-          frame.src = '/api/linkedin/repair/frame?token=' + encodeURIComponent(token) + '&t=' + Date.now();
-        } else {
-          challenge.classList.remove('show');
-          if (!submitting) {
-            setStatus(
-              st.status === 'running' || st.status === 'awaiting_user'
-                ? 'Remote browser ready — enter LinkedIn email and password, then Sign in.'
-                : 'Status: ' + (st.status || '…')
-            );
-          }
+          showFormUI(st);
+          setStatus((st.error || st.status) + ' — try Sign in again from the dashboard.', 'bad');
+          return;
         }
+
+        const kind = st.challengeKind || null;
+        const alreadySignedIn = !!st.lastSignInAt || !!st.challengeSince || serverMode === 'signing';
+
+        if (serverMode === 'challenge' || kind === 'captcha' || kind === 'pin' || kind === 'app_approval' || kind === 'email_update' || kind === 'identity_document') {
+          submitting = true;
+          showChallengeUI(st);
+        } else if (alreadySignedIn || submitting) {
+          submitting = true;
+          showSigningUI(st);
+        } else {
+          showFormUI(st);
+        }
+        uiMode = serverMode === 'challenge' ? 'challenge' : uiMode;
       } catch (e) {
         setStatus(e.message, 'bad');
       }

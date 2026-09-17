@@ -36,8 +36,212 @@ export function repairCaptchaTilePath(index, root = appRoot()) {
   return path.join(repairCaptchaDir(root), `tile_${Number(index)}.jpg`);
 }
 
+export function repairCaptchaChallengePath(root = appRoot()) {
+  return path.join(repairCaptchaDir(root), 'challenge.jpg');
+}
+
 export function repairInputPath(root = appRoot()) {
   return path.join(root, 'session_repair_input.jsonl');
+}
+
+export function repairResumePath(root = hostAppRoot()) {
+  return path.join(root, 'stage_r_resume.json');
+}
+
+/** True when linkedin-agent container is up. */
+export function agentContainerRunning() {
+  try {
+    const out = execFileSync(
+      'docker',
+      ['ps', '-q', '-f', 'name=^linkedin-agent$'],
+      { encoding: 'utf8', timeout: 15000 }
+    ).trim();
+    return !!out;
+  } catch {
+    return false;
+  }
+}
+
+function readResumePlan(root = hostAppRoot()) {
+  try {
+    const p = repairResumePath(root);
+    if (!fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function writeResumePlan(plan, root = hostAppRoot()) {
+  fs.writeFileSync(repairResumePath(root), JSON.stringify(plan, null, 2));
+  return plan;
+}
+
+function clearResumePlan(root = hostAppRoot()) {
+  try {
+    fs.unlinkSync(repairResumePath(root));
+  } catch {
+    /* ignore */
+  }
+}
+
+function writeForceRunOnce({ runStageA, runStageB, reason }, root = hostAppRoot()) {
+  const payload = {
+    reason: reason || 'stage_r_resume',
+    requestedAt: new Date().toISOString(),
+    runStageA: !!runStageA,
+    runStageB: !!runStageB,
+  };
+  fs.writeFileSync(path.join(root, 'force_run_once.json'), JSON.stringify(payload, null, 2));
+  return payload;
+}
+
+function startLinkedInAgent(root = hostAppRoot()) {
+  const compose = path.join(root, 'docker-compose.ionos.yml');
+  try {
+    execFileSync(
+      'docker',
+      ['compose', '-f', compose, '--project-directory', root, 'start', 'linkedin-agent'],
+      { encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'] }
+    );
+    return { ok: true, method: 'compose_start' };
+  } catch (e1) {
+    try {
+      execFileSync('docker', ['start', 'linkedin-agent'], {
+        encoding: 'utf8',
+        timeout: 60000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      return { ok: true, method: 'docker_start' };
+    } catch (e2) {
+      return {
+        ok: false,
+        error: String(e2.message || e1.message || e2).slice(0, 300),
+      };
+    }
+  }
+}
+
+/**
+ * Stage R has highest priority: stop A/B/Brain/C Chromium work, clear cycle.lock,
+ * remember what to resume after login. CRM progress is durable — "resume" = re-run
+ * the interrupted stage(s) via force_run_once once the agent is back.
+ */
+export function preemptForStageR(root = hostAppRoot()) {
+  sweepStaleRepairState(root);
+  const owner = readHostCycleLock(root);
+  const agentWasRunning = agentContainerRunning();
+  const connectUp = connectOneShotRunning();
+  const prev = readResumePlan(root);
+
+  const plan = {
+    agentWasRunning: !!(agentWasRunning || prev?.agentWasRunning),
+    preemptedOwner: owner || prev?.preemptedOwner || (connectUp ? 'C' : null),
+    runStageA: owner === 'A' || !!prev?.runStageA,
+    runStageB: owner === 'B' || !!prev?.runStageB,
+    createdAt: prev?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  writeResumePlan(plan, root);
+
+  if (connectUp) {
+    try {
+      execFileSync('docker', ['rm', '-f', 'connect-test'], { stdio: 'ignore', timeout: 30000 });
+    } catch {
+      /* ignore */
+    }
+    // Legacy / one-shot names
+    try {
+      const ids = execFileSync(
+        'docker',
+        ['ps', '-aq', '--filter', 'name=connect-test'],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      for (const id of ids) {
+        try {
+          execFileSync('docker', ['rm', '-f', id], { stdio: 'ignore', timeout: 30000 });
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (agentWasRunning) {
+    console.log(`[stage-r] preempting Stage ${owner || 'idle'} — stopping linkedin-agent`);
+    try {
+      execFileSync('docker', ['stop', 'linkedin-agent'], { stdio: 'ignore', timeout: 90000 });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Drop lock even if agent already exited mid-cycle
+  try {
+    fs.unlinkSync(path.join(root, 'cycle.lock'));
+  } catch {
+    /* ignore */
+  }
+  clearStaleRepairLock(root);
+
+  return plan;
+}
+
+/**
+ * After Stage R finishes: restart agent and force the interrupted stage(s).
+ * Safe to call from status polls; no-ops if nothing pending or repair still up.
+ */
+export function maybeResumeAgentAfterRepair(root = hostAppRoot()) {
+  const plan = readResumePlan(root);
+  if (!plan) return { resumed: false };
+  if (repairContainerRunning(root)) return { resumed: false, reason: 'repair_running' };
+
+  const st = readRepairState(root);
+  const status = st?.status || 'idle';
+  const captured = !!(st?.liAtCaptured || status === 'captured');
+  const failedTerminal = ['timeout', 'error', 'credential_error', 'idle'].includes(status);
+  // Prefer resume after success; also after hard failure once repair container is gone.
+  if (!captured && !failedTerminal) {
+    return { resumed: false, reason: 'repair_not_finished' };
+  }
+  if (!captured && (status === 'running' || status === 'starting' || status === 'awaiting_user')) {
+    return { resumed: false, reason: 'repair_not_finished' };
+  }
+
+  clearResumePlan(root);
+
+  let force = null;
+  if (captured && (plan.runStageA || plan.runStageB)) {
+    force = writeForceRunOnce(
+      {
+        runStageA: !!plan.runStageA,
+        runStageB: !!plan.runStageB,
+        reason: `stage_r_resume_after_${plan.preemptedOwner || 'repair'}`,
+      },
+      root
+    );
+  }
+
+  // Always bring the scheduler back if we stopped it for Sign in.
+  if (!plan.agentWasRunning && !force) {
+    return { resumed: false, reason: 'nothing_to_resume', plan };
+  }
+
+  const started = startLinkedInAgent(root);
+  console.log(
+    `[stage-r] resume agent ok=${started.ok} forceA=${!!force?.runStageA} forceB=${!!force?.runStageB} preempted=${plan.preemptedOwner}`
+  );
+  return {
+    resumed: !!started.ok,
+    started,
+    force,
+    plan,
+  };
 }
 
 /** True when linkedin-repair container is actually running (not just stale JSON state). */
@@ -121,19 +325,36 @@ export function repairRemoteUrlForToken(token) {
   return `${dashboardPublicUrl()}/repair.html?token=${token}`;
 }
 
-/** Reuse active token for 6h, else mint a new one. */
-export function ensureActiveRepairLink(reason = 'session_dead') {
+/**
+ * Reuse a live repair token briefly; never recycle multi-hour zombies (Danylo-style Stage R).
+ * Callers that need a clean Sign-in should prefer issueRepairToken / forceFresh.
+ */
+export function ensureActiveRepairLink(reason = 'session_dead', { forceFresh = false } = {}) {
+  sweepStaleRepairState();
+  clearStaleRepairLock();
+  if (forceFresh) {
+    stopRepairWorker();
+    clearStaleRepairLock();
+    return { ...issueRepairToken(reason), reused: false };
+  }
   const st = readRepairState();
   const ageMs = st?.createdAt ? Date.now() - Date.parse(st.createdAt) : Infinity;
+  const updatedMs = st?.updatedAt ? Date.now() - Date.parse(st.updatedAt) : Infinity;
   const containerUp = repairContainerRunning();
+  const reuseMaxMs = 45 * 60 * 1000; // 45m — not 6h
   if (
     st?.token &&
     !st.liAtCaptured &&
     Number.isFinite(ageMs) &&
-    ageMs < 6 * 60 * 60 * 1000
+    ageMs < reuseMaxMs &&
+    Number.isFinite(updatedMs) &&
+    updatedMs < reuseMaxMs
   ) {
     if (st.status === 'credential_error') {
-      writeRepairState({ status: 'awaiting_user', error: null });
+      // Fresh Chromium for wrong-password retries
+      return { ...issueRepairToken(reason), reused: false };
+    }
+    if ((st.status === 'running' || st.status === 'starting') && containerUp) {
       return {
         token: st.token,
         url: linkedInDashboardUrl(),
@@ -141,35 +362,7 @@ export function ensureActiveRepairLink(reason = 'session_dead') {
         reused: true,
       };
     }
-    if (st.status === 'running' || st.status === 'starting') {
-      if (containerUp) {
-        return {
-          token: st.token,
-          url: linkedInDashboardUrl(),
-          repairUrl: repairRemoteUrlForToken(st.token),
-          reused: true,
-        };
-      }
-      writeRepairState({ status: 'awaiting_user', containerId: null, error: null });
-      return {
-        token: st.token,
-        url: linkedInDashboardUrl(),
-        repairUrl: repairRemoteUrlForToken(st.token),
-        reused: true,
-        stale: true,
-      };
-    }
-    if (st.status === 'awaiting_user' || st.status === 'error' || st.status === 'timeout') {
-      if (st.status === 'error' || st.status === 'timeout') {
-        writeRepairState({ status: 'awaiting_user', error: null });
-      }
-      return {
-        token: st.token,
-        url: linkedInDashboardUrl(),
-        repairUrl: repairRemoteUrlForToken(st.token),
-        reused: true,
-      };
-    }
+    // Dead container or awaiting_user without a live worker → mint new
   }
   return { ...issueRepairToken(reason), reused: false };
 }
@@ -216,15 +409,160 @@ export function clearStaleRepairLock(root = hostAppRoot()) {
   }
 }
 
-/** One Chromium automation at a time — repair/login must not overlap connect or Stage A/B. */
-export function assertSingleAutomation(root = hostAppRoot()) {
-  clearStaleRepairLock(root);
-  const owner = readHostCycleLock(root);
-  if (owner) {
-    throw new Error(`Another automation is running (Stage ${owner}). Wait until it finishes.`);
+/**
+ * Hard-stop Stage R: kill container, drop lock, idle state.
+ * Call on every new Sign in and when user abandons / times out.
+ */
+export function forceStopStageR(reason = 'force_stop', root = hostAppRoot()) {
+  stopRepairWorker();
+  try {
+    execFileSync('docker', ['rm', '-f', 'linkedin-repair'], { stdio: 'ignore', timeout: 30000 });
+  } catch {
+    /* ignore */
   }
-  if (connectOneShotRunning()) {
-    throw new Error('Connect one-shot is still running. Wait until it finishes.');
+  try {
+    fs.unlinkSync(path.join(root, 'cycle.lock'));
+  } catch {
+    /* ignore */
+  }
+  clearStaleRepairLock(root);
+  writeRepairState(
+    {
+      status: 'idle',
+      token: null,
+      error: null,
+      containerId: null,
+      challengeKind: null,
+      captchaPhase: 'none',
+      captchaTileCount: 0,
+      liAtCaptured: false,
+      sweptAt: new Date().toISOString(),
+      sweptReason: reason,
+    },
+    root
+  );
+  return { ok: true, reason };
+}
+
+/**
+ * End zombie Stage R sessions (container dead / timed out / idle too long).
+ * Danylo-style stucks: awaiting_user for days with no container.
+ */
+export function sweepStaleRepairState(root = hostAppRoot()) {
+  const st = readRepairState(root);
+  if (!st) return { swept: false };
+  if (st.liAtCaptured || st.status === 'idle' || st.status === 'captured') {
+    if (!repairContainerRunning(root)) clearStaleRepairLock(root);
+    return { swept: false };
+  }
+
+  const containerUp = repairContainerRunning(root);
+  const updatedMs = st.updatedAt ? Date.parse(st.updatedAt) : 0;
+  const startedMs = st.startedAt
+    ? Date.parse(st.startedAt)
+    : st.createdAt
+      ? Date.parse(st.createdAt)
+      : 0;
+  const ageUpdated = Number.isFinite(updatedMs) ? Date.now() - updatedMs : Infinity;
+  const ageStarted = Number.isFinite(startedMs) ? Date.now() - startedMs : Infinity;
+  const softMaxMs = Number(process.env.REPAIR_TIMEOUT_MS || 12 * 60 * 1000); // 12m default
+  const hardMaxMs = softMaxMs + 60 * 1000;
+  const idleMaxMs = 8 * 60 * 1000; // 8m without updates → dead
+
+  // Terminal statuses with no live container → idle immediately (don't leave "timeout" blocking Sign in).
+  if (
+    !containerUp &&
+    (st.status === 'timeout' ||
+      st.status === 'error' ||
+      st.status === 'credential_error' ||
+      (typeof st.error === 'string' && /Another automation is running/i.test(st.error)))
+  ) {
+    clearStaleRepairLock(root);
+    writeRepairState(
+      {
+        status: 'idle',
+        token: null,
+        containerId: null,
+        challengeKind: null,
+        captchaPhase: 'none',
+        captchaTileCount: 0,
+        sweptAt: new Date().toISOString(),
+        sweptReason: `clear_${st.status || 'error'}`,
+        error: null,
+      },
+      root
+    );
+    return { swept: true, reason: `clear_${st.status || 'error'}` };
+  }
+
+  const looksActive =
+    st.status === 'running' ||
+    st.status === 'starting' ||
+    st.status === 'awaiting_user' ||
+    (!!st.challengeKind && !st.liAtCaptured);
+
+  if (!looksActive) {
+    if (!containerUp) clearStaleRepairLock(root);
+    return { swept: false };
+  }
+
+  const markIdle = (reason, error = null) => {
+    stopRepairWorker();
+    clearStaleRepairLock(root);
+    writeRepairState(
+      {
+        status: error ? 'timeout' : 'idle',
+        token: null,
+        error,
+        containerId: null,
+        challengeKind: null,
+        captchaPhase: 'none',
+        captchaTileCount: 0,
+        sweptAt: new Date().toISOString(),
+        sweptReason: reason,
+      },
+      root
+    );
+    return { swept: true, reason };
+  };
+
+  // Running container past hard timeout → kill
+  if (containerUp && ageStarted > hardMaxMs) {
+    return markIdle('hard_timeout', 'LinkedIn sign-in timed out — press Sign in again.');
+  }
+
+  // Claimed running/starting but container already gone → stop immediately
+  if (!containerUp && (st.status === 'running' || st.status === 'starting')) {
+    return markIdle('container_gone', 'LinkedIn sign-in stopped — press Sign in again.');
+  }
+
+  // No container + stale awaiting_user / leftover challenge → idle
+  if (
+    !containerUp &&
+    (ageUpdated > idleMaxMs || ageStarted > softMaxMs || ageStarted > 20 * 60 * 1000)
+  ) {
+    return markIdle('stale_no_container');
+  }
+
+  if (!containerUp) clearStaleRepairLock(root);
+  return { swept: false };
+}
+
+/** Prepare lock for Stage R: preempt A/B/Brain/C if needed (R has highest priority). */
+export function assertSingleAutomation(root = hostAppRoot()) {
+  sweepStaleRepairState(root);
+  clearStaleRepairLock(root);
+  if (repairContainerRunning(root)) {
+    // Another Sign in already owns Chromium — caller should stop it first.
+    return;
+  }
+  const owner = readHostCycleLock(root);
+  if (owner && owner !== 'R') {
+    preemptForStageR(root);
+    return;
+  }
+  if (connectOneShotRunning() || agentContainerRunning()) {
+    preemptForStageR(root);
   }
 }
 
@@ -240,45 +578,24 @@ export function startDashboardLinkedInLogin(username, password, workspaceId = 'd
   const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
   if (!user || !pass) throw new Error('Email/phone and password are required');
 
-  const prev = readRepairState();
-  // Retry after wrong password / failed repair — free Stage R and restart Chromium.
-  if (
-    prev &&
-    (prev.status === 'credential_error' ||
-      prev.status === 'error' ||
-      prev.status === 'timeout' ||
-      (prev.lastSignInError && /wrong email or password/i.test(prev.lastSignInError)))
-  ) {
-    stopRepairWorker();
-    clearStaleRepairLock();
-    // If lock still held by R with a dead/zombie container, clear it.
-    const owner = readHostCycleLock();
-    if (owner === 'R' && !repairContainerRunning()) {
-      try {
-        fs.unlinkSync(path.join(hostAppRoot(), 'cycle.lock'));
-      } catch {
-        /* ignore */
-      }
-    }
-  }
+  // Always hard-stop any prior Stage R (reload / second Sign in must never see "Stage R busy").
+  forceStopStageR('new_signin');
+  clearResumePlan();
 
-  assertSingleAutomation();
-  const link = ensureActiveRepairLink('dashboard_login');
-  // Always start/restart worker for a fresh sign-in attempt (do not append into a stuck jar).
-  if (repairContainerRunning()) {
-    stopRepairWorker();
-    try {
-      execFileSync('docker', ['rm', '-f', 'linkedin-repair'], { stdio: 'ignore', timeout: 30000 });
-    } catch {
-      /* ignore */
-    }
-  }
+  // Highest priority: interrupt Stage A/B (and restart them after Sign in).
+  const preempt = preemptForStageR();
+
+  const link = ensureActiveRepairLink('dashboard_login', { forceFresh: true });
   writeRepairState({
     status: 'awaiting_user',
     lastSignInError: null,
     error: null,
     credentialErrorAt: null,
+    challengeKind: null,
+    captchaPhase: 'none',
+    captchaTileCount: 0,
     workspaceId: ws,
+    preemptedOwner: preempt.preemptedOwner,
   });
   const started = startRepairWorkerSync(link.token, ws);
   appendRepairInput(link.token, { type: 'signin', username: user, password: pass });
@@ -287,9 +604,10 @@ export function startDashboardLinkedInLogin(username, password, workspaceId = 'd
     token: link.token,
     url: link.url,
     repairUrl: link.repairUrl || repairRemoteUrlForToken(link.token),
-    reused: link.reused,
+    reused: false,
     started,
     workspaceId: ws,
+    preempted: preempt,
     state: readRepairState(),
   };
 }
@@ -302,16 +620,16 @@ export function startRepairWorkerSync(token, workspaceId = 'default') {
   if ((st.status === 'running' || st.status === 'starting' || st.status === 'awaiting_user') && containerUp) {
     return { ok: true, already: true, state: st };
   }
-  assertSingleAutomation();
+  // R preempts any leftover A/B lock / agent (idempotent if already preempted).
+  preemptForStageR();
   const ws = String(workspaceId || st.workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
   writeRepairState({ status: 'starting', error: null, containerId: null, workspaceId: ws });
 
   const root = hostAppRoot();
   const name = 'linkedin-repair';
-  // Stop agent first — shared session_data mount + parallel Chromium burns li_at,
-  // and a running agent locks profile files so the harvest wipe fails.
+  // Ensure agent is down — shared session_data + parallel Chromium burns li_at.
   try {
-    execFileSync('docker', ['stop', 'linkedin-agent'], { stdio: 'ignore', timeout: 60000 });
+    execFileSync('docker', ['stop', 'linkedin-agent'], { stdio: 'ignore', timeout: 90000 });
   } catch {
     /* ignore */
   }

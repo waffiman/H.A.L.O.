@@ -43,16 +43,17 @@ function writeState(patch) {
 export function ensureActiveRepairLink(reason = 'session_dead') {
   const st = readState();
   const ageMs = st?.createdAt ? Date.now() - Date.parse(st.createdAt) : Infinity;
+  const updatedMs = st?.updatedAt ? Date.now() - Date.parse(st.updatedAt) : Infinity;
+  const reuseMaxMs = 45 * 60 * 1000;
   if (
     st?.token &&
     !st.liAtCaptured &&
     Number.isFinite(ageMs) &&
-    ageMs < 6 * 60 * 60 * 1000 &&
-    ['awaiting_user', 'starting', 'running', 'credential_error', 'error', 'timeout'].includes(st.status)
+    ageMs < reuseMaxMs &&
+    Number.isFinite(updatedMs) &&
+    updatedMs < reuseMaxMs &&
+    ['starting', 'running'].includes(st.status)
   ) {
-    if (st.status === 'credential_error' || st.status === 'error' || st.status === 'timeout') {
-      writeState({ status: 'awaiting_user', error: null });
-    }
     return {
       token: st.token,
       url: linkedInDashboardUrl(),
@@ -67,6 +68,8 @@ export function ensureActiveRepairLink(reason = 'session_dead') {
     createdAt: new Date().toISOString(),
     liAtCaptured: false,
     error: null,
+    challengeKind: null,
+    captchaPhase: 'none',
   });
   try {
     if (fs.existsSync(INPUT_PATH)) fs.unlinkSync(INPUT_PATH);

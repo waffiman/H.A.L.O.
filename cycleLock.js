@@ -1,6 +1,7 @@
 /**
  * Shared cycle lock so Stage A and Stage B never run in parallel.
- * Stage A has priority: Stage B skips immediately if lock is held.
+ * Priority: Stage R (sign-in) > Stage A / Brain > Stage B / Connect.
+ * Stage R is started by the dashboard after stopping the agent and clearing this lock.
  */
 import fs from 'fs';
 import path from 'path';
@@ -73,6 +74,7 @@ export function activeAutomationOwner() {
  * @param {{ waitMs?: number, skipIfBusy?: boolean }} opts
  *   - Stage B / Connect (C): skipIfBusy true (default) — if lock held, skip
  *   - Stage A / Brain: waitMs to wait for the other owner to finish
+ *   - Stage R: clears preempted A/B locks; also steals a stale leftover R lock
  */
 export async function withCycleLock(owner, fn, opts = {}) {
   const skipIfBusy =
@@ -81,13 +83,24 @@ export async function withCycleLock(owner, fn, opts = {}) {
       : owner === 'B' || owner === 'C';
   const waitMs = Number(
     opts.waitMs ??
-      (owner === 'A' || owner === 'Brain' ? Number(process.env.LOCK_WAIT_MS || 900000) : 0)
+      (owner === 'A' || owner === 'Brain'
+        ? Number(process.env.LOCK_WAIT_MS || 900000)
+        : owner === 'R'
+          ? Number(process.env.REPAIR_LOCK_WAIT_MS || 15000)
+          : 0)
   );
   const started = Date.now();
 
   while (true) {
     const state = isLockHeld();
     if (!state.held && !memOwner) break;
+
+    // Stage R never yields — clear A/B orphans and leftover R after docker kill (finally may not run).
+    if (owner === 'R' && state.owner) {
+      console.log(`Stage R clearing lock held by ${state.owner}`);
+      releaseCycleLock();
+      break;
+    }
 
     if (skipIfBusy) {
       console.log(`Stage ${owner} skipped — lock held by ${state.owner || memOwner}`);

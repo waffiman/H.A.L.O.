@@ -375,7 +375,9 @@ Confirmed in production runs — add new ones here when discovered:
 
 Dashboard paste: [`dashboard/lib/ops.js`](dashboard/lib/ops.js) `ingestCookiePaste` (EditThisCookie JSON or raw `li_at`). LinkedIn page UI: **Paste cookies** card → `POST /api/linkedin/cookies` (cabinet-scoped jar + Chromium cookie DB wipe). **Known empty-SERP cause (2026-09-14):** mobile Connect clicked English-only **People / Search**; on UA UI that misses **Люди / Пошук** and LinkedIn opens a universal-search cluster (`/groups/… Content Unavailable`). Fix: localized selectors + never treat Groups/cluster URLs as a People SERP — force `/search/results/people`.
 
-**Dashboard Sign in challenge (2026-09-14):** after email/password, [`sessionRepairWorker.js`](sessionRepairWorker.js) classifies Chromium (`app_approval` | `pin` | `captcha`). **App approve** → amber banner. **Email/SMS code (`pin`)** → login/password fields swipe left; inline code field + Submit pushes `submitCode` to the repair worker (no separate repair tab required). **Captcha** → native H.A.L.O. controls on the LinkedIn page: **I’m not a robot** (`clickRecaptcha`) then a **3×3/4×4 tile grid** (`clickCaptchaTile` + `captchaVerify`) fed by tile JPEGs under `session_repair_captcha/` — human still solves; no LLM. Live screenshot repair page remains a fallback. Captcha waits **stay on the challenge page** (no `/feed/` fallback, no periodic checkbox spam). Opening `/repair.html` while Stage R is already running returns `already`. Spinner stays until `li_at` is captured.
+**Dashboard Sign in challenge (2026-09-16 / classify fix 2026-09-17):** after email/password, [`sessionRepairWorker.js`](sessionRepairWorker.js) classifies Chromium (`app_approval` | `pin` | `captcha` | `identity_document`). **Priority:** visible OTP / primary authenticator or email-code copy → `pin`; strong **Sign-in request / LinkedIn app** copy → `app_approval` (wins over “try another way: email” footnotes and invisible reCAPTCHA iframes); only **visible** captcha UI → `captcha`. Sticky: do not demote an active Sign-in request to captcha while that copy is still on screen. Duplicate password submits within 2 minutes are skipped. **App approve** → amber banner. **Email/SMS / authenticator (`pin`)** → inline code field. **Captcha** → popup on `document.body`. FAQ tile **“Sign-in asks for code / captcha wrongly?”** documents the prep tip: if logged out on phone + browser, sign into the LinkedIn app first, dismiss suspicious-activity, then one H.A.L.O. Sign in and trust the live screenshot. Live screenshot repair page remains a fallback. Captcha waits stay on the challenge page. Spinner stays until `li_at` is captured.
+
+**Challenge kinds:** `app_approval` | `pin` (+ `challengePinSource`: `authenticator` \| `email_sms` \| `unknown`) | `captcha` (popup modal on `document.body`) | `identity_document` (government ID — **cannot** be completed in H.A.L.O.; user must verify in a personal browser then paste cookies) | `email_update`.
 
 ---
 
@@ -386,7 +388,7 @@ Dashboard paste: [`dashboard/lib/ops.js`](dashboard/lib/ops.js) `ingestCookiePas
 | Mechanism | File | Behavior |
 |-----------|------|----------|
 | Stage A due | `stageAState.js` | Elapsed ≥ interval or `FORCE_STAGE_A=1` |
-| Cycle lock | `cycleLock.js` + `cycle.lock` | A / Brain wait (`LOCK_WAIT_MS`); B / C skip if busy; repair (`R`) skips if busy; stale >3h cleared; owners `A`\|`B`\|`C`\|`Brain`\|`R` |
+| Cycle lock | `cycleLock.js` + `cycle.lock` | **R > A/Brain > B/C**. A / Brain wait (`LOCK_WAIT_MS`); B / C skip if busy; R clears preempted A/B locks after dashboard stops the agent; stale >3h cleared; owners `A`\|`B`\|`C`\|`Brain`\|`R` |
 | B vs A | `tickStageB` | Skip B while A holds lock |
 | Stage B idle skip | `stageBState.js` + Notion preflight in `runStageB` | **Tick** = dashboard `STAGE_B_INTERVAL_MS` **±1–5 min jitter** (`nextBrowserDueAt` in `stage_b_state.json`). Min interval **6 min** in UI. Chromium opens when inbox scan due **or** silence closings due, and cooldown elapsed. Optional floor: `STAGE_B_BROWSER_MIN_MS` (>0) raises minimum gap between browser opens. Silence capped by `STAGE_B_SILENCE_MAX` (default **2**). |
 | Brain analysis | `tickBrainAnalysis` | Due on `BRAIN_ANALYSIS_INTERVAL_MS`; waits for lock then runs analyzer |
@@ -491,6 +493,7 @@ requires a `halo_tenants` row.
 | `POST /api/settings`, `/api/settings/switches` | Any signed-in cabinet — writes are cabinet-scoped (Brain, prompts, stage flags, cookies under `tenantPaths(ws)`). `applyDashboardPatch(..., { isOwner })` refuses integration keys + Notion CRM URL for non-owners |
 | `/api/notifications*` | Any signed-in cabinet — per-cabinet store |
 | `/api/secrets/reveal`, `/api/agent/restart`, `/api/linkedin/session/login`, `/api/linkedin/repair/link`, `/api/notion/*`, `/api/supabase/*`, `/api/analytics/series`, `/api/supabase/keepalive` | **`role === 'owner'` only** (`requireOwner`) |
+| `/api/linkedin/repair/status|frame|captcha-*|input|start` | **Public path** (no cabinet session) but **token-gated** in the handler — so captcha `<img>` and `/repair.html` work without Basic cookies |
 
 **Per-cabinet files (2026-09-12).** `cabinetPaths(ws)` in
 [`dashboard/lib/ops.js`](dashboard/lib/ops.js) maps a workspace to its Brain,

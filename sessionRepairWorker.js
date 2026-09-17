@@ -25,7 +25,7 @@ function cookiesPath() {
   return cookiesFile();
 }
 const TOKEN = process.env.REPAIR_TOKEN || '';
-const MAX_MS = Number(process.env.REPAIR_TIMEOUT_MS || 20 * 60 * 1000);
+const MAX_MS = Number(process.env.REPAIR_TIMEOUT_MS || 12 * 60 * 1000);
 
 function readState() {
   try {
@@ -388,105 +388,176 @@ async function detectChallengeKind(page) {
   const fromDom = await page
     .evaluate(() => {
       const t = (document.body?.innerText || '').slice(0, 8000).toLowerCase();
-      const hasRecaptcha =
-        !!document.querySelector(
-          'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA"], iframe[title*="recaptcha"], .g-recaptcha, #g-recaptcha'
-        ) || /grecaptcha/i.test(document.documentElement?.innerHTML || '');
-      const hasCodeField = !!document.querySelector(
-        'input[name="pin"], input#input__phone_verification_pin, input[autocomplete="one-time-code"], input[inputmode="numeric"]'
-      );
+      const isVisible = (el) => {
+        if (!el || !(el instanceof Element)) return false;
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return false;
+        const s = window.getComputedStyle(el);
+        if (!s || s.visibility === 'hidden' || s.display === 'none' || Number(s.opacity) === 0) return false;
+        return true;
+      };
+      const otpSelector = [
+        'input[name="pin"]',
+        'input#input__phone_verification_pin',
+        'input[autocomplete="one-time-code"]',
+        'input[inputmode="numeric"]',
+        'input[name*="pin" i]',
+        'input[id*="pin" i]',
+        'input[id*="verification" i]',
+        'input[aria-label*="code" i]',
+        'input[placeholder*="code" i]',
+      ].join(', ');
+      const hasVisibleOtp = [...document.querySelectorAll(otpSelector)].some(isVisible);
 
-      // Email/SMS code wins over leftover captcha iframes after the puzzle is solved.
-      if (
-        hasCodeField ||
-        /enter the code|verification code|one-time|enter code|\bpin\b|код підтвердження|код подтверждения|введіть код|введите код|code de v[eé]rification|c[oó]digo de verificaci[oó]n|c[oó]digo de verifica[cç][aã]o|verifizierungscode|codice di verifica|kod weryfikacyjny|doğrulama kodu|認証コード|验证码|رمز التحقق|we (emailed|sent).{0,40}code|email.{0,20}code|code.{0,20}(email|inbox|phone|sms)|check your email|sent (you )?a code|otp|one.time password/.test(
-          t
-        )
-      ) {
-        // "Provide a new email" is a different LinkedIn step (not the OTP box).
-        if (
-          /provide a new email|new email address|re-enter email|public profile url/i.test(t)
-        ) {
-          return 'email_update';
-        }
-        return 'pin';
-      }
-
-      if (
-        /provide a new email|new email address|re-enter email|you will use this email address to sign in/i.test(
-          t
-        )
-      ) {
-        return 'email_update';
-      }
-
-      // Captcha / security check
-      if (
-        hasRecaptcha ||
-        /captcha|i.?m not a robot|i am not a robot|security check|quick security|puzzle|я не робот|не робот|ich bin kein roboter|je ne suis pas un robot|no soy un robot|não sou um robô|non sono un robot/.test(
-          t
-        )
-      ) {
-        return 'captcha';
-      }
-
-      // Phone app approval — LinkedIn localizes checkpoint copy (EN + common locales).
-      const appApproval =
-        // EN
-        /check your linkedin app|notification sent|tap yes|approve this sign|confirm (it'?s|this is) you|verify it'?s you|sign-in request|we sent a notification|open the linkedin app|waiting for approval|sent to your device|approve in (the )?app|check your phone|approve the request|yes,? it'?s me/.test(
-          t
-        ) ||
-        // UA / RU
-        /підтверд(іть|ження)|перевірте.*додаток|відкрийте.*додаток|запит на вхід|підтвердіть вхід|додатку linkedin|проверьте.*приложение|откройте.*приложение|подтвердите вход|запрос на вход|уведомление.*(отправлен|послан)|это вы|це ви/.test(
-          t
-        ) ||
-        // DE / NL / PL
-        /linkedin[- ]app|in der linkedin[- ]app|bestätigen sie|anmeldung bestätigen|anfrage (genehmigen|bestätigen)|in de linkedin[- ]app|bevestig (het is u|aanmelding)|in (aplikacji|aplikacji) linkedin|potwierdź (logowanie|że to ty)|zatwierdź/.test(
-          t
-        ) ||
-        // FR / ES / PT / IT
-        /application linkedin|approuvez|confirmez (qu.?il s.?agit de vous|la connexion)|demande de connexion|app de linkedin|aprueba|confirma (que eres tú|el inicio)|solicitud de inicio|aplicativo linkedin|aprova|confirme (que é você|o login)|app linkedin|approva|conferma (che sei tu|l.?accesso)|richiesta di accesso/.test(
-          t
-        ) ||
-        // TR / JA / ZH / AR
-        /linkedin uygulamas|onayla|giriş isteği|linkedinアプリ|承認|サインイン|领英|linkedin.?应用|确认是你|批准|تطبيق linkedin|وافق|تأكيد تسجيل/.test(
+      // Primary authenticator step (not "try another way" footnotes).
+      const authenticatorPrimary =
+        /enter the code you see on your authenticator|code you see on your authenticator|enter the 6-digit code from your authenticator|from your authenticator app/.test(
           t
         );
-      if (appApproval) return 'app_approval';
+      const authenticatorMention =
+        /authenticator app|verification app|authentication app|google authenticator|in your authenticator/.test(t);
+      const emailSmsPrimary =
+        /we (emailed|texted) you.{0,40}code|enter the code (we )?(emailed|texted|sent to your (email|phone))|check your (email|inbox|phone|sms).{0,30}code|code.{0,20}(we sent|from (your )?(email|sms|text))/.test(
+          t
+        );
+      const emailSmsLoose =
+        /we sent.{0,40}code|email.{0,20}code|code.{0,20}(email|inbox|sms|phone)|text message/.test(t);
+
+      const appApprovalStrong =
+        /check your linkedin app|sign-in request|notification sent to your (linkedin )?app|tap yes|approve this sign|confirm (it'?s|this is) you|we sent a notification|open the linkedin app|waiting for approval|approve in (the )?app|approve the request|yes,? it'?s me/.test(
+          t
+        );
+
+      // Government ID document form (not the footer link alone).
+      const identityForm =
+        /select an identification document|identification document|choose the country that issued|government[- ]issued|upload (your )?(id|passport|driver|licence|license)|photo of your id|we.?ll use this to verify your identity/.test(
+          t
+        ) ||
+        (!!document.querySelector('select, [role="listbox"]') &&
+          /verify your identity|issued your id|identification/.test(t) &&
+          !/authenticator|enter the code|sign-in request|linkedin app/.test(t));
+      if (identityForm) return { kind: 'identity_document', pinSource: null };
+
+      if (/provide a new email|new email address|re-enter email|you will use this email address to sign in|public profile url/i.test(t)) {
+        return { kind: 'email_update', pinSource: null };
+      }
+
+      // Visible OTP / primary code step wins over app-approval footnotes.
+      if (hasVisibleOtp || authenticatorPrimary || emailSmsPrimary) {
+        let pinSource = 'unknown';
+        if (authenticatorPrimary || (hasVisibleOtp && authenticatorMention && !emailSmsPrimary)) {
+          pinSource = 'authenticator';
+        } else if (emailSmsPrimary || (hasVisibleOtp && emailSmsLoose)) {
+          pinSource = 'email_sms';
+        }
+        return { kind: 'pin', pinSource };
+      }
+
+      // App Sign-in request must beat leftover recaptcha iframes + "try another way: email code" copy.
+      if (appApprovalStrong) return { kind: 'app_approval', pinSource: null };
+
+      // Captcha only when the challenge UI is actually visible (LinkedIn pages often embed invisible grecaptcha).
+      const captchaNodes = [
+        ...document.querySelectorAll(
+          'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA" i], iframe[title*="recaptcha" i], .g-recaptcha, #g-recaptcha'
+        ),
+      ];
+      const captchaVisible = captchaNodes.some(isVisible);
+      const captchaCopyPrimary =
+        /i.?m not a robot|i am not a robot|select all (images|squares)|image challenge|solve (this )?puzzle/.test(t);
+      if (captchaVisible || captchaCopyPrimary) {
+        return { kind: 'captcha', pinSource: null };
+      }
+
+      // Loose pin copy without a field — only if we are clearly on a code step (not app approve).
+      if (
+        !appApprovalStrong &&
+        (/enter the code|verification code|one-time password|enter code|otp|sent (you )?a code/.test(t) ||
+          emailSmsLoose ||
+          authenticatorMention)
+      ) {
+        let pinSource = 'unknown';
+        if (authenticatorMention) pinSource = 'authenticator';
+        else if (emailSmsLoose) pinSource = 'email_sms';
+        return { kind: 'pin', pinSource };
+      }
+
       return null;
     })
     .catch(() => null);
 
-  if (fromDom) return fromDom;
-
-  // Still on plain login form after credentials → not a challenge yet.
-  if (/login|uas\/login/i.test(url) && !/checkpoint|challenge/i.test(url)) {
-    return null;
+  if (fromDom?.kind) {
+    if (fromDom.kind === 'pin') writeState({ challengePinSource: fromDom.pinSource || 'unknown' });
+    else writeState({ challengePinSource: null });
+    return fromDom.kind;
   }
 
-  // Checkpoint URLs: pin → captcha iframe → app approval (never invent app_approval over captcha).
-  if (/checkpoint|challenge|manage\/challenge|two-step|add-phone/i.test(url)) {
+  if (/login|uas\/login/i.test(url) && !/checkpoint|challenge/i.test(url)) return null;
+
+  if (/checkpoint|challenge|manage\/challenge|two-step|add-phone|identity|idv/i.test(url)) {
     const flags = await page
-      .evaluate(() => ({
-        hasCodeField: Boolean(
-          document.querySelector(
-            'input[name="pin"], input#input__phone_verification_pin, input[autocomplete="one-time-code"], input[inputmode="numeric"]'
-          )
-        ),
-        hasRecaptcha: Boolean(
-          document.querySelector(
-            'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA"], iframe[title*="recaptcha"], .g-recaptcha'
-          )
-        ),
-      }))
-      .catch(() => ({ hasCodeField: false, hasRecaptcha: false }));
-    if (flags.hasCodeField) return 'pin';
-    if (flags.hasRecaptcha) return 'captcha';
-    // Also scan child frames for recaptcha.
-    for (const fr of page.frames()) {
-      if (/recaptcha|google\.com\/recaptcha/i.test(fr.url() || '')) return 'captcha';
+      .evaluate(() => {
+        const t = (document.body?.innerText || '').slice(0, 5000).toLowerCase();
+        const isVisible = (el) => {
+          if (!el || !(el instanceof Element)) return false;
+          const r = el.getBoundingClientRect();
+          if (r.width < 2 || r.height < 2) return false;
+          const s = window.getComputedStyle(el);
+          if (!s || s.visibility === 'hidden' || s.display === 'none' || Number(s.opacity) === 0) return false;
+          return true;
+        };
+        const hasVisibleOtp = [...document.querySelectorAll(
+          'input[name="pin"], input#input__phone_verification_pin, input[autocomplete="one-time-code"], input[inputmode="numeric"], input[name*="pin" i], input[id*="pin" i], input[placeholder*="code" i], input[aria-label*="code" i]'
+        )].some(isVisible);
+        const authenticatorPrimary =
+          /enter the code you see on your authenticator|code you see on your authenticator|from your authenticator app/.test(
+            t
+          );
+        const appApprovalStrong =
+          /check your linkedin app|sign-in request|notification sent|tap yes|approve this sign|we sent a notification|open the linkedin app|approve in (the )?app|yes,? it'?s me/.test(
+            t
+          );
+        const captchaVisible = [...document.querySelectorAll(
+          'iframe[src*="recaptcha"], iframe[title*="reCAPTCHA" i], iframe[title*="recaptcha" i], .g-recaptcha'
+        )].some(isVisible);
+        return {
+          pin: hasVisibleOtp || authenticatorPrimary,
+          pinSource: authenticatorPrimary
+            ? 'authenticator'
+            : /we (emailed|texted)|check your (email|inbox)|sms|text message/.test(t)
+              ? 'email_sms'
+              : 'unknown',
+          identity:
+            /select an identification document|identification document|choose the country that issued|government[- ]issued/.test(
+              t
+            ),
+          appApproval: appApprovalStrong && !hasVisibleOtp && !authenticatorPrimary,
+          captcha: captchaVisible || /i.?m not a robot|i am not a robot|select all (images|squares)/.test(t),
+        };
+      })
+      .catch(() => ({
+        pin: false,
+        pinSource: 'unknown',
+        identity: false,
+        appApproval: false,
+        captcha: false,
+      }));
+    if (flags.identity) return 'identity_document';
+    if (flags.pin) {
+      writeState({ challengePinSource: flags.pinSource || 'unknown' });
+      return 'pin';
     }
-    return 'app_approval';
+    if (flags.appApproval) {
+      writeState({ challengePinSource: null });
+      return 'app_approval';
+    }
+    if (flags.captcha) return 'captcha';
+    // Visible bframe only — do not treat every google.com/recaptcha frame as an active challenge.
+    for (const fr of page.frames()) {
+      const fu = fr.url() || '';
+      if (/recaptcha.*bframe|google\.com\/recaptcha\/api2\/bframe/i.test(fu)) return 'captcha';
+    }
+    return 'generic';
   }
   return null;
 }
@@ -499,12 +570,52 @@ async function getRecaptchaState(page) {
     imageChallengeOpen: false,
     bframeBox: null,
     anchorBox: null,
+    hasVisibleTiles: false,
   };
+
+  // Prefer visible host iframes — Google often preloads a hidden bframe URL.
+  try {
+    const bframes = page.locator('iframe[src*="bframe"]');
+    const n = await bframes.count().catch(() => 0);
+    for (let i = 0; i < n; i++) {
+      const el = bframes.nth(i);
+      const visible = await el.isVisible().catch(() => false);
+      const box = await el.boundingBox().catch(() => null);
+      if (!visible || !box) continue;
+      // Real image puzzle is a large panel; tiny/hidden preload iframes are ~0 or tiny.
+      if (box.width >= 180 && box.height >= 180) {
+        state.imageChallengeOpen = true;
+        state.bframeBox = box;
+        break;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
   for (const fr of page.frames()) {
     const fu = fr.url() || '';
     if (!/recaptcha|google\.com\/recaptcha/i.test(fu)) continue;
     if (/bframe/i.test(fu)) {
-      state.imageChallengeOpen = true;
+      const meta = await fr
+        .evaluate(() => {
+          const tiles = document.querySelectorAll(
+            'td.rc-imageselect-tile, .rc-imageselect-tile, .rc-image-tile-wrapper, #rc-imageselect-target img'
+          ).length;
+          const prompt = String(
+            document.querySelector('.rc-imageselect-desc-wrapper')?.innerText ||
+              document.querySelector('.rc-imageselect-desc')?.innerText ||
+              ''
+          ).trim();
+          return { tiles, prompt };
+        })
+        .catch(() => ({ tiles: 0, prompt: '' }));
+      if (meta.tiles > 0) state.hasVisibleTiles = true;
+      // Visible large host iframe already set imageChallengeOpen; also accept painted tiles/prompt
+      // even if Playwright reports the host iframe as not "visible" (common with nested frames).
+      if (meta.tiles > 0 || /select all|click verify/i.test(meta.prompt)) {
+        state.imageChallengeOpen = true;
+      }
       continue;
     }
     if (/anchor/i.test(fu) || /api2\/anchor/i.test(fu)) {
@@ -528,15 +639,7 @@ async function getRecaptchaState(page) {
       }
     }
   }
-  try {
-    const b = page.locator('iframe[src*="bframe"]').first();
-    if ((await b.count().catch(() => 0)) > 0 && (await b.isVisible().catch(() => false))) {
-      state.imageChallengeOpen = true;
-      state.bframeBox = await b.boundingBox().catch(() => null);
-    }
-  } catch {
-    /* ignore */
-  }
+
   try {
     const a = page.locator('iframe[src*="anchor"], iframe[title*="reCAPTCHA"]').first();
     if ((await a.count().catch(() => 0)) > 0) {
@@ -548,15 +651,25 @@ async function getRecaptchaState(page) {
   return state;
 }
 
-/** Click Google reCAPTCHA checkbox only when unchecked and no image puzzle is open. */
-async function tryClickRecaptcha(page) {
+/**
+ * Click Google reCAPTCHA checkbox.
+ * @param {{ force?: boolean }} opts force=true for explicit dashboard "I'm not a robot"
+ *   (ignore phantom hidden bframes that would skip the click).
+ */
+async function tryClickRecaptcha(page, opts = {}) {
+  const force = !!opts.force;
   const state = await getRecaptchaState(page);
-  if (state.imageChallengeOpen) {
-    console.log('Repair recaptcha skip checkbox — image challenge already open');
-    return false;
-  }
   if (state.checked) {
     console.log('Repair recaptcha skip checkbox — already checked');
+    return false;
+  }
+  // Only skip force-click when tiles are actually painted (not after LinkedIn reset).
+  if (force && state.imageChallengeOpen && state.hasVisibleTiles) {
+    console.log('Repair recaptcha force click skipped — tiles already visible');
+    return false;
+  }
+  if (!force && state.imageChallengeOpen && state.hasVisibleTiles) {
+    console.log('Repair recaptcha skip checkbox — image challenge already open');
     return false;
   }
   for (const fr of page.frames()) {
@@ -579,6 +692,13 @@ async function tryClickRecaptcha(page) {
   try {
     const iframe = page.locator('iframe[src*="recaptcha"][src*="anchor"], iframe[title*="reCAPTCHA"]').first();
     if ((await iframe.count().catch(() => 0)) > 0) {
+      const box = await iframe.boundingBox().catch(() => null);
+      if (box) {
+        // Click left side of widget (checkbox), not the logo.
+        await page.mouse.click(box.x + Math.min(28, box.width * 0.15), box.y + box.height / 2);
+        console.log('Repair recaptcha checkbox clicked via mouse on anchor box');
+        return true;
+      }
       await iframe.click({ timeout: 5000, force: true });
       console.log('Repair recaptcha iframe host clicked');
       return true;
@@ -604,6 +724,30 @@ function clearCaptchaTileFiles() {
   }
 }
 
+function publishCaptchaStaging(stagingDir) {
+  const bak = `${CAPTCHA_DIR}_old`;
+  try {
+    fs.rmSync(bak, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (fs.existsSync(CAPTCHA_DIR)) fs.renameSync(CAPTCHA_DIR, bak);
+  } catch {
+    try {
+      fs.rmSync(CAPTCHA_DIR, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+  fs.renameSync(stagingDir, CAPTCHA_DIR);
+  try {
+    fs.rmSync(bak, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+}
+
 function bframeFrom(page) {
   for (const fr of page.frames()) {
     if (/bframe/i.test(fr.url() || '')) return fr;
@@ -611,9 +755,13 @@ function bframeFrom(page) {
   return null;
 }
 
+let lastCaptchaSyncAt = 0;
+
 /** Publish captchaPhase + tile JPEGs for native dashboard UI (human still solves). */
-async function syncCaptchaNativeUi(page) {
-  const kind = await detectChallengeKind(page).catch(() => null);
+async function syncCaptchaNativeUi(page, opts = {}) {
+  const force = !!opts.force;
+  const kind = await resolveChallengeKind(page).catch(() => null);
+  const prev = readState() || {};
   if (kind !== 'captcha') {
     writeState({
       captchaPhase: 'none',
@@ -621,101 +769,265 @@ async function syncCaptchaNativeUi(page) {
       captchaPrompt: null,
       captchaTileCount: 0,
       captchaCols: 3,
+      captchaMode: null,
+      captchaHasChallengeJpg: false,
     });
     return;
   }
   const state = await getRecaptchaState(page);
   if (!state.imageChallengeOpen) {
-    clearCaptchaTileFiles();
+    // Don't yank the UI back to checkbox while LinkedIn flickers the bframe,
+    // or right after the user already tapped "I'm not a robot".
+    const recentImage =
+      prev.captchaPhase === 'image' &&
+      Number(prev.captchaGridRev || 0) > 0 &&
+      Date.now() - Number(prev.captchaGridRev || 0) < 20000;
+    if (recentImage) {
+      writeState({
+        captchaPhase: 'image',
+        captchaChecked: true,
+      });
+      return;
+    }
+    if (prev.captchaUiChecked || state.checked) {
+      // LinkedIn often resets to an empty checkbox after a while — keep waiting UI
+      // but allow another explicit clickRecaptcha (force) to re-check.
+      writeState({
+        captchaPhase: 'waiting',
+        captchaChecked: !!state.checked,
+        captchaPrompt: state.checked
+          ? prev.captchaPrompt
+          : 'LinkedIn reset the checkbox — tap I’m not a robot again if the live screen shows it empty.',
+      });
+      return;
+    }
     writeState({
-      captchaPhase: state.checked ? 'waiting' : 'checkbox',
-      captchaChecked: !!state.checked,
+      captchaPhase: 'checkbox',
+      captchaChecked: false,
       captchaPrompt: null,
       captchaTileCount: 0,
       captchaCols: 3,
+      captchaMode: null,
+      captchaHasChallengeJpg: false,
     });
     return;
   }
 
-  const fr = bframeFrom(page);
-  let prompt = '';
-  let saved = 0;
-  let cols = 3;
-  clearCaptchaTileFiles();
-  fs.mkdirSync(CAPTCHA_DIR, { recursive: true });
+  // Throttle — captureFrame runs often; clearing tiles every pass caused 404s in the popup.
+  if (
+    !force &&
+    Date.now() - lastCaptchaSyncAt < 2800 &&
+    prev.captchaPhase === 'image' &&
+    prev.captchaHasChallengeJpg
+  ) {
+    return;
+  }
+  lastCaptchaSyncAt = Date.now();
 
+  const staging = path.join(ROOT, 'session_repair_captcha_staging');
+  try {
+    fs.rmSync(staging, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+  fs.mkdirSync(staging, { recursive: true });
+
+  await page.waitForTimeout(500);
+
+  let prompt = '';
+  let tileRects = [];
+  let cols = 3; // classic reCAPTCHA image select is 3×3 unless 4×4
+  const fr = bframeFrom(page);
   if (fr) {
-    prompt = await fr
+    const meta = await fr
       .evaluate(() => {
+        const tiles = [
+          ...document.querySelectorAll(
+            'td.rc-imageselect-tile, .rc-imageselect-tile, .rc-image-tile-wrapper'
+          ),
+        ];
         const el =
           document.querySelector('.rc-imageselect-desc-wrapper') ||
           document.querySelector('.rc-imageselect-desc') ||
           document.querySelector('#rc-imageselect');
-        return String(el?.innerText || '')
+        const prompt = String(el?.innerText || '')
           .replace(/\s+/g, ' ')
           .trim()
           .slice(0, 240);
+        const rects = tiles.map((t) => {
+          const r = t.getBoundingClientRect();
+          return { x: r.x, y: r.y, w: r.width, h: r.height };
+        });
+        return { count: tiles.length, prompt, rects };
       })
-      .catch(() => '');
+      .catch(() => ({ count: 0, prompt: '', rects: [] }));
+    prompt = meta.prompt || '';
+    tileRects = Array.isArray(meta.rects) ? meta.rects.filter((r) => r.w > 4 && r.h > 4) : [];
+    if (meta.count >= 16 || tileRects.length >= 16) cols = 4;
+    else cols = 3;
+  }
 
-    const tiles = fr.locator(
-      'td.rc-imageselect-tile, .rc-imageselect-tile, .rc-image-tile-wrapper'
-    );
-    const count = await tiles.count().catch(() => 0);
-    const max = Math.min(count, 16);
-    cols = max > 9 ? 4 : 3;
-    for (let i = 0; i < max; i++) {
+  let hasChallenge = false;
+  // 1) Element screenshot of bframe iframe (works even when boundingBox is flaky).
+  try {
+    const handle = await page.$('iframe[src*="bframe"]');
+    if (handle) {
+      await handle.screenshot({
+        path: path.join(staging, 'challenge.jpg'),
+        type: 'jpeg',
+        quality: 75,
+      });
+      hasChallenge = fs.existsSync(path.join(staging, 'challenge.jpg'));
+      if (hasChallenge) console.log('Captcha challenge via iframe element screenshot');
+    }
+  } catch (e) {
+    console.log('captcha iframe element shot:', e.message);
+  }
+
+  const iframe = page.locator('iframe[src*="bframe"]').first();
+  let box = state.bframeBox || (await iframe.boundingBox().catch(() => null));
+  if (!box || box.width < 120 || box.height < 120) {
+    const candidates = page.locator('iframe[src*="recaptcha"], iframe[title*="recaptcha" i]');
+    const n = await candidates.count().catch(() => 0);
+    for (let i = 0; i < n; i++) {
+      const b = await candidates.nth(i).boundingBox().catch(() => null);
+      if (b && b.width > 120 && b.height > 120) {
+        box = b;
+        break;
+      }
+    }
+  }
+
+  // 2) Clip from page if element shot failed.
+  if (!hasChallenge && box && box.width > 40 && box.height > 40) {
+    try {
+      await page.screenshot({
+        path: path.join(staging, 'challenge.jpg'),
+        type: 'jpeg',
+        quality: 75,
+        clip: {
+          x: Math.max(0, box.x),
+          y: Math.max(0, box.y),
+          width: Math.min(box.width, 900),
+          height: Math.min(box.height, 900),
+        },
+      });
+      hasChallenge = fs.existsSync(path.join(staging, 'challenge.jpg'));
+    } catch (e) {
+      console.log('captcha challenge clip:', e.message);
+    }
+  }
+
+  // 3) Fall back to the live repair frame (same image user sees on live screenshot).
+  if (!hasChallenge && fs.existsSync(FRAME_PATH)) {
+    try {
+      fs.copyFileSync(FRAME_PATH, path.join(staging, 'challenge.jpg'));
+      hasChallenge = true;
+      console.log('Captcha challenge via live frame copy');
+    } catch (e) {
+      console.log('captcha frame copy:', e.message);
+    }
+  }
+
+  let saved = 0;
+  if (box && box.width > 40 && tileRects.length > 0) {
+    for (let i = 0; i < tileRects.length && i < 16; i++) {
+      const r = tileRects[i];
       try {
-        await tiles.nth(i).screenshot({
-          path: path.join(CAPTCHA_DIR, `tile_${i}.jpg`),
+        await page.screenshot({
+          path: path.join(staging, `tile_${i}.jpg`),
           type: 'jpeg',
-          quality: 72,
+          quality: 78,
+          clip: {
+            x: Math.max(0, box.x + r.x),
+            y: Math.max(0, box.y + r.y),
+            width: Math.max(8, Math.min(r.w, 400)),
+            height: Math.max(8, Math.min(r.h, 400)),
+          },
         });
         saved++;
       } catch (e) {
-        console.log('captcha tile shot', i, e.message);
+        console.log('captcha tile rect', i, e.message);
       }
-    }
-    try {
-      const table = fr.locator('#rc-imageselect-target, table.rc-imageselect-table, table').first();
-      if ((await table.count().catch(() => 0)) > 0) {
-        await table.screenshot({
-          path: path.join(CAPTCHA_DIR, 'challenge.jpg'),
-          type: 'jpeg',
-          quality: 70,
-        });
-      }
-    } catch (e) {
-      console.log('captcha table shot:', e.message);
     }
   }
+
+  // Prefer composite overlay (reliable) — individual tile JPGs often race/404.
+  const mode = hasChallenge ? 'composite' : saved > 0 ? 'tiles' : 'empty';
+  const publishCount = hasChallenge ? cols * cols : saved;
+
+  if (!hasChallenge && saved === 0) {
+    // Keep previous files if we failed this pass.
+    try {
+      fs.rmSync(staging, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+    writeState({
+      captchaPhase: 'image',
+      captchaChecked: true,
+      captchaPrompt: prompt || prev.captchaPrompt || 'Select all images that match the prompt',
+      captchaTileCount: prev.captchaTileCount || 0,
+      captchaCols: prev.captchaCols || cols,
+      captchaMode: prev.captchaMode || 'empty',
+      captchaHasChallengeJpg: !!prev.captchaHasChallengeJpg,
+    });
+    console.log('Captcha sync keep previous — new capture empty');
+    return;
+  }
+
+  publishCaptchaStaging(staging);
 
   writeState({
     captchaPhase: 'image',
     captchaChecked: true,
     captchaPrompt: prompt || 'Select all images that match the prompt',
-    captchaTileCount: saved,
+    captchaTileCount: publishCount,
     captchaCols: cols,
     captchaGridRev: Date.now(),
+    captchaMode: mode,
+    captchaHasChallengeJpg: hasChallenge || saved > 0,
   });
-  console.log(`Captcha native UI: image tiles=${saved} prompt="${(prompt || '').slice(0, 60)}"`);
+  console.log(
+    `Captcha native UI: tiles=${saved} publish=${publishCount} cols=${cols} mode=${mode} prompt="${(prompt || '').slice(0, 60)}"`
+  );
 }
 
 async function clickCaptchaTile(page, index) {
   const i = Number(index);
   if (!Number.isFinite(i) || i < 0) return false;
   const fr = bframeFrom(page);
-  if (!fr) return false;
-  const tiles = fr.locator(
-    'td.rc-imageselect-tile, .rc-imageselect-tile, .rc-image-tile-wrapper'
-  );
-  const n = await tiles.count().catch(() => 0);
-  if (i >= n) {
-    console.log('clickCaptchaTile out of range', i, n);
-    return false;
+  if (fr) {
+    const tiles = fr.locator(
+      'td.rc-imageselect-tile, .rc-imageselect-tile, .rc-image-tile-wrapper'
+    );
+    const n = await tiles.count().catch(() => 0);
+    if (i < n) {
+      await tiles.nth(i).click({ force: true, timeout: 5000 });
+      console.log('Repair captcha tile index', i);
+      return true;
+    }
   }
-  await tiles.nth(i).click({ force: true, timeout: 5000 });
-  console.log('Repair captcha tile index', i);
+  // Fallback: click cell center inside bframe box (when DOM tiles aren't countable).
+  const state = await getRecaptchaState(page);
+  const box =
+    state.bframeBox ||
+    (await page.locator('iframe[src*="bframe"]').first().boundingBox().catch(() => null));
+  if (!box) return false;
+  const cols = 3;
+  const rows = 3;
+  const gridTop = box.y + box.height * 0.26;
+  const gridH = box.height * 0.58;
+  const gridW = box.width * 0.92;
+  const gridLeft = box.x + box.width * 0.04;
+  const cellW = gridW / cols;
+  const cellH = gridH / rows;
+  const r = Math.floor(i / cols);
+  const c = i % cols;
+  const x = gridLeft + (c + 0.5) * cellW;
+  const y = gridTop + (r + 0.5) * cellH;
+  await page.mouse.click(x, y);
+  console.log('Repair captcha tile fallback click', i, Math.round(x), Math.round(y));
   return true;
 }
 
@@ -767,35 +1079,65 @@ async function applyCaptchaClick(page, x, y) {
   return 'page';
 }
 
+/** Prefer live kind, but do not demote a clear Sign-in request to leftover captcha. */
+async function resolveChallengeKind(page) {
+  const kind = (await detectChallengeKind(page).catch(() => null)) || null;
+  const st = readState() || {};
+  const prev = st.challengeKind || null;
+  if (prev === 'app_approval' && kind === 'captcha') {
+    const stillApp = await page
+      .evaluate(() =>
+        /sign-in request|check your linkedin app|notification sent|open the linkedin app|approve (this|the) (sign|request)|tap yes|waiting for approval/i.test(
+          (document.body?.innerText || '').slice(0, 6000)
+        )
+      )
+      .catch(() => false);
+    if (stillApp) return 'app_approval';
+  }
+  return kind;
+}
+
 async function notifyChallengeNeeded(page) {
   const st = readState() || {};
-  const kind = (await detectChallengeKind(page)) || 'generic';
+  const kind = (await resolveChallengeKind(page)) || 'generic';
   const prev = st.challengeKind || null;
-  const rank = { app_approval: 3, pin: 3, captcha: 3, email_update: 3, generic: 1, signing_in: 0 };
-  const upgraded = !prev || (rank[kind] || 0) > (rank[prev] || 0);
-  // First detection or upgrade generic → app_approval/pin/captcha
-  if (!st.challengeNotified || upgraded) {
+  // Always refresh kind when LinkedIn switches checkpoint (app_approval → pin, etc.).
+  const changed = kind !== prev;
+  const rank = {
+    identity_document: 5,
+    pin: 4,
+    app_approval: 4, // same weight as pin — do not lose to leftover captcha
+    captcha: 3,
+    email_update: 3,
+    generic: 1,
+    signing_in: 0,
+  };
+  const upgraded = !prev || changed || (rank[kind] || 0) > (rank[prev] || 0);
+  if (!st.challengeNotified || upgraded || changed) {
     writeState({
       challengeNotified: true,
       challengeKind: kind,
       challengeSince: st.challengeSince || new Date().toISOString(),
     });
   }
-  if (st.challengeNotified && !upgraded) return;
+  if (st.challengeNotified && !changed && !upgraded) return;
 
   const titles = {
     app_approval: 'Approve LinkedIn sign-in in your app',
     pin: 'LinkedIn wants a verification code',
     captcha: 'LinkedIn security check',
-    generic: 'Approve LinkedIn sign-in in your app',
+    identity_document: 'LinkedIn asks for an ID document',
+    generic: 'LinkedIn verification needed',
   };
   const messages = {
     app_approval:
       'Open the LinkedIn app on your phone and tap Yes / Approve on the sign-in request. H.A.L.O. will continue automatically — no need to sign in again here.',
-    pin: 'Enter the code LinkedIn emailed or texted you on the repair page (or in the dashboard prompt). App push is not always offered — LinkedIn chooses email/SMS for some logins.',
-    captcha: 'Complete the security check in H.A.L.O. (I’m not a robot / image tiles on the LinkedIn page).',
+    pin: 'Enter the code from your authenticator app or email/SMS on the H.A.L.O. LinkedIn page.',
+    captcha: 'Complete the security check in the H.A.L.O. captcha popup (I’m not a robot / image tiles).',
+    identity_document:
+      'LinkedIn is asking for a government ID. H.A.L.O. cannot complete this step. Finish ID verification in your personal browser on a normal home/office network, then paste fresh cookies — or cancel Sign in.',
     generic:
-      'Open the LinkedIn app on your phone and tap Yes / Approve if LinkedIn sent a sign-in request. If you got an email/SMS code instead, open the repair page and enter it there.',
+      'Watch the live LinkedIn screen. If you see an authenticator / email code field, enter the code on the H.A.L.O. LinkedIn page. If you see I’m not a robot, use the captcha popup.',
   };
   try {
     const { notify } = await import('./notify.js');
@@ -1086,7 +1428,7 @@ async function applySignIn(page, username, password) {
   for (let attempt = 0; attempt < 8; attempt++) {
     await page.waitForTimeout(1500);
     const earlyMode = await detectUiMode(page);
-    const earlyKind = await detectChallengeKind(page);
+    const earlyKind = await resolveChallengeKind(page);
     if (earlyMode === 'challenge' || earlyKind === 'app_approval' || earlyKind === 'pin' || earlyKind === 'captcha') {
       await captureFrame(page, 'challenge');
       return;
@@ -1133,7 +1475,15 @@ async function drainInputs(page) {
     }
     try {
       if (ev.type === 'signin' && typeof ev.username === 'string' && typeof ev.password === 'string') {
-        await applySignIn(page, ev.username, ev.password);
+        const cur = readState() || {};
+        const lastAt = cur.lastSignInAt ? Date.parse(cur.lastSignInAt) : 0;
+        const recent =
+          Number.isFinite(lastAt) && Date.now() - lastAt < 120000 && (cur.uiMode === 'signing' || cur.uiMode === 'challenge');
+        if (recent) {
+          console.log('Repair skip duplicate signin (already submitted recently)');
+        } else {
+          await applySignIn(page, ev.username, ev.password);
+        }
       } else if (ev.type === 'clickText') {
         const key = String(ev.key || ev.text || '').trim();
         const map = {
@@ -1198,17 +1548,22 @@ async function drainInputs(page) {
         await page.waitForTimeout(250);
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'clickRecaptcha') {
-        // Explicit checkbox-only request (do not use while image puzzle is open).
-        await tryClickRecaptcha(page);
-        await page.waitForTimeout(800);
+        // Explicit dashboard checkbox — force past phantom hidden bframes.
+        const clicked = await tryClickRecaptcha(page, { force: true });
+        console.log('Repair clickRecaptcha →', clicked ? 'clicked' : 'no-op');
+        writeState({ captchaUiChecked: true, captchaPhase: 'waiting' });
+        await page.waitForTimeout(1500);
+        await syncCaptchaNativeUi(page, { force: true }).catch((e) => console.log('syncCaptchaNativeUi:', e.message));
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'clickCaptchaTile' && Number.isFinite(Number(ev.index))) {
         await clickCaptchaTile(page, Number(ev.index));
         await page.waitForTimeout(400);
+        await syncCaptchaNativeUi(page, { force: true }).catch(() => {});
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'captchaVerify') {
         await clickCaptchaVerify(page);
         await page.waitForTimeout(900);
+        await syncCaptchaNativeUi(page, { force: true }).catch(() => {});
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'setValue' && typeof ev.text === 'string') {
         const ok = await fillChallengeCode(page, ev.text);
@@ -1262,7 +1617,7 @@ async function captureFrame(page, forcedMode, opts = {}) {
     .catch(() => {});
 
   await page.screenshot({ path: FRAME_PATH, type: 'jpeg', quality: 55 }).catch(() => {});
-  const kind = await detectChallengeKind(page);
+  const kind = await resolveChallengeKind(page);
   if (mode === 'form' || snapshot) {
     writeState({
       status: 'running',
@@ -1419,7 +1774,7 @@ async function runRepair() {
         if (postChallenge && Date.now() - since > 5000 && Date.now() - lastNudge > 8000) {
           const nudgeN = (cur?.challengeNudgeCount || 0) + 1;
           // Re-classify challengeKind so UI is not stuck on stale "generic"
-          const liveKind = (await detectChallengeKind(page).catch(() => null)) || cur?.challengeKind;
+          const liveKind = (await resolveChallengeKind(page).catch(() => null)) || cur?.challengeKind;
           writeState({
             lastFeedNudgeAt: new Date().toISOString(),
             challengeNudgeCount: nudgeN,
@@ -1427,7 +1782,7 @@ async function runRepair() {
             challengeKind: liveKind || cur?.challengeKind || 'generic',
           });
           // Captcha: never navigate away / reload / re-click checkbox — that kills the image puzzle.
-          if (liveKind === 'captcha' || cur?.challengeKind === 'captcha') {
+          if (liveKind === 'captcha' && cur?.challengeKind !== 'app_approval') {
             console.log('Post-challenge passive wait — captcha (stay on page)…');
             await page.waitForTimeout(2500);
           } else if (nudgeN >= 6 && nudgeN % 6 === 0 && liveKind === 'app_approval') {
@@ -1476,7 +1831,12 @@ async function runRepair() {
       process.exitCode = 2;
       return;
     }
-    writeState({ status: 'timeout', error: 'Login not completed in time' });
+    writeState({
+      status: 'timeout',
+      error: 'Login not completed in time — press Sign in again.',
+      challengeKind: null,
+      captchaPhase: 'none',
+    });
     process.exitCode = 2;
   }
 }
@@ -1488,7 +1848,10 @@ async function main() {
     console.log('Clearing stale Stage R lock from previous repair run');
     releaseCycleLock();
   }
-  const lock = await withCycleLock('R', runRepair, { skipIfBusy: true });
+  const lock = await withCycleLock('R', runRepair, {
+    skipIfBusy: false,
+    waitMs: Number(process.env.REPAIR_LOCK_WAIT_MS || 90000),
+  });
   if (lock.skipped) {
     const who = isLockHeld().owner || 'unknown';
     writeState({ status: 'error', error: `Another automation is running (Stage ${who})` });

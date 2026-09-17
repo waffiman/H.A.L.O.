@@ -75,9 +75,13 @@ import {
   readRepairState,
   repairContainerRunning,
   repairCaptchaTilePath,
+  repairCaptchaChallengePath,
   repairFramePath,
   startDashboardLinkedInLogin,
   startRepairWorkerSync,
+  sweepStaleRepairState,
+  maybeResumeAgentAfterRepair,
+  forceStopStageR,
 } from './lib/sessionRepair.js';
 import {
   listMessages,
@@ -211,6 +215,9 @@ function isPublicPath(req) {
   if (p.startsWith('/api/calendar/')) return true;
   if (p === '/api/health') return true;
   if (p.startsWith('/repair')) return true;
+  // Token-gated in handlers — must stay public so <img> captcha/frame loads
+  // without relying on the cabinet session cookie (and so /repair.html works standalone).
+  if (p.startsWith('/api/linkedin/repair/')) return true;
   if (p === '/marketing' || p.startsWith('/marketing/')) return true;
   return false;
 }
@@ -351,7 +358,15 @@ function redactSettingsForTenant(view) {
   };
 }
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '5m', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '5m',
+  etag: true,
+  setHeaders(res, filePath) {
+    if (/\.(js|css|html)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  },
+}));
 
 // Public marketing site (../marketing), built by Vite into marketing/dist.
 // Static assets are content-hashed, so they cache hard; index.html must not.
@@ -1090,6 +1105,7 @@ app.get('/api/linkedin/repair/frame', (req, res) => {
 
 /** Native captcha tile JPEG for dashboard grid (human solves; worker clicked by index). */
 app.get('/api/linkedin/repair/captcha-tile', (req, res) => {
+  sweepStaleRepairState();
   const token = String(req.query.token || '');
   const st = readRepairState();
   if (!token || !st?.token || st.token !== token) {
@@ -1100,12 +1116,38 @@ app.get('/api/linkedin/repair/captcha-tile', (req, res) => {
     return res.status(400).send('bad index');
   }
   const tile = repairCaptchaTilePath(i);
-  if (!fs.existsSync(tile)) {
-    return res.status(404).send('no tile');
+  if (fs.existsSync(tile)) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('jpeg');
+    fs.createReadStream(tile).pipe(res);
+    return;
+  }
+  // Composite fallback: serve challenge.jpg so the grid still paints while tiles catch up.
+  const challenge = repairCaptchaChallengePath();
+  if (fs.existsSync(challenge) && st.captchaMode === 'composite') {
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('jpeg');
+    fs.createReadStream(challenge).pipe(res);
+    return;
+  }
+  return res.status(404).send('no tile');
+});
+
+/** Full captcha challenge JPEG (bframe composite) for modal / fallback. */
+app.get('/api/linkedin/repair/captcha-challenge', (req, res) => {
+  sweepStaleRepairState();
+  const token = String(req.query.token || '');
+  const st = readRepairState();
+  if (!token || !st?.token || st.token !== token) {
+    return res.status(403).send('forbidden');
+  }
+  const challenge = repairCaptchaChallengePath();
+  if (!fs.existsSync(challenge)) {
+    return res.status(404).send('no challenge');
   }
   res.setHeader('Cache-Control', 'no-store');
   res.type('jpeg');
-  fs.createReadStream(tile).pipe(res);
+  fs.createReadStream(challenge).pipe(res);
 });
 
 app.post('/api/linkedin/repair/input', (req, res) => {
@@ -1121,6 +1163,7 @@ app.post('/api/linkedin/repair/input', (req, res) => {
 app.get('/api/linkedin/repair/link', (req, res) => {
   try {
     if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    sweepStaleRepairState();
     const link = ensureActiveRepairLink('manual');
     res.json({ ok: true, ...link });
   } catch (e) {
@@ -1153,18 +1196,39 @@ app.post('/api/linkedin/session/login', (req, res) => {
   }
 });
 
+/** Abort stuck Stage R so the next Sign in is never blocked. */
+app.post('/api/linkedin/session/login/cancel', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const result = forceStopStageR('user_cancel');
+    const resume = maybeResumeAgentAfterRepair();
+    res.json({ ok: true, ...result, resume });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/api/linkedin/session/login/status', (req, res) => {
+  const swept = sweepStaleRepairState();
   const token = String(req.query.token || '');
   const st = readRepairState();
   if (!token || !st?.token || st.token !== token) {
-    return res.status(403).json({ ok: false, error: 'Invalid repair token' });
+    return res.status(403).json({
+      ok: false,
+      error: swept?.swept
+        ? 'Sign-in session ended — press Sign in again.'
+        : 'Invalid repair token',
+      swept: !!swept?.swept,
+    });
   }
   const workerAlive = repairContainerRunning();
   const stale =
     (st.status === 'running' || st.status === 'starting') &&
     !workerAlive &&
     !st.liAtCaptured;
-  res.json({ ok: true, workerAlive, stale, ...st });
+  // When Stage R ends, restart linkedin-agent and re-run interrupted A/B.
+  const resume = maybeResumeAgentAfterRepair();
+  res.json({ ok: true, workerAlive, stale, resume, ...st });
 });
 
 app.get('/api/supabase/keepalive', requireOwner, (_req, res) => {
@@ -1239,4 +1303,13 @@ app.listen(PORT, '0.0.0.0', () => {
   startTenantOrchestrator();
   registerTelegramWebhook().catch((e) => console.warn('[telegram] webhook init:', e.message || e));
   warmBotAvatarCache().catch((e) => console.warn('[telegram] avatar warm:', e.message || e));
+  // Resume A/B after Stage R even if the Sign-in tab was closed.
+  setInterval(() => {
+    try {
+      sweepStaleRepairState();
+      maybeResumeAgentAfterRepair();
+    } catch (e) {
+      console.warn('[stage-r] resume watchdog:', e.message || e);
+    }
+  }, 30000);
 });
