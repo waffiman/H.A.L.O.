@@ -9,10 +9,7 @@ n8n-public.env
 halo-tenants/
 **/session_repair*.json
 **/session_repair*.jpg
-**/session-health.json
-**/cycle.lock
-**/*_state.json
-last_stage_a_oneshot.json
+session_repair_captcha/
 session_repair_input.jsonl
 session_data/
 n8n_data/

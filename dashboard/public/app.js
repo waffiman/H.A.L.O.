@@ -481,6 +481,8 @@ function toastWarn(msg, ms = 0) {
 }
 
 let linkedInChallengeAlerted = false;
+/** Repair token for native captcha controls on the LinkedIn page. */
+let linkedInActiveRepairToken = '';
 let linkedInTitleFlash = null;
 const LI_DOC_TITLE = () => document.title.replace(/^⚠\s*/, '').split(' · ')[0] || 'H.A.L.O.';
 
@@ -525,10 +527,10 @@ const LI_CHALLENGE_COPY = {
   },
   captcha: {
     title: 'Security check required',
-    body: 'Complete the security step on the repair page below. If LinkedIn emailed a code instead, use the code field when it appears.',
-    toast: 'LinkedIn security check — open repair page',
+    body: 'Confirm you’re not a robot below. If image tiles appear, tap the matching ones, then Verify.',
+    toast: 'LinkedIn security check — use the controls below',
     notifyTitle: 'LinkedIn security check',
-    notifyBody: 'Complete verification on the repair page',
+    notifyBody: 'Complete I’m not a robot / image tiles on the LinkedIn page in H.A.L.O.',
   },
   generic: {
     title: 'Action required: approve in LinkedIn app',
@@ -585,10 +587,13 @@ function showLinkedInChallengeUI(st, els) {
     if (t) t.textContent = copy.title;
     if (b) b.textContent = copy.body;
     if (foot) {
-      const needsRepair = kind === 'captcha';
-      foot.innerHTML = needsRepair
-        ? 'Open the <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> to complete the check.'
-        : 'Usually no extra page is needed — approve in the LinkedIn app. Fallback: <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> (live screenshot).';
+      if (kind === 'captcha') {
+        foot.innerHTML =
+          'Prefer the controls below. Fallback: <a id="li-repair-link" href="#" target="_blank" rel="noopener">live screenshot</a>.';
+      } else {
+        foot.innerHTML =
+          'Usually no extra page is needed — approve in the LinkedIn app. Fallback: <a id="li-repair-link" href="#" target="_blank" rel="noopener">repair page</a> (live screenshot).';
+      }
       const newLink = bannerEl.querySelector('#li-repair-link');
       if (newLink && st.token) {
         newLink.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
@@ -599,11 +604,73 @@ function showLinkedInChallengeUI(st, els) {
   if (statusEl) {
     statusEl.textContent =
       kind === 'captcha'
-        ? 'Complete verification — waiting for server…'
+        ? 'Complete verification in H.A.L.O. — waiting for server…'
         : 'Approve in LinkedIn app — waiting for server…';
   }
   if (repairLink && st.token && repairLink.isConnected) {
     repairLink.href = `/repair.html?token=${encodeURIComponent(st.token)}`;
+  }
+  updateLinkedInCaptchaNative(st);
+}
+
+function updateLinkedInCaptchaNative(st) {
+  const panel = document.getElementById('li-captcha-native');
+  if (!panel) return;
+  const kind = st?.challengeKind || '';
+  if (kind !== 'captcha') {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+  const token = st.token || '';
+  const phase = st.captchaPhase || 'checkbox';
+  const checkboxRow = document.getElementById('li-captcha-checkbox-row');
+  const imageBlock = document.getElementById('li-captcha-image-block');
+  const promptEl = document.getElementById('li-captcha-prompt');
+  const grid = document.getElementById('li-captcha-grid');
+  const robotBtn = document.getElementById('li-captcha-robot-btn');
+  const verifyBtn = document.getElementById('li-captcha-verify-btn');
+  const fallback = document.getElementById('li-captcha-repair-fallback');
+  if (fallback && token) {
+    fallback.href = `/repair.html?token=${encodeURIComponent(token)}`;
+  }
+
+  if (phase === 'image') {
+    if (checkboxRow) checkboxRow.classList.add('hidden');
+    if (imageBlock) imageBlock.classList.remove('hidden');
+    if (promptEl) promptEl.textContent = st.captchaPrompt || 'Select all matching images';
+    const n = Math.max(0, Math.min(16, Number(st.captchaTileCount) || 0));
+    const cols = Number(st.captchaCols) === 4 ? 4 : 3;
+    const rev = st.captchaGridRev || Date.now();
+    if (grid) {
+      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      const prevRev = grid.dataset.rev;
+      if (prevRev !== String(rev) || grid.childElementCount !== n) {
+        grid.dataset.rev = String(rev);
+        grid.innerHTML = '';
+        for (let i = 0; i < n; i++) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'li-captcha-tile';
+          btn.dataset.index = String(i);
+          btn.title = `Tile ${i + 1}`;
+          const img = document.createElement('img');
+          img.alt = `Captcha tile ${i + 1}`;
+          img.src = `/api/linkedin/repair/captcha-tile?token=${encodeURIComponent(token)}&i=${i}&r=${encodeURIComponent(rev)}`;
+          btn.appendChild(img);
+          grid.appendChild(btn);
+        }
+      }
+    }
+    if (verifyBtn) verifyBtn.disabled = false;
+  } else if (phase === 'waiting') {
+    if (checkboxRow) checkboxRow.classList.add('hidden');
+    if (imageBlock) imageBlock.classList.add('hidden');
+  } else {
+    // checkbox (default)
+    if (checkboxRow) checkboxRow.classList.remove('hidden');
+    if (imageBlock) imageBlock.classList.add('hidden');
+    if (robotBtn) robotBtn.disabled = false;
   }
 }
 
@@ -611,6 +678,8 @@ function hideLinkedInChallengeUI(els) {
   setLinkedInAuthStage('credentials');
   const { bannerEl } = els || {};
   if (bannerEl) bannerEl.classList.add('hidden');
+  const panel = document.getElementById('li-captcha-native');
+  if (panel) panel.classList.add('hidden');
   stopLinkedInTitleAlert();
   toastEl.classList.remove('warn', 'sticky');
 }
@@ -4309,6 +4378,28 @@ function renderLinkedIn() {
               </p>
             </div>
           </div>
+          <div class="li-captcha-native hidden" id="li-captcha-native">
+            <div class="li-captcha-checkbox-row" id="li-captcha-checkbox-row">
+              <button type="button" class="btn primary" id="li-captcha-robot-btn">
+                <span class="btn-spinner" aria-hidden="true"></span>
+                <span class="btn-label">I'm not a robot</span>
+              </button>
+            </div>
+            <div class="li-captcha-image-block hidden" id="li-captcha-image-block">
+              <p class="li-captcha-prompt" id="li-captcha-prompt"></p>
+              <div class="li-captcha-grid" id="li-captcha-grid"></div>
+              <div class="row section-actions">
+                <button type="button" class="btn primary" id="li-captcha-verify-btn">
+                  <span class="btn-spinner" aria-hidden="true"></span>
+                  <span class="btn-label">Verify</span>
+                </button>
+              </div>
+            </div>
+            <p class="muted li-captcha-fallback">
+              If tiles fail to load,
+              <a id="li-captcha-repair-fallback" href="#" target="_blank" rel="noopener">open live screenshot</a>.
+            </p>
+          </div>
         </form>
         ${channelStrip}
       </div>`;
@@ -4573,6 +4664,8 @@ function bindLinkedInSessionForm() {
     });
   }
 
+  bindLinkedInCaptchaNativeControls(() => activeLoginToken || linkedInActiveRepairToken);
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const stage = document.getElementById('li-auth-stage')?.dataset?.stage;
@@ -4602,6 +4695,7 @@ function bindLinkedInSessionForm() {
         body: JSON.stringify({ username, password }),
       });
       activeLoginToken = res.token || '';
+      linkedInActiveRepairToken = activeLoginToken;
       if (statusEl) statusEl.textContent = 'Signing in on remote Chromium…';
       if (repairLink && res.url) repairLink.href = res.url;
       pollLinkedInLogin(res.token, challengeEls);
@@ -4616,8 +4710,68 @@ function bindLinkedInSessionForm() {
   });
 }
 
+function bindLinkedInCaptchaNativeControls(getToken) {
+  const robotBtn = document.getElementById('li-captcha-robot-btn');
+  const verifyBtn = document.getElementById('li-captcha-verify-btn');
+  const grid = document.getElementById('li-captcha-grid');
+  const statusEl = document.getElementById('li-session-status');
+
+  const send = async (event, { loadingBtn } = {}) => {
+    const token = typeof getToken === 'function' ? getToken() : linkedInActiveRepairToken;
+    if (!token) {
+      if (statusEl) statusEl.textContent = 'Sign-in session expired — press Sign in again.';
+      return;
+    }
+    if (loadingBtn) {
+      loadingBtn.disabled = true;
+      loadingBtn.classList.add('is-loading');
+    }
+    try {
+      await api('/api/linkedin/repair/input', {
+        method: 'POST',
+        body: JSON.stringify({ token, ...event }),
+      });
+      if (statusEl) {
+        statusEl.textContent =
+          event.type === 'clickRecaptcha'
+            ? 'Checkbox sent — waiting for LinkedIn…'
+            : event.type === 'captchaVerify'
+              ? 'Verify sent — waiting for LinkedIn…'
+              : 'Tile selected — pick more or Verify…';
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+      toast(err.message, true);
+    } finally {
+      if (loadingBtn) {
+        loadingBtn.disabled = false;
+        loadingBtn.classList.remove('is-loading');
+      }
+    }
+  };
+
+  if (robotBtn) {
+    robotBtn.onclick = () => send({ type: 'clickRecaptcha' }, { loadingBtn: robotBtn });
+  }
+  if (verifyBtn) {
+    verifyBtn.onclick = () => send({ type: 'captchaVerify' }, { loadingBtn: verifyBtn });
+  }
+  if (grid && !grid.dataset.bound) {
+    grid.dataset.bound = '1';
+    grid.addEventListener('click', (e) => {
+      const tile = e.target.closest('.li-captcha-tile');
+      if (!tile) return;
+      const index = Number(tile.dataset.index);
+      if (!Number.isFinite(index)) return;
+      tile.classList.toggle('is-selected');
+      void send({ type: 'clickCaptchaTile', index });
+    });
+  }
+}
+
 function pollLinkedInLogin(token, challengeEls = {}, opts = {}) {
   if (linkedInLoginPoll) clearTimeout(linkedInLoginPoll);
+  if (token) linkedInActiveRepairToken = token;
   const statusEl = challengeEls.statusEl || document.getElementById('li-session-status');
   const bannerEl = challengeEls.bannerEl || document.getElementById('li-session-challenge-banner');
   const repairLink = challengeEls.repairLink || document.getElementById('li-repair-link');

@@ -28,6 +28,14 @@ export function repairFramePath(root = appRoot()) {
   return path.join(root, 'session_repair_frame.jpg');
 }
 
+export function repairCaptchaDir(root = appRoot()) {
+  return path.join(root, 'session_repair_captcha');
+}
+
+export function repairCaptchaTilePath(index, root = appRoot()) {
+  return path.join(repairCaptchaDir(root), `tile_${Number(index)}.jpg`);
+}
+
 export function repairInputPath(root = appRoot()) {
   return path.join(root, 'session_repair_input.jsonl');
 }
@@ -289,11 +297,12 @@ export function startDashboardLinkedInLogin(username, password, workspaceId = 'd
 export function startRepairWorkerSync(token, workspaceId = 'default') {
   const st = readRepairState();
   if (!st || st.token !== token) throw new Error('Invalid repair token');
-  assertSingleAutomation();
   const containerUp = repairContainerRunning();
-  if ((st.status === 'running' || st.status === 'starting') && containerUp) {
+  // Repair page opens while dashboard already holds Stage R — must not throw.
+  if ((st.status === 'running' || st.status === 'starting' || st.status === 'awaiting_user') && containerUp) {
     return { ok: true, already: true, state: st };
   }
+  assertSingleAutomation();
   const ws = String(workspaceId || st.workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
   writeRepairState({ status: 'starting', error: null, containerId: null, workspaceId: ws });
 

@@ -2,6 +2,7 @@ import {
   applyDashboardPatch,
   buildSettingsView,
   countNotionStatuses,
+  ingestCookiePaste,
   invalidateNotionCountsCache,
   listNotifications,
   markAllNotificationsRead,
@@ -73,6 +74,7 @@ import {
   ensureActiveRepairLink,
   readRepairState,
   repairContainerRunning,
+  repairCaptchaTilePath,
   repairFramePath,
   startDashboardLinkedInLogin,
   startRepairWorkerSync,
@@ -1086,6 +1088,26 @@ app.get('/api/linkedin/repair/frame', (req, res) => {
   fs.createReadStream(frame).pipe(res);
 });
 
+/** Native captcha tile JPEG for dashboard grid (human solves; worker clicked by index). */
+app.get('/api/linkedin/repair/captcha-tile', (req, res) => {
+  const token = String(req.query.token || '');
+  const st = readRepairState();
+  if (!token || !st?.token || st.token !== token) {
+    return res.status(403).send('forbidden');
+  }
+  const i = Number(req.query.i);
+  if (!Number.isFinite(i) || i < 0 || i > 15) {
+    return res.status(400).send('bad index');
+  }
+  const tile = repairCaptchaTilePath(i);
+  if (!fs.existsSync(tile)) {
+    return res.status(404).send('no tile');
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('jpeg');
+  fs.createReadStream(tile).pipe(res);
+});
+
 app.post('/api/linkedin/repair/input', (req, res) => {
   try {
     const { token, ...event } = req.body || {};
@@ -1103,6 +1125,18 @@ app.get('/api/linkedin/repair/link', (req, res) => {
     res.json({ ok: true, ...link });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/** Tenant cookie jar: EditThisCookie JSON or raw li_at (cabinet-scoped). */
+app.post('/api/linkedin/cookies', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const raw = req.body?.cookiePaste || req.body?.liAtToken || req.body?.text || '';
+    const result = ingestCookiePaste(raw, req.tenant.workspaceId);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
   }
 });
 
