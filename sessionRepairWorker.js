@@ -571,6 +571,8 @@ async function getRecaptchaState(page) {
     bframeBox: null,
     anchorBox: null,
     hasVisibleTiles: false,
+    puzzlePrompt: '',
+    looksLikePuzzle: false,
   };
 
   // Prefer visible host iframes — Google often preloads a hidden bframe URL.
@@ -599,22 +601,52 @@ async function getRecaptchaState(page) {
     if (/bframe/i.test(fu)) {
       const meta = await fr
         .evaluate(() => {
-          const tiles = document.querySelectorAll(
-            'td.rc-imageselect-tile, .rc-imageselect-tile, .rc-image-tile-wrapper, #rc-imageselect-target img'
-          ).length;
+          const sel = [
+            'td.rc-imageselect-tile',
+            '.rc-imageselect-tile',
+            '.rc-image-tile-wrapper',
+            '#rc-imageselect-target td',
+            '#rc-imageselect-target img',
+            'table.rc-imageselect-table-33 td',
+            'table.rc-imageselect-table-44 td',
+            '.rc-imageselect-target td',
+            '.rc-imageselect-challenge img',
+            '.rc-imageselect-table td',
+          ];
+          let tiles = 0;
+          for (const s of sel) {
+            tiles = Math.max(tiles, document.querySelectorAll(s).length);
+          }
           const prompt = String(
             document.querySelector('.rc-imageselect-desc-wrapper')?.innerText ||
               document.querySelector('.rc-imageselect-desc')?.innerText ||
+              document.querySelector('#rc-imageselect')?.innerText ||
               ''
-          ).trim();
-          return { tiles, prompt };
+          )
+            .replace(/\s+/g, ' ')
+            .trim();
+          const body = String(document.body?.innerText || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 500);
+          const looksLikePuzzle =
+            tiles > 0 ||
+            !!document.querySelector('#rc-imageselect, .rc-imageselect, .rc-imageselect-payload, .rc-imageselect-target') ||
+            /select all|click verify|images with|traffic lights|crosswalks|buses|cars|bicycles|motorcycles|boats|hydrants/i.test(
+              prompt || body
+            );
+          return { tiles, prompt: prompt.slice(0, 240), looksLikePuzzle };
         })
-        .catch(() => ({ tiles: 0, prompt: '' }));
-      if (meta.tiles > 0) state.hasVisibleTiles = true;
-      // Only real painted tiles (or a large visible host bframe) count as an open puzzle.
-      // Prompt text alone is not enough — Google preloads bframe copy while the checkbox
-      // is still unchecked, which previously flipped the dashboard to Verify too early.
+        .catch(() => ({ tiles: 0, prompt: '', looksLikePuzzle: false }));
+      if (meta.prompt) state.puzzlePrompt = meta.prompt;
+      if (meta.looksLikePuzzle) state.looksLikePuzzle = true;
+      // Painted tiles always count. Prompt-only in a large visible bframe also counts
+      // when the host iframe is actually on-screen (preload bframes are tiny/hidden).
       if (meta.tiles > 0) {
+        state.hasVisibleTiles = true;
+        state.imageChallengeOpen = true;
+      } else if (meta.looksLikePuzzle && state.bframeBox) {
+        state.hasVisibleTiles = true;
         state.imageChallengeOpen = true;
       }
       continue;
@@ -630,7 +662,8 @@ async function getRecaptchaState(page) {
             if (!el) return false;
             return (
               el.getAttribute('aria-checked') === 'true' ||
-              el.classList.contains('recaptcha-checkbox-checked')
+              el.classList.contains('recaptcha-checkbox-checked') ||
+              el.classList.contains('recaptcha-checkbox-checkmark')
             );
           })
           .catch(() => false);
@@ -639,6 +672,25 @@ async function getRecaptchaState(page) {
         /* ignore */
       }
     }
+  }
+
+  // After the operator tapped "I'm not a robot", a large on-screen bframe is the puzzle
+  // even when frame.evaluate can't count tiles (class churn / partial paint).
+  try {
+    const prev = readState() || {};
+    if (
+      !state.hasVisibleTiles &&
+      state.bframeBox &&
+      state.bframeBox.width >= 250 &&
+      state.bframeBox.height >= 250 &&
+      (state.checked || prev.captchaUiChecked)
+    ) {
+      state.hasVisibleTiles = true;
+      state.imageChallengeOpen = true;
+      state.looksLikePuzzle = true;
+    }
+  } catch {
+    /* ignore */
   }
 
   try {
@@ -777,9 +829,16 @@ async function syncCaptchaNativeUi(page, opts = {}) {
     return;
   }
   const state = await getRecaptchaState(page);
-  // Image UI only when tiles are actually painted — never promote on prompt/preload alone.
-  if (!state.hasVisibleTiles) {
-    if (prev.captchaUiChecked || state.checked) {
+  const userClicked = !!prev.captchaUiChecked || !!state.checked;
+  // Image UI when tiles/puzzle detected — or large on-screen bframe after the operator clicked.
+  const puzzleReady =
+    state.hasVisibleTiles ||
+    (userClicked &&
+      state.bframeBox &&
+      state.bframeBox.width >= 250 &&
+      state.bframeBox.height >= 250);
+  if (!puzzleReady) {
+    if (userClicked) {
       writeState({
         captchaPhase: 'waiting',
         captchaChecked: !!state.checked,
@@ -802,6 +861,11 @@ async function syncCaptchaNativeUi(page, opts = {}) {
       captchaHasChallengeJpg: false,
     });
     return;
+  }
+  if (!state.hasVisibleTiles && puzzleReady) {
+    console.log(
+      `Captcha puzzleReady via large bframe ${Math.round(state.bframeBox.width)}x${Math.round(state.bframeBox.height)} (DOM tiles not counted)`
+    );
   }
 
   // Throttle — captureFrame runs often; clearing tiles every pass caused 404s in the popup.
@@ -826,7 +890,7 @@ async function syncCaptchaNativeUi(page, opts = {}) {
 
   await page.waitForTimeout(500);
 
-  let prompt = '';
+  let prompt = state.puzzlePrompt || '';
   let tileRects = [];
   let cols = 3; // classic reCAPTCHA image select is 3×3 unless 4×4
   const fr = bframeFrom(page);
@@ -835,7 +899,7 @@ async function syncCaptchaNativeUi(page, opts = {}) {
       .evaluate(() => {
         const tiles = [
           ...document.querySelectorAll(
-            'td.rc-imageselect-tile, .rc-imageselect-tile, .rc-image-tile-wrapper'
+            'td.rc-imageselect-tile, .rc-imageselect-tile, .rc-image-tile-wrapper, #rc-imageselect-target td, .rc-imageselect-target td, table.rc-imageselect-table-33 td, table.rc-imageselect-table-44 td'
           ),
         ];
         const el =
@@ -860,24 +924,44 @@ async function syncCaptchaNativeUi(page, opts = {}) {
   }
 
   let hasChallenge = false;
-  // 1) Element screenshot of bframe iframe (works even when boundingBox is flaky).
+  let box = state.bframeBox;
+
+  // 1) Largest visible bframe element screenshot (skip tiny/hidden preload iframes).
   try {
-    const handle = await page.$('iframe[src*="bframe"]');
-    if (handle) {
-      await handle.screenshot({
+    const bframes = page.locator('iframe[src*="bframe"]');
+    const n = await bframes.count().catch(() => 0);
+    let bestEl = null;
+    let bestArea = 0;
+    for (let i = 0; i < n; i++) {
+      const el = bframes.nth(i);
+      const b = await el.boundingBox().catch(() => null);
+      if (!b || b.width < 100 || b.height < 100) continue;
+      const area = b.width * b.height;
+      if (area > bestArea) {
+        bestArea = area;
+        bestEl = el;
+        box = b;
+      }
+    }
+    if (bestEl) {
+      await bestEl.screenshot({
         path: path.join(staging, 'challenge.jpg'),
         type: 'jpeg',
         quality: 75,
       });
       hasChallenge = fs.existsSync(path.join(staging, 'challenge.jpg'));
-      if (hasChallenge) console.log('Captcha challenge via iframe element screenshot');
+      if (hasChallenge) {
+        console.log(
+          `Captcha challenge via iframe element screenshot ${Math.round(box.width)}x${Math.round(box.height)}`
+        );
+      }
+    } else {
+      console.log('captcha iframe element shot: no large bframe host');
     }
   } catch (e) {
     console.log('captcha iframe element shot:', e.message);
   }
 
-  const iframe = page.locator('iframe[src*="bframe"]').first();
-  let box = state.bframeBox || (await iframe.boundingBox().catch(() => null));
   if (!box || box.width < 120 || box.height < 120) {
     const candidates = page.locator('iframe[src*="recaptcha"], iframe[title*="recaptcha" i]');
     const n = await candidates.count().catch(() => 0);
@@ -887,6 +971,24 @@ async function syncCaptchaNativeUi(page, opts = {}) {
         box = b;
         break;
       }
+    }
+  }
+
+  // 1b) Screenshot from inside the bframe document (host shot often fails headless).
+  if (!hasChallenge && fr) {
+    try {
+      const body = fr.locator('body');
+      if ((await body.count().catch(() => 0)) > 0) {
+        await body.first().screenshot({
+          path: path.join(staging, 'challenge.jpg'),
+          type: 'jpeg',
+          quality: 75,
+        });
+        hasChallenge = fs.existsSync(path.join(staging, 'challenge.jpg'));
+        if (hasChallenge) console.log('Captcha challenge via bframe body screenshot');
+      }
+    } catch (e) {
+      console.log('captcha bframe body shot:', e.message);
     }
   }
 
@@ -905,13 +1007,22 @@ async function syncCaptchaNativeUi(page, opts = {}) {
         },
       });
       hasChallenge = fs.existsSync(path.join(staging, 'challenge.jpg'));
+      if (hasChallenge) console.log('Captcha challenge via page clip');
     } catch (e) {
       console.log('captcha challenge clip:', e.message);
     }
   }
 
-  // Never copy the live repair frame here — it often still shows the unchecked
-  // checkbox page and falsely flipped the dashboard to Verify + "cars" prompt.
+  // 3) Live repair frame — only when DOM already confirmed the puzzle (not checkbox preload).
+  if (!hasChallenge && puzzleReady && fs.existsSync(FRAME_PATH)) {
+    try {
+      fs.copyFileSync(FRAME_PATH, path.join(staging, 'challenge.jpg'));
+      hasChallenge = true;
+      console.log('Captcha challenge via live frame copy (puzzle confirmed)');
+    } catch (e) {
+      console.log('captcha frame copy:', e.message);
+    }
+  }
 
   let saved = 0;
   if (box && box.width > 40 && tileRects.length > 0) {
@@ -1568,19 +1679,15 @@ async function drainInputs(page) {
           });
           console.log('Repair clickRecaptcha — LinkedIn checkbox still unchecked');
         }
-        await syncCaptchaNativeUi(page, { force: true }).catch((e) =>
-          console.log('syncCaptchaNativeUi:', e.message)
-        );
+        // Fresh FRAME_PATH first — sync falls back to that when iframe shots fail.
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'clickCaptchaTile' && Number.isFinite(Number(ev.index))) {
         await clickCaptchaTile(page, Number(ev.index));
         await page.waitForTimeout(400);
-        await syncCaptchaNativeUi(page, { force: true }).catch(() => {});
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'captchaVerify') {
         await clickCaptchaVerify(page);
         await page.waitForTimeout(900);
-        await syncCaptchaNativeUi(page, { force: true }).catch(() => {});
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'setValue' && typeof ev.text === 'string') {
         const ok = await fillChallengeCode(page, ev.text);
@@ -1633,6 +1740,23 @@ async function captureFrame(page, forcedMode, opts = {}) {
     })
     .catch(() => {});
 
+  // Scrub password fields so live screenshots never show autofilled credentials.
+  await page
+    .evaluate(() => {
+      for (const el of document.querySelectorAll(
+        'input[type="password"], input[name="session_password"], input#password'
+      )) {
+        try {
+          el.value = '';
+          el.setAttribute('value', '');
+          el.blur();
+        } catch {
+          /* ignore */
+        }
+      }
+    })
+    .catch(() => {});
+
   await page.screenshot({ path: FRAME_PATH, type: 'jpeg', quality: 55 }).catch(() => {});
   const kind = await resolveChallengeKind(page);
   if (mode === 'form' || snapshot) {
@@ -1655,7 +1779,9 @@ async function captureFrame(page, forcedMode, opts = {}) {
   });
   await notifyChallengeNeeded(page);
   if (kind === 'captcha') {
-    await syncCaptchaNativeUi(page).catch((e) => console.log('syncCaptchaNativeUi:', e.message));
+    await syncCaptchaNativeUi(page, { force: true }).catch((e) =>
+      console.log('syncCaptchaNativeUi:', e.message)
+    );
   } else {
     writeState({
       captchaPhase: 'none',
@@ -1710,8 +1836,26 @@ async function runRepair() {
     extraHTTPHeaders: {
       'Accept-Language': 'en-US,en;q=0.9',
     },
-    args: ['--disable-blink-features=AutomationControlled', '--no-sandbox', '--lang=en-US'],
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--no-sandbox',
+      '--lang=en-US',
+      '--password-store=basic',
+      '--disable-features=PasswordManagerOnboarding,PasswordCheck,AutofillServerCommunication',
+    ],
   });
+  // Never offer / fill Chromium password manager during repair.
+  await context
+    .addInitScript(() => {
+      try {
+        Object.defineProperty(navigator, 'credentials', {
+          get: () => undefined,
+        });
+      } catch {
+        /* ignore */
+      }
+    })
+    .catch(() => {});
   await blockGoogleOneTap(context);
   const page = context.pages()[0] || (await context.newPage());
   await context.addCookies([

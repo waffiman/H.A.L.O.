@@ -343,6 +343,8 @@
       }
     }
 
+    let lockPastForm = false;
+
     async function poll() {
       if (done) return;
       try {
@@ -363,6 +365,7 @@
         }
         if (st.status === 'credential_error' || (st.lastSignInError && /wrong email or password/i.test(st.lastSignInError || ''))) {
           submitting = false;
+          lockPastForm = false;
           btnSignin.disabled = false;
           btnSignin.classList.remove('is-loading');
           showFormUI(st);
@@ -371,6 +374,7 @@
         }
         if (st.status === 'error' || st.status === 'timeout') {
           submitting = false;
+          lockPastForm = false;
           btnSignin.disabled = false;
           btnSignin.classList.remove('is-loading');
           showFormUI(st);
@@ -380,11 +384,16 @@
 
         const kind = st.challengeKind || null;
         const alreadySignedIn = !!st.lastSignInAt || !!st.challengeSince || serverMode === 'signing';
+        if (alreadySignedIn || submitting || serverMode === 'challenge' || kind) {
+          lockPastForm = true;
+        }
 
         if (serverMode === 'challenge' || kind === 'captcha' || kind === 'pin' || kind === 'app_approval' || kind === 'email_update' || kind === 'identity_document') {
           submitting = true;
+          lockPastForm = true;
           showChallengeUI(st);
-        } else if (alreadySignedIn || submitting) {
+        } else if (lockPastForm || alreadySignedIn || submitting) {
+          // Never flash the email/password form (browser autofill of another LinkedIn).
           submitting = true;
           showSigningUI(st);
         } else {
