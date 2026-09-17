@@ -914,7 +914,7 @@ function updateLinkedInCaptchaNative(st) {
     return;
   }
   const token = st.token || '';
-  const phase = st.captchaPhase || 'checkbox';
+  let phase = st.captchaPhase || 'checkbox';
   const robotBtn = document.getElementById('li-captcha-robot-btn');
   const verifyBtn = document.getElementById('li-captcha-verify-btn');
   const verifyRow = document.getElementById('li-captcha-verify-row');
@@ -927,14 +927,18 @@ function updateLinkedInCaptchaNative(st) {
     fallback.href = `/repair.html?token=${encodeURIComponent(token)}`;
   }
 
+  // Never auto-check from stale server flags — only after a local tap this session.
+  if (!linkedInCaptchaUserChecked && (phase === 'waiting' || st.captchaUiChecked || st.captchaChecked)) {
+    phase = 'checkbox';
+  }
+
   // Only swipe to tiles / show Verify when worker confirmed real painted tiles.
   const tilesReady =
     phase === 'image' &&
     !!st.captchaHasTiles &&
     ((Number(st.captchaTileCount) || 0) > 0 || !!st.captchaHasChallengeJpg);
 
-  // Sticky local check — poll must not clear the tick while LinkedIn is still catching up.
-  if (st.captchaUiChecked || st.captchaChecked || phase === 'waiting' || tilesReady) {
+  if (tilesReady) {
     linkedInCaptchaUserChecked = true;
   }
 
@@ -1014,7 +1018,8 @@ function updateLinkedInCaptchaNative(st) {
       hint.textContent =
         'Tap matching tiles, then Verify. Some puzzles replace a tile with a new image after you tap — that is normal.';
     }
-  } else if (phase === 'waiting' || st.captchaUiChecked || linkedInCaptchaUserChecked) {
+  } else if (phase === 'waiting' && linkedInCaptchaUserChecked) {
+    // Waiting only after the operator tapped I'm-not-a-robot in this tab.
     setCaptchaDeckPhase('waiting');
     if (robotBtn) {
       robotBtn.classList.add('is-checked', 'is-loading');
@@ -1035,6 +1040,7 @@ function updateLinkedInCaptchaNative(st) {
       robotBtn.classList.remove('is-loading', 'is-checked');
       robotBtn.setAttribute('aria-pressed', 'false');
     }
+    // Server may still have stale captchaUiChecked — ignore until local tap.
     if (promptEl) {
       promptEl.textContent = '';
       promptEl.classList.add('hidden');

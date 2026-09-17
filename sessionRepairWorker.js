@@ -670,8 +670,7 @@ async function getRecaptchaState(page) {
             if (!el) return false;
             return (
               el.getAttribute('aria-checked') === 'true' ||
-              el.classList.contains('recaptcha-checkbox-checked') ||
-              el.classList.contains('recaptcha-checkbox-checkmark')
+              el.classList.contains('recaptcha-checkbox-checked')
             );
           })
           .catch(() => false);
@@ -1890,6 +1889,17 @@ async function runRepair() {
     challengeNotified: false,
     challengeKind: null,
     challengeSince: null,
+    // Never inherit a previous attempt's captcha tick / puzzle state.
+    captchaPhase: 'none',
+    captchaUiChecked: false,
+    captchaChecked: false,
+    captchaHasTiles: false,
+    captchaHasChallengeJpg: false,
+    captchaPrompt: null,
+    captchaTileCount: 0,
+    captchaOverlay: null,
+    captchaFooterTrim: null,
+    lastFillError: null,
   });
 
   // Fresh login from dashboard must not reuse a dead li_at jar from a prior repair.
