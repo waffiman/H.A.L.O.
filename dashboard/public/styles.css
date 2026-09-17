@@ -5045,6 +5045,8 @@ html[data-theme="light"] .analytics-date-field input {
   border-radius: 999px !important;
   padding: 10px 22px !important;
   min-width: 100px;
+  justify-content: center;
+  text-align: center;
 }
 .onboarding-next-btn:hover {
   background: #222 !important;
