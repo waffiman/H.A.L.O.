@@ -48,8 +48,18 @@ function normalizeActionLabel(raw) {
 function isConnectActionLabel(raw) {
   const t = normalizeActionLabel(raw);
   if (!t || t.includes('connections') || t.includes('pending') || t.includes('withdraw')) return false;
+  // EN
   if (t === 'connect' || t === '+ connect' || /^\+?\s*connect$/.test(t)) return true;
   if (t.startsWith('invite ') && t.includes('to connect')) return true;
+  // UA / RU / PL (Dmytro-class cabinets often keep native LinkedIn UI)
+  if (
+    /^(зв.?язатися|підключ|подключ|поєднат|nawiąż|polacz|połącz|соединить|добавить в сеть)/i.test(t) ||
+    t.includes("зв'язатися") ||
+    t.includes('звязатися')
+  ) {
+    return true;
+  }
+  if (t.includes('взаємн') || t.includes('спільн') || t.includes('connections')) return false;
   return false;
 }
 
@@ -163,19 +173,18 @@ async function navigateMobilePeopleSearch(page, keywords) {
   const kw = shortenKeywords(keywords, 4);
   console.log('Mobile People search UI, keywords=', kw);
   await dismissLinkedInCookieBanner(page, 'mobile-search');
-  let box = page
-    .locator(
-      'input[placeholder*="Search" i], input[aria-label*="Search" i], .search-global-typeahead__input, input.search-global-typeahead__input'
-    )
-    .first();
+  // EN + UA/RU/PL placeholders — English-only missed Dmytro-class UA UI and landed on Groups.
+  const searchBoxSel =
+    'input[placeholder*="Search" i], input[aria-label*="Search" i], ' +
+    'input[placeholder*="Пошук" i], input[aria-label*="Пошук" i], ' +
+    'input[placeholder*="Поиск" i], input[aria-label*="Поиск" i], ' +
+    'input[placeholder*="Szukaj" i], input[aria-label*="Szukaj" i], ' +
+    '.search-global-typeahead__input, input.search-global-typeahead__input';
+  let box = page.locator(searchBoxSel).first();
   if (!(await box.isVisible().catch(() => false))) {
     await page.goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
     await sleep(2000);
-    box = page
-      .locator(
-        'input[placeholder*="Search" i], input[aria-label*="Search" i], .search-global-typeahead__input, input.search-global-typeahead__input'
-      )
-      .first();
+    box = page.locator(searchBoxSel).first();
   }
   if (await box.isVisible().catch(() => false)) {
     await box.click({ force: true }).catch(() => {});
@@ -193,12 +202,20 @@ async function navigateMobilePeopleSearch(page, keywords) {
   }
   const people = page
     .locator(
-      'button:has-text("People"), a:has-text("People"), [role="tab"]:has-text("People"), li:has-text("People") button'
+      'button:has-text("People"), a:has-text("People"), [role="tab"]:has-text("People"), li:has-text("People") button, ' +
+        'button:has-text("Люди"), a:has-text("Люди"), [role="tab"]:has-text("Люди"), ' +
+        'button:has-text("Osoby"), a:has-text("Osoby"), [role="tab"]:has-text("Osoby")'
     )
     .first();
   if (await people.isVisible().catch(() => false)) {
     await people.click({ force: true }).catch(() => {});
     await sleep(3000);
+  } else if (!/search\/results\/people/i.test(page.url() || '')) {
+    // Universal search cluster often opens Groups when People tab label is localized and missed.
+    const url = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(kw)}&origin=SWITCH_SEARCH_VERTICAL`;
+    console.log('People tab not found — force People SERP', url.slice(0, 110));
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 }).catch(() => {});
+    await sleep(3500);
   }
   await dismissLinkedInCookieBanner(page, 'post-search');
   return kw;
@@ -208,6 +225,10 @@ async function navigateMobilePeopleSearch(page, keywords) {
 async function ensurePeopleSerp(page, keywords, { isMobile = false } = {}) {
   const url = page.url() || '';
   if (/search\/results\/people/i.test(url)) return true;
+  // Groups / jobs / posts clusters are NOT a People SERP (was falsely accepted on mobile).
+  if (/\/groups\/|search\/results\/(groups|content|companies|jobs)/i.test(url)) {
+    console.log('Not on People SERP (cluster/groups) — will force People:', url.slice(0, 100));
+  }
 
   for (const sel of [
     'a[href*="search/results/people"]',
@@ -215,6 +236,11 @@ async function ensurePeopleSerp(page, keywords, { isMobile = false } = {}) {
     '[role="tab"]:has-text("People")',
     'label:has-text("People")',
     '.search-reusables__filter-pill-button:has-text("People")',
+    'button:has-text("Люди")',
+    '[role="tab"]:has-text("Люди")',
+    'a:has-text("Люди")',
+    'button:has-text("Osoby")',
+    '[role="tab"]:has-text("Osoby")',
   ]) {
     const el = page.locator(sel).first();
     if (await el.isVisible().catch(() => false)) {
@@ -224,11 +250,6 @@ async function ensurePeopleSerp(page, keywords, { isMobile = false } = {}) {
       await dismissLinkedInCookieBanner(page, 'people-tab');
       if (/search\/results\/people/i.test(page.url() || '')) return true;
     }
-  }
-
-  if (isMobile) {
-    // mwlite/all with profile links is OK for harvest — do not force desktop People URL
-    return /search\/results\//i.test(page.url() || '');
   }
 
   const kw = shortenKeywords(keywords, 4);
@@ -1104,7 +1125,8 @@ export async function runLinkedInConnect(page, opts = {}) {
     throw new Error('CONNECT_SEARCH_URL is empty — set a LinkedIn People search URL');
   }
   if (!Number.isFinite(maxPerRun) || maxPerRun < 1) {
-    throw new Error('CONNECT_MAX_PER_RUN must be >= 1');
+    console.log('CONNECT_MAX_PER_RUN < 1 — no invites to send');
+    return { sent: 0, failed: 0, skipped: 0, dryRun, reason: 'connect_max_zero' };
   }
 
   writeConnectRunStatus({

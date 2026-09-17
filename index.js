@@ -2270,8 +2270,11 @@ async function runStageA() {
     // --- 0b) Drain messageable Lead😴 (accepted / ice-ready; not limited by SYNC_MAX_NEW) ---
     // Forced restart / boot: prefer CONNECT_MAX invites this run; defer ice leftovers
     // so ice+connect never share one Chromium lifetime (session safety).
+    // CONNECT_MAX=0 → never defer ice (user wants CRM drain only, no new invites).
+    const connectMaxThisRun = Math.max(0, Number(process.env.CONNECT_MAX_PER_RUN || 15));
     const connectPriority =
-      process.env.STAGE_A_CONNECT_PRIORITY === '1' || process.env.FORCE_STAGE_A === '1';
+      connectMaxThisRun > 0 &&
+      (process.env.STAGE_A_CONNECT_PRIORITY === '1' || process.env.FORCE_STAGE_A === '1');
     console.log('--- Stage A leftover drain: messageable Lead😴 ---');
     let leftoverIceReadyLeft = 0;
     let leftoverSentThisRun = 0;
@@ -2378,7 +2381,9 @@ async function runStageA() {
 
     // --- 1) Portrait prospecting: send N connection invites → Lead😴 ---
     if (prospectingEnabled && !enrichOnlyMode) {
-      if (!sessionAlive()) {
+      if (connectMaxThisRun < 1) {
+        console.log('Skip connect phase — CONNECT_MAX_PER_RUN=0 (CRM-only Stage A).');
+      } else if (!sessionAlive()) {
         console.log('Skip connect phase — session inactive.');
       } else if (leftoverIceReadyLeft > 0) {
         console.log(

@@ -373,9 +373,9 @@ Confirmed in production runs — add new ones here when discovered:
 | Persisting cookies from a dead context | Overwrites good jar with empty/`li_at`-less set | Skip persist when no live `li_at` |
 | Stage B scanning **all** P2 via profile composer every tick | Many profile navigations → auth wall | Unread-only P2 opens (`STAGE_B_SCAN_ALL_P2=1` only for debug) |
 
-Dashboard paste: [`dashboard/lib/ops.js`](dashboard/lib/ops.js) `ingestCookiePaste` (EditThisCookie JSON or raw `li_at`).
+Dashboard paste: [`dashboard/lib/ops.js`](dashboard/lib/ops.js) `ingestCookiePaste` (EditThisCookie JSON or raw `li_at`). LinkedIn page UI: **Paste cookies** card → `POST /api/linkedin/cookies` (cabinet-scoped jar + Chromium cookie DB wipe). **Known empty-SERP cause (2026-09-14):** mobile Connect clicked English-only **People / Search**; on UA UI that misses **Люди / Пошук** and LinkedIn opens a universal-search cluster (`/groups/… Content Unavailable`). Fix: localized selectors + never treat Groups/cluster URLs as a People SERP — force `/search/results/people`.
 
-**Dashboard Sign in challenge (2026-09-14):** after email/password, [`sessionRepairWorker.js`](sessionRepairWorker.js) classifies Chromium (`app_approval` | `pin` | `captcha`). **App approve** → amber banner. **Email/SMS code (`pin`)** → login/password fields swipe left; inline code field + Submit pushes `submitCode` to the repair worker (no separate repair tab required). Spinner stays until `li_at` is captured.
+**Dashboard Sign in challenge (2026-09-14):** after email/password, [`sessionRepairWorker.js`](sessionRepairWorker.js) classifies Chromium (`app_approval` | `pin` | `captcha`). **App approve** → amber banner. **Email/SMS code (`pin`)** → login/password fields swipe left; inline code field + Submit pushes `submitCode` to the repair worker (no separate repair tab required). **Captcha** → open repair page; credentials were already sent from the dashboard — the repair tab shows a short **signing** state (empty LinkedIn form is normal while Chromium fills), then the live captcha frame. Taps map to page/bframe coords; the worker clicks the checkbox **only once** when unchecked — it must **not** re-click “I’m not a robot” while the image-tile puzzle is open (that reset was why tiles ignored taps). Captcha waits **stay on the challenge page** (no `/feed/` fallback, no periodic checkbox spam). Opening `/repair.html` while Stage R is already running returns `already` (does not throw “Another automation is running (Stage R)”). Spinner stays until `li_at` is captured.
 
 ---
 
@@ -448,7 +448,7 @@ Chart: smooth lines (or bars for Lost reasons), gradient fills, toggleable metri
 
 ### Numeric settings UX (2026-08-28)
 
-**Connection invites per Stage A** (`dashConnectInvites` ↔ `connectInvitesPerRun`) and **New leads per cycle** (legacy env only, if inputs present): **save on blur/change**, not debounced mid-typing. Empty field while editing is allowed; invalid/empty on blur restores last saved value. Focused input is never overwritten by API sync. Safe range warning at **>3**.
+**Connection invites per Stage A** (`dashConnectInvites` ↔ `connectInvitesPerRun`) and **New leads per cycle** (legacy env only, if inputs present): **save on blur/change**, not debounced mid-typing. Empty field while editing is allowed; invalid/empty on blur restores last saved value. Focused input is never overwritten by API sync. Range **0–100**; **0** = Stage A still runs (acceptance + enrich/score/ice on existing `Lead😴`) but sends **no** new connection invites. Warns above **15**.
 
 ### Stage A prospecting UI (LinkedIn page)
 
@@ -456,7 +456,7 @@ Chart: smooth lines (or bars for Lost reasons), gradient fills, toggleable metri
 |---------|----------------|
 | **Portrait-based prospecting** ON | `STAGE_A_OUTBOUND_CONNECT=1`, `STAGE_A_ACCEPTANCE=1`, `STAGE_A_LEGACY_SYNC=0` |
 | **Portrait-based prospecting** OFF | `STAGE_A_OUTBOUND_CONNECT=0`, `STAGE_A_LEGACY_SYNC=0` — **no new lead intake** (connect + legacy My Network both off); Stage A only drains existing `Proposal 1️⃣` |
-| **Connection invites per Stage A** | `CONNECT_MAX_PER_RUN` |
+| **Connection invites per Stage A** | `CONNECT_MAX_PER_RUN` (**0** allowed — CRM drain only) |
 
 Acceptance monitoring is **not** a separate toggle — it runs at the start of every Stage A while prospecting is ON.
 
@@ -611,7 +611,7 @@ Integrated in [`index.js`](index.js) via [`stageAConnect.js`](stageAConnect.js).
 | `STAGE_A_OUTBOUND_CONNECT` | `1` | People search → connect → `Lead😴` |
 | `STAGE_A_ACCEPTANCE` | `1` | Start of Stage A: promote accepted `Lead😴` → `Proposal 1️⃣` |
 | `STAGE_A_LEGACY_SYNC` | `0` | Disable My Network → P1 import |
-| `CONNECT_MAX_PER_RUN` | dashboard | Invites sent per Stage A (= new `Lead😴` rows) |
+| `CONNECT_MAX_PER_RUN` | dashboard | Invites per Stage A (= new `Lead😴`). **0** = no invites; still enrich/ice existing leads |
 | `CONNECT_DRY_RUN` | `0` | Navigate SERP only, no Connect clicks |
 | `CONNECT_PROFILE_FALLBACK` | `0` | No `/in/` profile visits in integrated mode |
 

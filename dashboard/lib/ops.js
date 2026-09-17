@@ -1155,7 +1155,8 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
       updates.STAGE_A_LEGACY_SYNC = li.legacySync ? '1' : '0';
     }
     if (li.connectMaxPerRun != null && li.connectMaxPerRun !== '') {
-      const n = Math.max(1, Math.min(Number(li.connectMaxPerRun) || 15, 100));
+      // 0 = Stage A drains existing CRM only (no new connection invites)
+      const n = Math.max(0, Math.min(Number(li.connectMaxPerRun) || 0, 100));
       updates.CONNECT_MAX_PER_RUN = String(n);
     }
     if (typeof li.connectAcceptExpire === 'boolean') {

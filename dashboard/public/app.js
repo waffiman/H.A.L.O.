@@ -2353,7 +2353,7 @@ function channelTile(key, label, enabled, { comingSoon = false, leadsPerCycle = 
     leadsPerCycle != null && !comingSoon && leadsEditable
       ? `<label class="field field-tight channel-leads-field" title="${escapeAttr(cycleLabel)}">
           <span class="channel-stat-label">${escapeHtml(cycleLabel)}</span>
-          <input type="number" id="dashConnectInvites" class="sync-max-input" min="1" max="100" step="1" value="${Number(leadsPerCycle) || 1}" />
+          <input type="number" id="dashConnectInvites" class="sync-max-input" min="0" max="100" step="1" value="${Number(leadsPerCycle) || 0}" />
         </label>`
       : leadsPerCycle != null
         ? `<div class="channel-stat" title="${escapeAttr(cycleLabel)}">
@@ -4313,9 +4313,26 @@ function renderLinkedIn() {
         ${channelStrip}
       </div>`;
 
+  const cookiePasteCard = `<div class="card li-cookie-paste-card" title="Paste LinkedIn cookies from EditThisCookie">
+        <h3>Paste cookies (EditThisCookie / li_at)</h3>
+        <p class="muted card-lead">Best path when Sign in hits recovery/captcha loops. In Chrome: open linkedin.com while signed in → EditThisCookie → Export → paste below. Or paste only the <code>li_at</code> value.</p>
+        <ol class="li-cookie-steps muted">
+          <li>Export cookies, then <strong>close the LinkedIn tab immediately</strong>.</li>
+          <li>Do not open that LinkedIn account again until H.A.L.O. finishes using the session.</li>
+        </ol>
+        <label class="field" for="li-cookie-paste">Cookie JSON or li_at
+          <textarea id="li-cookie-paste" rows="5" spellcheck="false" autocomplete="off" placeholder='[{"domain":".www.linkedin.com","name":"li_at","value":"…"}, …]&#10;or paste raw li_at only'></textarea>
+        </label>
+        <div class="row section-actions">
+          <button type="button" class="btn primary" id="li-cookie-apply"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Apply cookies</span></button>
+        </div>
+        <p class="muted" id="li-cookie-status" role="status"></p>
+      </div>`;
+
   view.innerHTML = `
     <div class="li-page">
       ${sessionCard}
+      ${cookiePasteCard}
       <div class="li-main-grid">
         <div class="tile tile-stage-a" title="Stage A prospecting">
           <h3>Stage A prospecting</h3>
@@ -4325,12 +4342,13 @@ function renderLinkedIn() {
               <span class="li-stage-a-label">Portrait invites</span>
               ${switchEl('portraitProspecting', s.linkedin.portraitProspecting, 'Send connection invites from Brain portrait search')}
             </div>
-            <label class="field" title="Connection invites per Stage A">
+            <label class="field" title="Connection invites per Stage A (0 = no new invites; still enrich/ice existing leads)">
               ${LEADS_PER_CYCLE_LABEL}
-              <input type="number" id="connectInvitesPerRun" min="1" max="100" step="1" value="${s.linkedin.connectMaxPerRun ?? 15}" ${s.linkedin.portraitProspecting ? '' : 'disabled'} />
+              <input type="number" id="connectInvitesPerRun" min="0" max="100" step="1" value="${s.linkedin.connectMaxPerRun ?? 15}" ${s.linkedin.portraitProspecting ? '' : 'disabled'} />
             </label>
             <div class="field-warn" id="connectInvitesWarn" role="status">
-              Recommended <strong>10–15</strong> / run (warns above 15). Manual CRM Link leads share this budget and go first.
+              <strong>0</strong> = process existing CRM only (enrich / score / ice) — no new invites.
+              Recommended <strong>10–15</strong> / run when prospecting (warns above 15). Manual CRM Link leads share this budget and go first.
             </div>
             <div class="li-stage-a-row" style="margin-top:4px">
               <span class="li-stage-a-label">Expire Lead😴 if not accepted</span>
@@ -4357,6 +4375,54 @@ function renderLinkedIn() {
   bindConnectAcceptExpireControls();
   bindPortraitProspectingToggle();
   bindLinkedInSessionForm();
+  bindLinkedInCookiePaste();
+}
+
+function bindLinkedInCookiePaste() {
+  const ta = document.getElementById('li-cookie-paste');
+  const btn = document.getElementById('li-cookie-apply');
+  const statusEl = document.getElementById('li-cookie-status');
+  if (!ta || !btn) return;
+
+  btn.onclick = async () => {
+    const text = String(ta.value || '').trim();
+    if (!text) {
+      if (statusEl) statusEl.textContent = 'Paste EditThisCookie JSON or a raw li_at value.';
+      return;
+    }
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    if (statusEl) statusEl.textContent = 'Saving cookies for this cabinet…';
+    try {
+      const res = await api('/api/linkedin/cookies', {
+        method: 'POST',
+        body: JSON.stringify({ cookiePaste: text }),
+      });
+      const mode = res.mode === 'editthiscookie' ? 'EditThisCookie export' : 'li_at only';
+      const preview = res.liAtPreview ? ` (${res.liAtPreview})` : '';
+      const msg = `Saved ${mode}${preview} · ${res.count || 0} cookie(s). Close LinkedIn in your browser if it is still open.`;
+      if (statusEl) statusEl.textContent = msg;
+      toast(msg);
+      ta.value = '';
+      // Refresh LinkedIn page so session badge updates.
+      if (typeof renderLinkedIn === 'function') {
+        try {
+          const data = await api('/api/settings');
+          settings = data.settings || settings;
+          if (settings.notifications) notifications = settings.notifications;
+          renderLinkedIn();
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+      toast(err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+    }
+  };
 }
 
 function bindConnectAcceptExpireControls() {
@@ -4725,10 +4791,11 @@ function bindConnectInvitesAutosave() {
 
   const normalize = (raw) => {
     const trimmed = String(raw ?? '').trim();
-    if (!trimmed) return null;
+    if (trimmed === '') return null;
     const n = Number(trimmed);
     if (!Number.isFinite(n)) return null;
-    return Math.max(1, Math.min(10, Math.round(n)));
+    // 0 allowed: Stage A runs without sending new connection invites
+    return Math.max(0, Math.min(100, Math.round(n)));
   };
 
   const applySaved = (n) => {
@@ -4745,7 +4812,8 @@ function bindConnectInvitesAutosave() {
   const commit = async (input) => {
     let n = normalize(input.value);
     if (n == null) {
-      n = Number(settings.linkedin?.connectMaxPerRun) || 2;
+      const prev = Number(settings.linkedin?.connectMaxPerRun);
+      n = Number.isFinite(prev) ? prev : 15;
     }
     input.value = String(n);
     syncPeers(input, input.value);

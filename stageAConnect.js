@@ -60,7 +60,13 @@ export async function runStageAConnectPhase(page) {
     console.error('fetchKnownProfileSlugs:', e.message);
   }
   const ledgerSlugs = connectLedgerSlugs();
-  const maxPerRun = Math.max(1, Number(process.env.CONNECT_MAX_PER_RUN || 15));
+  const maxPerRun = Math.max(0, Number(process.env.CONNECT_MAX_PER_RUN || 15));
+  if (maxPerRun < 1) {
+    console.log(
+      'CONNECT_MAX_PER_RUN=0 — skip outbound invites (Stage A still drains existing Lead😴 enrich/ice).'
+    );
+    return { skipped: true, sent: 0, failed: 0, crmSkipped: 0, manualSent: 0, reason: 'connect_max_zero' };
+  }
 
   let manualSent = 0;
   let manualFailed = 0;
