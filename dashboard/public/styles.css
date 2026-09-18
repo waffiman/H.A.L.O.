@@ -2256,31 +2256,35 @@ body.li-captcha-modal-open .main {
   gap: 10px;
 }
 .li-captcha-deck {
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
   border-radius: 12px;
 }
 .li-captcha-track {
   display: flex;
-  width: 200%;
-  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
+  flex-direction: column;
+  width: 100%;
+  /* No horizontal swipe — checkbox stays visible while tiles load below. */
+  transform: none !important;
+  transition: none;
 }
 .li-captcha-slide {
-  width: 50%;
+  width: 100%;
   flex-shrink: 0;
   box-sizing: border-box;
-  padding-right: 10px;
+  padding-right: 0;
+}
+.li-captcha-slide[data-slide="image"] {
+  display: none;
+  margin-top: 12px;
+}
+.li-captcha-deck[data-phase="image"] .li-captcha-slide[data-slide="image"] {
+  display: block;
 }
 .li-captcha-deck[data-phase="checkbox"] .li-captcha-track,
-.li-captcha-deck[data-phase="waiting"] .li-captcha-track {
-  transform: translateX(0);
-}
+.li-captcha-deck[data-phase="waiting"] .li-captcha-track,
 .li-captcha-deck[data-phase="image"] .li-captcha-track {
-  transform: translateX(-50%);
-}
-@media (prefers-reduced-motion: reduce) {
-  .li-captcha-track { transition: none; }
+  transform: none !important;
 }
 .li-captcha-verify-row.hidden { display: none !important; }
 .li-recaptcha-box {

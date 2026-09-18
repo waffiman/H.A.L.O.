@@ -781,10 +781,11 @@ function syncLinkedInCaptchaModalCopy(copy, st) {
 
 function ensureLinkedInCaptchaModalOnBody() {
   let modal = document.getElementById('li-captcha-modal');
-  // Drop stale shells from older deploys (missing extra pane or destroyed OTP input).
+  // Drop stale shells from older deploys.
   if (
     modal &&
-    (!modal.querySelector('#li-captcha-deck') ||
+    (modal.dataset.haloCaptchaUi !== 'stack3' ||
+      !modal.querySelector('#li-captcha-deck') ||
       !modal.querySelector('#li-challenge-extra') ||
       !modal.querySelector('#li-modal-email-code') ||
       !modal.querySelector('#li-modal-pin-label'))
@@ -796,6 +797,7 @@ function ensureLinkedInCaptchaModalOnBody() {
     modal = document.createElement('div');
     modal.id = 'li-captcha-modal';
     modal.className = 'li-captcha-modal hidden';
+    modal.dataset.haloCaptchaUi = 'stack3';
     modal.setAttribute('aria-hidden', 'true');
     modal.innerHTML = `
       <div class="li-captcha-modal-backdrop" data-li-captcha-close></div>
@@ -929,6 +931,7 @@ function updateLinkedInCaptchaNative(st) {
   const composite = document.getElementById('li-captcha-composite');
   const fallback = document.getElementById('li-captcha-repair-fallback');
   const hint = document.getElementById('li-recaptcha-hint');
+  const imageSlide = document.getElementById('li-captcha-image-block');
   if (fallback && token) {
     fallback.href = `/repair.html?token=${encodeURIComponent(token)}`;
   }
@@ -938,26 +941,39 @@ function updateLinkedInCaptchaNative(st) {
     phase = 'checkbox';
   }
 
-  // Only swipe to tiles / show Verify when worker confirmed real painted tiles.
-  const tilesReady =
-    phase === 'image' &&
+  const serverTilesReady =
     !!st.captchaHasTiles &&
     ((Number(st.captchaTileCount) || 0) > 0 || !!st.captchaHasChallengeJpg);
 
-  if (tilesReady) {
-    linkedInCaptchaUserChecked = true;
-  }
+  const keepChecked = () => {
+    if (!robotBtn) return;
+    robotBtn.classList.add('is-checked');
+    robotBtn.setAttribute('aria-pressed', 'true');
+    robotBtn.disabled = true;
+  };
 
-  if (tilesReady) {
-    setCaptchaDeckPhase('image');
-    if (robotBtn) {
-      robotBtn.classList.add('is-checked');
-      robotBtn.classList.remove('is-loading');
-      robotBtn.setAttribute('aria-pressed', 'true');
-      robotBtn.disabled = true;
+  const showWaitingTick = (msg) => {
+    // Checkbox stays on screen with tick + spinner — never swipe it away.
+    setCaptchaDeckPhase('waiting');
+    keepChecked();
+    if (robotBtn) robotBtn.classList.add('is-loading');
+    if (imageSlide) {
+      imageSlide.style.display = 'none';
     }
+    if (composite) composite.classList.add('hidden');
+    if (verifyRow) verifyRow.classList.add('hidden');
+    if (hint) {
+      hint.textContent =
+        msg ||
+        st.lastFillError ||
+        'Checkbox sent — waiting for LinkedIn image challenge…';
+    }
+  };
+
+  if (serverTilesReady && linkedInCaptchaUserChecked) {
+    keepChecked();
+    if (robotBtn) robotBtn.classList.add('is-loading'); // spin until image paints
     if (promptEl) {
-      // Blue reCAPTCHA header already shows the goal — keep our line short.
       promptEl.textContent = '';
       promptEl.classList.add('hidden');
     }
@@ -966,11 +982,26 @@ function updateLinkedInCaptchaNative(st) {
     const ov = st.captchaOverlay || { top: 26, left: 0, width: 100, height: 58 };
     const footerTrim = Math.max(10, Math.min(28, Number(st.captchaFooterTrim) || 16));
 
+    const revealTiles = () => {
+      setCaptchaDeckPhase('image');
+      if (imageSlide) imageSlide.style.display = '';
+      if (robotBtn) robotBtn.classList.remove('is-loading');
+      keepChecked();
+      if (verifyRow) {
+        verifyRow.classList.remove('hidden');
+        verifyRow.style.display = '';
+      }
+      if (verifyBtn) verifyBtn.disabled = false;
+      if (hint) {
+        hint.textContent =
+          'Tap matching tiles, then Verify. Some puzzles replace a tile with a new image after you tap — that is normal.';
+      }
+    };
+
     if (composite) {
       composite.classList.remove('hidden');
       composite.classList.add('li-captcha-composite--compact');
       composite.style.setProperty('--trim-bottom', `${footerTrim}%`);
-      // Keep overlay inside the clipped image so % match the full bframe shot.
       if (grid && grid.parentElement !== composite) {
         composite.appendChild(grid);
       }
@@ -979,17 +1010,40 @@ function updateLinkedInCaptchaNative(st) {
         const challengeSrc = `/api/linkedin/repair/captcha-challenge?token=${encodeURIComponent(token)}&r=${encodeURIComponent(rev)}`;
         const frameSrc = `/api/linkedin/repair/frame?token=${encodeURIComponent(token)}&r=${encodeURIComponent(rev)}`;
         const nextSrc = st.captchaHasChallengeJpg ? challengeSrc : frameSrc;
+        const finishOk = () => {
+          img.dataset.loaded = '1';
+          revealTiles();
+        };
+        const finishFail = () => {
+          img.dataset.loaded = '0';
+          showWaitingTick('Captcha image failed to load — waiting for a fresh frame…');
+        };
         if (img.dataset.rev !== String(rev)) {
           img.dataset.rev = String(rev);
-          img.alt = '';
+          img.dataset.loaded = '0';
+          img.dataset.fallback = '0';
+          img.alt = 'Captcha challenge';
+          // Stay on waiting UI until the bytes arrive — avoids empty Verify panel.
+          setCaptchaDeckPhase('waiting');
+          if (imageSlide) imageSlide.style.display = 'none';
+          if (verifyRow) verifyRow.classList.add('hidden');
+          img.onload = finishOk;
           img.onerror = () => {
             if (img.dataset.fallback !== '1') {
               img.dataset.fallback = '1';
               img.src = frameSrc;
+              return;
             }
+            finishFail();
           };
           img.src = nextSrc;
+        } else if (img.dataset.loaded === '1' || (img.complete && img.naturalWidth > 0)) {
+          finishOk();
+        } else {
+          showWaitingTick('Loading captcha images…');
         }
+      } else {
+        showWaitingTick('Loading captcha images…');
       }
     }
 
@@ -1018,27 +1072,8 @@ function updateLinkedInCaptchaNative(st) {
         }
       }
     }
-    if (verifyRow) verifyRow.classList.remove('hidden');
-    if (verifyBtn) verifyBtn.disabled = false;
-    if (hint) {
-      hint.textContent =
-        'Tap matching tiles, then Verify. Some puzzles replace a tile with a new image after you tap — that is normal.';
-    }
-  } else if (phase === 'waiting' && linkedInCaptchaUserChecked) {
-    // Waiting only after the operator tapped I'm-not-a-robot in this tab.
-    setCaptchaDeckPhase('waiting');
-    if (robotBtn) {
-      robotBtn.classList.add('is-checked', 'is-loading');
-      robotBtn.setAttribute('aria-pressed', 'true');
-      robotBtn.disabled = true;
-    }
-    if (promptEl) promptEl.textContent = '';
-    if (verifyRow) verifyRow.classList.add('hidden');
-    if (hint) {
-      hint.textContent = st.lastFillError
-        ? String(st.lastFillError)
-        : 'Checkbox sent — waiting for LinkedIn image challenge…';
-    }
+  } else if (linkedInCaptchaUserChecked || (phase === 'waiting' && linkedInCaptchaUserChecked)) {
+    showWaitingTick();
   } else {
     setCaptchaDeckPhase('checkbox');
     if (robotBtn) {
@@ -1046,7 +1081,8 @@ function updateLinkedInCaptchaNative(st) {
       robotBtn.classList.remove('is-loading', 'is-checked');
       robotBtn.setAttribute('aria-pressed', 'false');
     }
-    // Server may still have stale captchaUiChecked — ignore until local tap.
+    if (imageSlide) imageSlide.style.display = 'none';
+    if (composite) composite.classList.add('hidden');
     if (promptEl) {
       promptEl.textContent = '';
       promptEl.classList.add('hidden');
