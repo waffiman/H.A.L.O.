@@ -808,7 +808,34 @@ function publishCaptchaStaging(stagingDir) {
   }
 }
 
-function bframeFrom(page) {
+async function bframeFrom(page) {
+  // Prefer the bframe that actually has the image-select puzzle.
+  // Google often preloads an empty/hidden bframe — picking the first URL match
+  // makes table screenshots fail while the live page frame still shows tiles.
+  let best = null;
+  let bestScore = -1;
+  for (const fr of page.frames()) {
+    if (!/bframe/i.test(fr.url() || '')) continue;
+    const meta = await fr
+      .evaluate(() => {
+        const tiles = document.querySelectorAll(
+          'td.rc-imageselect-tile, .rc-imageselect-tile, #rc-imageselect-target td, table.rc-imageselect-table-33 td, table.rc-imageselect-table-44 td'
+        ).length;
+        const hasTarget = !!document.querySelector(
+          '#rc-imageselect-target, .rc-imageselect-target, table.rc-imageselect-table-33, table.rc-imageselect-table-44'
+        );
+        const bodyLen = (document.body?.innerText || '').length;
+        return { tiles, hasTarget, bodyLen };
+      })
+      .catch(() => ({ tiles: 0, hasTarget: false, bodyLen: 0 }));
+    const score =
+      (meta.tiles || 0) * 100 + (meta.hasTarget ? 50 : 0) + Math.min(meta.bodyLen || 0, 200);
+    if (score > bestScore) {
+      bestScore = score;
+      best = fr;
+    }
+  }
+  if (best) return best;
   for (const fr of page.frames()) {
     if (/bframe/i.test(fr.url() || '')) return fr;
   }
@@ -845,6 +872,11 @@ async function syncCaptchaNativeUi(page, opts = {}) {
       state.bframeBox.width >= 250 &&
       state.bframeBox.height >= 250);
   if (!puzzleReady) {
+    // Soft refresh after a tile tap — DOM can briefly rebuild; keep the last image UI.
+    if (opts.soft && prev.captchaPhase === 'image' && prev.captchaHasChallengeJpg) {
+      console.log('soft captcha sync — tiles momentarily gone; keep previous image');
+      return;
+    }
     if (userClicked) {
       writeState({
         captchaPhase: 'waiting',
@@ -881,141 +913,27 @@ async function syncCaptchaNativeUi(page, opts = {}) {
     prev.captchaPhase === 'image' &&
     prev.captchaHasTiles &&
     prev.captchaHasChallengeJpg &&
-    Date.now() - lastCaptchaSyncAt < 8000
+    Date.now() - lastCaptchaSyncAt < 20000
   ) {
     return;
   }
   lastCaptchaSyncAt = Date.now();
 
-  const staging = path.join(ROOT, 'session_repair_captcha_staging');
-  try {
-    fs.rmSync(staging, { recursive: true, force: true });
-  } catch {
-    /* ignore */
-  }
-  fs.mkdirSync(staging, { recursive: true });
-
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(force ? 250 : 400);
 
   let prompt = state.puzzlePrompt || '';
   let cols = 3;
   let tileCount = 9;
-  // Overlay + footer trim are % of the FULL bframe screenshot (CSS hides footer).
-  let overlay = { top: 26, left: 0, width: 100, height: 58 };
-  let footerTrim = 16;
-  const fr = bframeFrom(page);
-  if (fr) {
-    const layout = await fr
-      .evaluate(() => {
-        const q = (s) => document.querySelector(s);
-        const qa = (s) => [...document.querySelectorAll(s)];
-        const desc =
-          q('.rc-imageselect-desc-wrapper') ||
-          q('.rc-imageselect-desc') ||
-          q('#rc-imageselect .rc-imageselect-instructions');
-        const table44 = q('table.rc-imageselect-table-44');
-        const table33 = q('table.rc-imageselect-table-33');
-        const target =
-          q('#rc-imageselect-target') ||
-          q('.rc-imageselect-target') ||
-          table44 ||
-          table33;
-        let tiles = qa('td.rc-imageselect-tile');
-        if (!tiles.length) tiles = qa('.rc-imageselect-tile');
-        if (!tiles.length && target) {
-          tiles = [...target.querySelectorAll('td')].filter((td) => {
-            const r = td.getBoundingClientRect();
-            return r.width > 20 && r.height > 20;
-          });
-        }
-        // Default 3×3 — only use 4×4 when Google's table class says so.
-        const cols = table44 ? 4 : 3;
-
-        const footer =
-          q('.rc-footer') ||
-          q('#recaptcha-verify-button')?.closest('.rc-footer') ||
-          q('#recaptcha-verify-button')?.parentElement;
-
-        const iw = Math.max(
-          document.documentElement?.clientWidth || 0,
-          document.body?.clientWidth || 0,
-          window.innerWidth || 0,
-          1
-        );
-        const ih = Math.max(
-          document.documentElement?.clientHeight || 0,
-          document.body?.clientHeight || 0,
-          window.innerHeight || 0,
-          1
-        );
-
-        const descR = desc?.getBoundingClientRect();
-        const targetR = target?.getBoundingClientRect();
-        const footerR = footer?.getBoundingClientRect();
-        const tileRs = tiles.map((t) => t.getBoundingClientRect());
-
-        const gridBox = targetR || (tileRs.length
-          ? {
-              left: Math.min(...tileRs.map((r) => r.left)),
-              top: Math.min(...tileRs.map((r) => r.top)),
-              width: Math.max(...tileRs.map((r) => r.right)) - Math.min(...tileRs.map((r) => r.left)),
-              height: Math.max(...tileRs.map((r) => r.bottom)) - Math.min(...tileRs.map((r) => r.top)),
-            }
-          : null);
-
-        const overlay = gridBox
-          ? {
-              top: (gridBox.top / ih) * 100,
-              left: (gridBox.left / iw) * 100,
-              width: (gridBox.width / iw) * 100,
-              height: (gridBox.height / ih) * 100,
-            }
-          : { top: 26, left: 0, width: 100, height: 58 };
-
-        let footerTrim = 16;
-        if (footerR && footerR.top > 0 && footerR.top < ih) {
-          footerTrim = Math.max(10, Math.min(28, ((ih - footerR.top) / ih) * 100));
-        }
-
-        const prompt = String(desc?.innerText || q('#rc-imageselect')?.innerText || '')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 240);
-
-        return {
-          cols,
-          tileCount: tiles.length || cols * cols,
-          prompt,
-          overlay,
-          footerTrim,
-          iframe: { w: iw, h: ih },
-          hasDesc: !!descR,
-          hasTarget: !!targetR,
-          hasFooter: !!footerR,
-        };
-      })
-      .catch(() => null);
-
-    if (layout) {
-      cols = layout.cols === 4 ? 4 : 3;
-      tileCount = layout.tileCount || cols * cols;
-      prompt = layout.prompt || prompt;
-      if (layout.overlay) overlay = layout.overlay;
-      if (Number(layout.footerTrim) > 0) footerTrim = Number(layout.footerTrim);
-      console.log(
-        `Captcha layout cols=${cols} tiles=${tileCount} overlay=${JSON.stringify(overlay)} footerTrim=${footerTrim.toFixed(1)} footer=${layout.hasFooter}`
-      );
-    }
-  }
-
-  let hasChallenge = false;
+  // Image is the tile table only → overlay covers 100% (perfect 3×3 / 4×4).
+  let overlay = { top: 0, left: 0, width: 100, height: 100 };
+  let cropAbs = null; // table box relative to bframe host (click fallback)
+  let tablePageBox = null; // absolute page box of the tile table
+  const fr = await bframeFrom(page);
   let box = state.bframeBox;
 
-  // Always capture the full visible bframe — dashboard CSS trims the VERIFY footer.
   try {
     const bframes = page.locator('iframe[src*="bframe"]');
     const n = await bframes.count().catch(() => 0);
-    let bestEl = null;
     let bestArea = 0;
     for (let i = 0; i < n; i++) {
       const el = bframes.nth(i);
@@ -1024,47 +942,152 @@ async function syncCaptchaNativeUi(page, opts = {}) {
       const area = b.width * b.height;
       if (area > bestArea) {
         bestArea = area;
-        bestEl = el;
         box = b;
       }
     }
-    if (bestEl) {
-      await bestEl.screenshot({
-        path: path.join(staging, 'challenge.jpg'),
-        type: 'jpeg',
-        quality: 78,
-      });
-      hasChallenge = fs.existsSync(path.join(staging, 'challenge.jpg'));
-      if (hasChallenge) {
-        console.log(
-          `Captcha challenge full bframe ${Math.round(box.width)}x${Math.round(box.height)}`
-        );
-      }
-    }
-  } catch (e) {
-    console.log('captcha iframe element shot:', e.message);
+  } catch {
+    /* ignore */
   }
 
-  if (!hasChallenge && fr) {
+  let tableLoc = null;
+  if (fr) {
     try {
-      await fr.locator('body').first().screenshot({
-        path: path.join(staging, 'challenge.jpg'),
-        type: 'jpeg',
-        quality: 75,
-      });
-      hasChallenge = fs.existsSync(path.join(staging, 'challenge.jpg'));
-      if (hasChallenge) console.log('Captcha challenge via bframe body screenshot');
+      const table44 = fr.locator('table.rc-imageselect-table-44');
+      const table33 = fr.locator('table.rc-imageselect-table-33');
+      const is44 = (await table44.count().catch(() => 0)) > 0;
+      const is33 = (await table33.count().catch(() => 0)) > 0;
+      if (is44) tableLoc = table44.first();
+      else if (is33) tableLoc = table33.first();
+      else {
+        tableLoc = fr
+          .locator('#rc-imageselect-target, .rc-imageselect-target')
+          .first();
+      }
+
+      const tileLoc = fr.locator(
+        'td.rc-imageselect-tile, .rc-imageselect-tile, #rc-imageselect-target td'
+      );
+      const tileN = await tileLoc.count().catch(() => 0);
+      if (is44 || tileN >= 16) cols = 4;
+      else if (is33 || tileN === 9) cols = 3;
+      else if (tileN > 9) cols = 4;
+      tileCount = tileN || cols * cols;
+
+      const desc = fr
+        .locator(
+          '.rc-imageselect-desc-wrapper, .rc-imageselect-desc, #rc-imageselect .rc-imageselect-instructions'
+        )
+        .first();
+      const promptText = await desc.innerText().catch(() => '');
+      if (promptText) {
+        prompt = String(promptText).replace(/\s+/g, ' ').trim().slice(0, 240);
+      }
+
+      tablePageBox = tableLoc ? await tableLoc.boundingBox().catch(() => null) : null;
+      if ((!tablePageBox || tablePageBox.width < 40) && tileN > 0) {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = 0;
+        let maxY = 0;
+        const lim = Math.min(tileN, cols * cols);
+        for (let i = 0; i < lim; i++) {
+          const tb = await tileLoc.nth(i).boundingBox().catch(() => null);
+          if (!tb || tb.width < 8) continue;
+          minX = Math.min(minX, tb.x);
+          minY = Math.min(minY, tb.y);
+          maxX = Math.max(maxX, tb.x + tb.width);
+          maxY = Math.max(maxY, tb.y + tb.height);
+        }
+        if (Number.isFinite(minX) && maxX > minX) {
+          tablePageBox = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+        }
+      }
+      if (tablePageBox && box) {
+        cropAbs = {
+          x: Math.max(0, tablePageBox.x - box.x),
+          y: Math.max(0, tablePageBox.y - box.y),
+          w: tablePageBox.width,
+          h: tablePageBox.height,
+        };
+      }
+      console.log(
+        `Captcha layout cols=${cols} tiles=${tileCount} table=${Math.round(tablePageBox?.width || 0)}x${Math.round(tablePageBox?.height || 0)}`
+      );
     } catch (e) {
-      console.log('captcha bframe body shot:', e.message);
+      console.log('captcha layout measure:', e.message);
     }
   }
 
-  if (!hasChallenge && box && box.width > 40) {
+  fs.mkdirSync(CAPTCHA_DIR, { recursive: true });
+  const challengePath = path.join(CAPTCHA_DIR, 'challenge.jpg');
+  const challengeTmp = path.join(CAPTCHA_DIR, 'challenge.tmp.jpg');
+  const MIN_JPG = 4000; // blank/corrupt table shots were ~1KB
+  let hasChallenge = false;
+  let footerTrim = 0;
+  let captureMode = '';
+
+  const commitChallenge = (label) => {
+    if (!fs.existsSync(challengeTmp)) return false;
+    const size = fs.statSync(challengeTmp).size;
+    if (size < MIN_JPG) {
+      console.log(`captcha ${label} too small (${size}B) — discard`);
+      try {
+        fs.unlinkSync(challengeTmp);
+      } catch {
+        /* ignore */
+      }
+      return false;
+    }
+    fs.renameSync(challengeTmp, challengePath);
+    hasChallenge = true;
+    captureMode = label;
+    console.log(`Captcha challenge ${label} ${size}B cols=${cols}`);
+    return true;
+  };
+
+  // 1) Page clip of the tile table — uses compositor pixels (most reliable).
+  if (!hasChallenge && tablePageBox && tablePageBox.width > 40) {
     try {
       await page.screenshot({
-        path: path.join(staging, 'challenge.jpg'),
+        path: challengeTmp,
         type: 'jpeg',
-        quality: 75,
+        quality: 88,
+        clip: {
+          x: Math.max(0, tablePageBox.x),
+          y: Math.max(0, tablePageBox.y),
+          width: Math.min(tablePageBox.width, 900),
+          height: Math.min(tablePageBox.height, 900),
+        },
+      });
+      if (commitChallenge('table-clip')) {
+        overlay = { top: 0, left: 0, width: 100, height: 100 };
+        footerTrim = 0;
+      }
+    } catch (e) {
+      console.log('captcha table clip:', e.message);
+    }
+  }
+
+  // 2) Element screenshot of the table locator.
+  if (!hasChallenge && tableLoc) {
+    try {
+      await tableLoc.screenshot({ path: challengeTmp, type: 'jpeg', quality: 88 });
+      if (commitChallenge('table-el')) {
+        overlay = { top: 0, left: 0, width: 100, height: 100 };
+        footerTrim = 0;
+      }
+    } catch (e) {
+      console.log('captcha table screenshot:', e.message);
+    }
+  }
+
+  // 3) Visible bframe host iframe (captcha widget only — not full LinkedIn page).
+  if (!hasChallenge && box && box.width > 100) {
+    try {
+      await page.screenshot({
+        path: challengeTmp,
+        type: 'jpeg',
+        quality: 82,
         clip: {
           x: Math.max(0, box.x),
           y: Math.max(0, box.y),
@@ -1072,48 +1095,92 @@ async function syncCaptchaNativeUi(page, opts = {}) {
           height: Math.min(box.height, 900),
         },
       });
-      hasChallenge = fs.existsSync(path.join(staging, 'challenge.jpg'));
+      if (commitChallenge('bframe-clip')) {
+        if (tablePageBox) {
+          overlay = {
+            top: ((tablePageBox.y - box.y) / box.height) * 100,
+            left: ((tablePageBox.x - box.x) / box.width) * 100,
+            width: (tablePageBox.width / box.width) * 100,
+            height: (tablePageBox.height / box.height) * 100,
+          };
+          // Approximate footer under the tile grid.
+          const gridBottom = tablePageBox.y + tablePageBox.height - box.y;
+          footerTrim = Math.max(
+            0,
+            Math.min(28, ((box.height - gridBottom) / box.height) * 100)
+          );
+          cropAbs = {
+            x: 0,
+            y: 0,
+            w: box.width,
+            h: box.height,
+          };
+        } else {
+          overlay = { top: 22, left: 0, width: 100, height: 58 };
+          footerTrim = 16;
+        }
+      }
     } catch (e) {
-      console.log('captcha challenge clip:', e.message);
+      console.log('captcha bframe clip:', e.message);
     }
   }
 
-  if (!hasChallenge && puzzleReady && fs.existsSync(FRAME_PATH)) {
-    try {
-      fs.copyFileSync(FRAME_PATH, path.join(staging, 'challenge.jpg'));
-      hasChallenge = true;
-      console.log('Captcha challenge via live frame copy (puzzle confirmed)');
-    } catch (e) {
-      console.log('captcha frame copy:', e.message);
-    }
+  // 4) Keep previous good jpg if capture missed this tick.
+  if (!hasChallenge && fs.existsSync(challengePath) && fs.statSync(challengePath).size >= MIN_JPG) {
+    hasChallenge = true;
+    captureMode = 'reuse';
+    console.log('Captcha challenge reuse previous jpg');
   }
 
   if (!hasChallenge) {
-    try {
-      fs.rmSync(staging, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
     writeState({
-      captchaPhase: 'waiting',
+      captchaPhase: prev.captchaPhase === 'image' ? 'image' : 'waiting',
       captchaChecked: true,
-      captchaHasTiles: false,
-      captchaPrompt: null,
+      captchaHasTiles: prev.captchaPhase === 'image',
+      captchaPrompt: prev.captchaPrompt || prompt || null,
       captchaHasChallengeJpg: false,
     });
-    console.log('Captcha sync — tiles in DOM but capture empty; stay waiting');
+    console.log('Captcha sync — capture empty; keep UI if possible');
     return;
   }
 
-  publishCaptchaStaging(staging);
-
-  // Keep captchaGridRev stable across passive syncs so the dashboard does not
-  // tear down / rebuild the image every poll. Bump only on force (user click / verify)
-  // or the first successful image publish.
+  // Keep captchaGridRev + captchaImgRev stable on passive polls so the dashboard
+  // does not reload the image every few seconds (that caused "failed to load").
+  const bumpRev = force && opts.bumpRev !== false && opts.soft !== true;
+  const bumpImg = force || opts.soft === true;
   const gridRev =
-    force || !prev.captchaGridRev || prev.captchaPhase !== 'image'
+    bumpRev || !prev.captchaGridRev || prev.captchaPhase !== 'image'
       ? Date.now()
       : Number(prev.captchaGridRev) || Date.now();
+  const imgRev = bumpImg || !prev.captchaImgRev ? Date.now() : Number(prev.captchaImgRev) || Date.now();
+
+  // Live selected tiles (Google clears selection when it swaps a tile image).
+  let selectedIndexes = [];
+  if (fr) {
+    selectedIndexes = await fr
+      .evaluate(() => {
+        let tiles = [...document.querySelectorAll('td.rc-imageselect-tile')];
+        if (!tiles.length) tiles = [...document.querySelectorAll('.rc-imageselect-tile')];
+        if (!tiles.length) {
+          tiles = [...document.querySelectorAll('#rc-imageselect-target td, .rc-imageselect-target td')].filter(
+            (td) => {
+              const r = td.getBoundingClientRect();
+              return r.width > 20 && r.height > 20;
+            }
+          );
+        }
+        const out = [];
+        tiles.forEach((td, i) => {
+          const sel =
+            td.classList.contains('rc-imageselect-tileselected') ||
+            td.getAttribute('aria-selected') === 'true' ||
+            /tileselected/i.test(td.className || '');
+          if (sel) out.push(i);
+        });
+        return out;
+      })
+      .catch(() => []);
+  }
 
   writeState({
     captchaPhase: 'image',
@@ -1124,19 +1191,23 @@ async function syncCaptchaNativeUi(page, opts = {}) {
     captchaCols: cols,
     captchaOverlay: overlay,
     captchaFooterTrim: footerTrim,
+    captchaCrop: cropAbs,
     captchaGridRev: gridRev,
+    captchaImgRev: imgRev,
+    captchaSelectedIndexes: selectedIndexes,
     captchaMode: 'composite',
     captchaHasChallengeJpg: true,
+    captchaCaptureMode: captureMode,
   });
   console.log(
-    `Captcha native UI: cols=${cols} rev=${gridRev} force=${force} footerTrim=${footerTrim.toFixed(1)} overlay=${JSON.stringify(overlay)} prompt="${(prompt || '').slice(0, 50)}"`
+    `Captcha native UI: cols=${cols} mode=${captureMode} rev=${gridRev} img=${imgRev} selected=[${selectedIndexes.join(',')}] force=${force} soft=${!!opts.soft} footerTrim=${footerTrim.toFixed(1)} prompt="${(prompt || '').slice(0, 50)}"`
   );
 }
 
 async function clickCaptchaTile(page, index) {
   const i = Number(index);
   if (!Number.isFinite(i) || i < 0) return false;
-  const fr = bframeFrom(page);
+  const fr = await bframeFrom(page);
   if (fr) {
     // Only real tile cells — never wrappers (those inflate the index map).
     const tiles = fr.locator('td.rc-imageselect-tile');
@@ -1156,7 +1227,7 @@ async function clickCaptchaTile(page, index) {
       return true;
     }
   }
-  // Fallback: click cell center using measured overlay % of full bframe.
+  // Fallback: click cell center using measured overlay % of the challenge image.
   const st = readState() || {};
   const cols = Number(st.captchaCols) === 4 ? 4 : 3;
   const rows = cols;
@@ -1165,11 +1236,17 @@ async function clickCaptchaTile(page, index) {
     state.bframeBox ||
     (await page.locator('iframe[src*="bframe"]').first().boundingBox().catch(() => null));
   if (!box) return false;
-  const ov = st.captchaOverlay || { top: 26, left: 0, width: 100, height: 58 };
-  const gridTop = box.y + (box.height * Number(ov.top)) / 100;
-  const gridLeft = box.x + (box.width * Number(ov.left)) / 100;
-  const gridW = (box.width * Number(ov.width)) / 100;
-  const gridH = (box.height * Number(ov.height)) / 100;
+  const ov = st.captchaOverlay || { top: 0, left: 0, width: 100, height: 100 };
+  const crop = st.captchaCrop;
+  // Table-only crop: overlay is 100% of the tile table.
+  const baseX = crop ? box.x + Number(crop.x || 0) : box.x;
+  const baseY = crop ? box.y + Number(crop.y || 0) : box.y;
+  const baseW = crop ? Number(crop.w || box.width) : box.width;
+  const baseH = crop ? Number(crop.h || box.height) : box.height;
+  const gridTop = baseY + (baseH * Number(ov.top)) / 100;
+  const gridLeft = baseX + (baseW * Number(ov.left)) / 100;
+  const gridW = (baseW * Number(ov.width)) / 100;
+  const gridH = (baseH * Number(ov.height)) / 100;
   const cellW = gridW / cols;
   const cellH = gridH / rows;
   const r = Math.floor(i / cols);
@@ -1182,7 +1259,7 @@ async function clickCaptchaTile(page, index) {
 }
 
 async function clickCaptchaVerify(page) {
-  const fr = bframeFrom(page);
+  const fr = await bframeFrom(page);
   if (!fr) return false;
   const btn = fr.locator(
     '#recaptcha-verify-button, button#recaptcha-verify-button, .rc-button-default'
@@ -1775,8 +1852,12 @@ async function drainInputs(page) {
         await captureFrame(page, 'challenge', { forceCaptchaSync: true });
       } else if (ev.type === 'clickCaptchaTile' && Number.isFinite(Number(ev.index))) {
         await clickCaptchaTile(page, Number(ev.index));
-        await page.waitForTimeout(400);
-        await captureFrame(page, 'challenge', { forceCaptchaSync: true });
+        // Wait for Google to swap the tile image (if it will) before reading selection.
+        await page.waitForTimeout(750);
+        await syncCaptchaNativeUi(page, { force: true, soft: true }).catch((e) =>
+          console.log('soft captcha sync:', e.message)
+        );
+        await captureFrame(page, 'challenge');
       } else if (ev.type === 'captchaVerify') {
         await clickCaptchaVerify(page);
         await page.waitForTimeout(900);

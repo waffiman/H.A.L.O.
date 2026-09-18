@@ -1142,7 +1142,7 @@ app.get('/api/linkedin/repair/captcha-challenge', (req, res) => {
     return res.status(403).send('forbidden');
   }
   const challenge = repairCaptchaChallengePath();
-  if (!fs.existsSync(challenge)) {
+  if (!fs.existsSync(challenge) || fs.statSync(challenge).size < 4000) {
     return res.status(404).send('no challenge');
   }
   res.setHeader('Cache-Control', 'no-store');

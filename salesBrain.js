@@ -25,11 +25,16 @@ import {
   formatBookingOffersForPrompt,
 } from './bookingSchedule.js';
 import { getMeetRoomUrl, meetLinkReady, notifyBookedCall, buildBookingCalendarAddLink } from './googleCalendar.js';
+import { dataRoot } from './dataRoot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PLAYBOOK_PATH = process.env.SALES_PLAYBOOK_PATH
-  || path.join(process.cwd(), 'salesPlaybook.md')
-  || path.join(__dirname, 'salesPlaybook.md');
+function playbookPath() {
+  return (
+    process.env.SALES_PLAYBOOK_PATH ||
+    path.join(dataRoot(), 'salesPlaybook.md') ||
+    path.join(__dirname, 'salesPlaybook.md')
+  );
+}
 
 const MODE_FALLBACKS = {
   ice_breaker: `MODE: ice_breaker
@@ -98,7 +103,7 @@ For ice_breaker: KEEP the greeting (Hi Name) and the closing sign-off (Best, + s
 For closing_followup and reply drafts: strip greetings and email sign-offs (no Hi Name, no Cheers/Best/Regards).`;
 
 function loadModeBlock(mode) {
-  const file = path.join(process.cwd(), 'prompts', `${mode}.md`);
+  const file = path.join(dataRoot(), 'prompts', `${mode}.md`);
   try {
     if (fs.existsSync(file)) return fs.readFileSync(file, 'utf8').trim();
   } catch {
@@ -116,13 +121,13 @@ function loadModeBlock(mode) {
 /** @deprecated use loadBrainSystemPrefix — kept for migration fallback */
 function loadPlaybook() {
   try {
-    return loadBrainSystemPrefix(process.cwd());
+    return loadBrainSystemPrefix();
   } catch {
     /* fall through */
   }
   const candidates = [
-    PLAYBOOK_PATH,
-    path.join(process.cwd(), 'salesPlaybook.md'),
+    playbookPath(),
+    path.join(dataRoot(), 'salesPlaybook.md'),
     path.join(__dirname, 'salesPlaybook.md'),
   ];
   for (const p of candidates) {
@@ -730,7 +735,7 @@ export async function generateSalesMessage(opts) {
 
   const system = composeBrainSystem({ modeBlock, mode });
   const meetUrl = getMeetRoomUrl() || opts.bookingUrl || process.env.WAFFI_BOOKING_URL || '';
-  const policy = mode === 'reply' ? readSalesPolicy(process.cwd()) : null;
+  const policy = mode === 'reply' ? readSalesPolicy() : null;
   let bookingOffers = [];
   let bookingOffersBlock = '';
   if (mode === 'reply' && policy?.outcome === 'book_a_call') {

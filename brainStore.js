@@ -12,36 +12,37 @@ import {
   validateBookingSchedule,
 } from './bookingSchedule.js';
 import { normalizeSmartTiming } from './timezoneResolver.js';
+import { dataRoot } from './dataRoot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function brainDir(root = process.cwd()) {
+export function brainDir(root = dataRoot()) {
   return path.join(root, 'brain');
 }
 
-function ensureBrainDir(root = process.cwd()) {
+function ensureBrainDir(root = dataRoot()) {
   const dir = brainDir(root);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
-export function userPromptPath(root = process.cwd()) {
+export function userPromptPath(root = dataRoot()) {
   return path.join(brainDir(root), 'user_prompt.md');
 }
 
-export function strategyNotesPath(root = process.cwd()) {
+export function strategyNotesPath(root = dataRoot()) {
   return path.join(brainDir(root), 'strategy_notes.md');
 }
 
-export function analysisStatePath(root = process.cwd()) {
+export function analysisStatePath(root = dataRoot()) {
   return path.join(brainDir(root), 'analysis_state.json');
 }
 
-export function targetPortraitPath(root = process.cwd()) {
+export function targetPortraitPath(root = dataRoot()) {
   return path.join(brainDir(root), 'target_portrait.md');
 }
 
-export function salesPolicyPath(root = process.cwd()) {
+export function salesPolicyPath(root = dataRoot()) {
   return path.join(brainDir(root), 'sales_policy.json');
 }
 
@@ -61,7 +62,7 @@ export function outcomeMeta(id) {
   return SALES_OUTCOMES.find((o) => o.id === id) || SALES_OUTCOMES[0];
 }
 
-export function readTargetPortrait(root = process.cwd()) {
+export function readTargetPortrait(root = dataRoot()) {
   const p = targetPortraitPath(root);
   try {
     if (!fs.existsSync(p)) return '';
@@ -71,12 +72,12 @@ export function readTargetPortrait(root = process.cwd()) {
   }
 }
 
-export function writeTargetPortrait(text, root = process.cwd()) {
+export function writeTargetPortrait(text, root = dataRoot()) {
   ensureBrainDir(root);
   fs.writeFileSync(targetPortraitPath(root), String(text ?? ''), 'utf8');
 }
 
-export function readSalesPolicy(root = process.cwd()) {
+export function readSalesPolicy(root = dataRoot()) {
   const p = salesPolicyPath(root);
   try {
     if (fs.existsSync(p)) {
@@ -115,7 +116,7 @@ export function readSalesPolicy(root = process.cwd()) {
   };
 }
 
-export function writeSalesPolicy(policy, root = process.cwd()) {
+export function writeSalesPolicy(policy, root = dataRoot()) {
   ensureBrainDir(root);
   const outcome = SALES_OUTCOMES.some((o) => o.id === policy?.outcome)
     ? policy.outcome
@@ -261,7 +262,7 @@ export function compilePortraitMarkdown(portrait) {
  * Compact Sales block for MODE reply only — portrait + outcome rules.
  * Keep short so OpenRouter / Gemini stay focused.
  */
-export function buildSalesReplyBlock(root = process.cwd()) {
+export function buildSalesReplyBlock(root = dataRoot()) {
   const portrait = readTargetPortrait(root).trim();
   const { outcome, bookingComplete } = readSalesPolicy(root);
   const meta = outcomeMeta(outcome);
@@ -290,7 +291,7 @@ export function buildSalesReplyBlock(root = process.cwd()) {
   return lines.join('\n');
 }
 
-function migrateUserPromptIfNeeded(root = process.cwd()) {
+function migrateUserPromptIfNeeded(root = dataRoot()) {
   const dest = userPromptPath(root);
   if (fs.existsSync(dest) && fs.readFileSync(dest, 'utf8').trim()) return;
   ensureBrainDir(root);
@@ -317,7 +318,7 @@ function migrateUserPromptIfNeeded(root = process.cwd()) {
   }
 }
 
-export function readUserPrompt(root = process.cwd()) {
+export function readUserPrompt(root = dataRoot()) {
   migrateUserPromptIfNeeded(root);
   try {
     return fs.readFileSync(userPromptPath(root), 'utf8');
@@ -326,12 +327,12 @@ export function readUserPrompt(root = process.cwd()) {
   }
 }
 
-export function writeUserPrompt(text, root = process.cwd()) {
+export function writeUserPrompt(text, root = dataRoot()) {
   ensureBrainDir(root);
   fs.writeFileSync(userPromptPath(root), String(text ?? ''), 'utf8');
 }
 
-export function readStrategyNotes(root = process.cwd()) {
+export function readStrategyNotes(root = dataRoot()) {
   const p = strategyNotesPath(root);
   try {
     if (!fs.existsSync(p)) return '';
@@ -341,13 +342,13 @@ export function readStrategyNotes(root = process.cwd()) {
   }
 }
 
-export function writeStrategyNotes(text, root = process.cwd()) {
+export function writeStrategyNotes(text, root = dataRoot()) {
   ensureBrainDir(root);
   const clean = String(text ?? '').replace(/^\uFEFF/, '').trim();
   fs.writeFileSync(strategyNotesPath(root), clean ? `${clean}\n` : '', 'utf8');
 }
 
-export function readAnalysisState(root = process.cwd()) {
+export function readAnalysisState(root = dataRoot()) {
   const p = analysisStatePath(root);
   try {
     if (!fs.existsSync(p)) return { lastRunAt: null, leadsAnalyzed: 0, lastSummary: '' };
@@ -357,12 +358,12 @@ export function readAnalysisState(root = process.cwd()) {
   }
 }
 
-export function writeAnalysisState(state, root = process.cwd()) {
+export function writeAnalysisState(state, root = dataRoot()) {
   ensureBrainDir(root);
   fs.writeFileSync(analysisStatePath(root), JSON.stringify(state, null, 2), 'utf8');
 }
 
-export function isBrainAnalysisDue(root = process.cwd()) {
+export function isBrainAnalysisDue(root = dataRoot()) {
   if (process.env.BRAIN_ANALYSIS_ENABLED === '0') return false;
   const interval = Number(process.env.BRAIN_ANALYSIS_INTERVAL_MS || 604800000);
   const st = readAnalysisState(root);
@@ -372,7 +373,7 @@ export function isBrainAnalysisDue(root = process.cwd()) {
 }
 
 /** System prefix for salesBrain: user prompt + optional strategy notes. */
-export function loadBrainSystemPrefix(root = process.cwd()) {
+export function loadBrainSystemPrefix(root = dataRoot()) {
   const user = readUserPrompt(root).trim();
   const notes = readStrategyNotes(root).trim();
   const parts = [];
@@ -391,7 +392,7 @@ export function loadBrainSystemPrefix(root = process.cwd()) {
 /**
  * Compose full system prompt: user prompt → mode adapter → [sales policy if reply] → strategy notes.
  */
-export function composeBrainSystem({ modeBlock = '', mode = '', root = process.cwd() } = {}) {
+export function composeBrainSystem({ modeBlock = '', mode = '', root = dataRoot() } = {}) {
   const user = readUserPrompt(root).trim();
   const notes = readStrategyNotes(root).trim();
   const parts = [];

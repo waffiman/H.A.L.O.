@@ -8,6 +8,7 @@ import {
   defaultLinkedInSearchFields,
 } from './brainStore.js';
 import { REGION_GEO_URNS as GEO_URNS, normalizeRegionList } from './regionsGeo.js';
+import { dataRoot } from './dataRoot.js';
 
 export { GEO_URNS as REGION_GEO_URNS };
 
@@ -243,7 +244,7 @@ export function buildConnectPeopleSearchUrl(portrait, linkedInSearch = defaultLi
 }
 
 /** Portrait → simplified Connect search (Stage A one-shots). */
-export function resolveConnectPeopleSearchUrl(root = process.cwd()) {
+export function resolveConnectPeopleSearchUrl(root = dataRoot()) {
   const policy = readSalesPolicy(root);
   const linkedInSearch = normalizeLinkedInSearch(policy.linkedInSearch);
   const keywords = compileConnectSearchKeywords(policy.portrait, linkedInSearch);
@@ -285,7 +286,7 @@ export function buildPeopleSearchUrlFromPortrait(portrait, linkedInSearch = defa
 }
 
 /** Portrait + filters from disk + optional override in sales_policy.json */
-export function resolvePeopleSearchUrl(root = process.cwd()) {
+export function resolvePeopleSearchUrl(root = dataRoot()) {
   const policy = readSalesPolicy(root);
   const linkedInSearch = normalizeLinkedInSearch(policy.linkedInSearch);
   const override = String(policy.searchUrlOverride || '').trim();

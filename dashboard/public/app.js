@@ -571,10 +571,10 @@ const LI_CHALLENGE_COPY = {
   },
   identity_document: {
     title: 'LinkedIn asks for an ID document',
-    body: 'LinkedIn wants a government ID (passport / driver’s license). H.A.L.O. cannot upload documents from the VPS. Finish this in your personal browser on a normal network, then paste fresh cookies — or cancel Sign in.',
+    body: 'This usually means the LinkedIn account is not identity-verified yet. After captcha + code, unverified accounts often get new-email → country/ID upload. H.A.L.O. cannot upload IDs from the VPS. Finish verification in the LinkedIn app (or paste cookies after a verified personal login), then retry Sign in.',
     toast: 'LinkedIn ID verification — cannot be done in H.A.L.O.',
     notifyTitle: 'LinkedIn ID document required',
-    notifyBody: 'Complete ID verification in your own browser, then paste cookies',
+    notifyBody: 'Verify once in the LinkedIn app, or paste cookies after a verified personal login',
   },
   generic: {
     title: 'LinkedIn verification needed',
@@ -975,14 +975,21 @@ function updateLinkedInCaptchaNative(st) {
 
   if (serverTilesReady && linkedInCaptchaUserChecked) {
     keepChecked();
-    if (promptEl) {
-      promptEl.textContent = '';
-      promptEl.classList.add('hidden');
-    }
     const cols = Number(st.captchaCols) === 4 ? 4 : 3;
     const rev = st.captchaGridRev || Date.now();
-    const ov = st.captchaOverlay || { top: 26, left: 0, width: 100, height: 58 };
-    const footerTrim = Math.max(10, Math.min(28, Number(st.captchaFooterTrim) || 16));
+    const imgRev = st.captchaImgRev || rev;
+    const ov = st.captchaOverlay || { top: 0, left: 0, width: 100, height: 100 };
+
+    if (promptEl) {
+      const p = String(st.captchaPrompt || '').trim();
+      if (p) {
+        promptEl.textContent = p;
+        promptEl.classList.remove('hidden');
+      } else {
+        promptEl.textContent = '';
+        promptEl.classList.add('hidden');
+      }
+    }
 
     const revealTiles = () => {
       setCaptchaDeckPhase('image');
@@ -1003,60 +1010,76 @@ function updateLinkedInCaptchaNative(st) {
 
     if (composite) {
       composite.classList.add('li-captcha-composite--compact');
-      composite.style.setProperty('--trim-bottom', `${footerTrim}%`);
+      const footerTrim = Math.max(0, Math.min(28, Number(st.captchaFooterTrim) || 0));
+      const tightCrop = footerTrim <= 0.5;
+      composite.classList.toggle('li-captcha-composite--tight', tightCrop);
+      composite.classList.toggle('li-captcha-composite--trim', !tightCrop);
+      if (tightCrop) composite.style.removeProperty('--trim-bottom');
+      else composite.style.setProperty('--trim-bottom', `${footerTrim}%`);
       if (grid && grid.parentElement !== composite) {
         composite.appendChild(grid);
       }
       const img = composite.querySelector('img');
       if (img && token) {
-        const challengeSrc = `/api/linkedin/repair/captcha-challenge?token=${encodeURIComponent(token)}&r=${encodeURIComponent(rev)}`;
-        const frameSrc = `/api/linkedin/repair/frame?token=${encodeURIComponent(token)}&r=${encodeURIComponent(rev)}`;
-        const nextSrc = st.captchaHasChallengeJpg ? challengeSrc : frameSrc;
-        const alreadyShown = img.dataset.loaded === '1' && img.dataset.rev === String(rev);
+        const challengeSrc = `/api/linkedin/repair/captcha-challenge?token=${encodeURIComponent(token)}&r=${encodeURIComponent(imgRev)}`;
+        const alreadyShown =
+          img.dataset.loaded === '1' &&
+          img.dataset.rev === String(rev) &&
+          img.dataset.imgRev === String(imgRev);
         const finishOk = () => {
           img.dataset.loaded = '1';
+          img.dataset.rev = String(rev);
+          img.dataset.imgRev = String(imgRev);
           revealTiles();
-        };
-        const finishFail = () => {
-          img.dataset.loaded = '0';
-          if (img.dataset.rev === String(rev)) {
-            keepChecked();
-            if (robotBtn) robotBtn.classList.add('is-loading');
-            if (hint) hint.textContent = 'Captcha image failed to load — retrying…';
-          }
         };
 
         if (alreadyShown) {
-          // Stable rev — keep tiles up; only refresh overlay metrics.
           revealTiles();
-        } else if (img.dataset.rev !== String(rev)) {
-          const refreshing = img.dataset.loaded === '1';
-          img.dataset.rev = String(rev);
-          img.dataset.loaded = '0';
-          img.dataset.fallback = '0';
+        } else if (img.dataset.imgRev !== String(imgRev) || img.dataset.rev !== String(rev)) {
+          const hadImage = img.dataset.loaded === '1' && img.naturalWidth > 0;
           img.alt = 'Captcha challenge';
-          if (!refreshing) {
-            // First paint only — hide empty panel until bytes arrive.
-            hideTilesPanel();
+          if (!hadImage) {
+            // Keep checkbox/waiting visible but do not hide forever on transient 404.
             if (robotBtn) robotBtn.classList.add('is-loading');
+            img.dataset.rev = String(rev);
+            img.dataset.imgRev = String(imgRev);
+            img.dataset.loaded = '0';
+            img.onload = finishOk;
+            img.onerror = () => {
+              keepChecked();
+              if (robotBtn) robotBtn.classList.add('is-loading');
+              if (hint) hint.textContent = 'Captcha image failed to load — retrying…';
+              // Retry challenge only (never full live frame). Soft-backoff.
+              const n = Number(img.dataset.failN || 0) + 1;
+              img.dataset.failN = String(n);
+              if (n <= 8) {
+                setTimeout(() => {
+                  if (img.dataset.imgRev === String(imgRev)) {
+                    img.src = `${challengeSrc}&retry=${Date.now()}`;
+                  }
+                }, Math.min(2500, 400 * n));
+              }
+            };
+            img.src = challengeSrc;
           } else {
-            // Soft refresh after tile click — keep panel visible.
+            // Soft refresh: preload next jpg, swap only when ready — no blank flash.
             keepChecked();
-            if (robotBtn) robotBtn.classList.add('is-loading');
-            if (composite) composite.classList.remove('hidden');
-            if (imageSlide) imageSlide.style.display = '';
-            setCaptchaDeckPhase('image');
+            revealTiles();
+            const pre = new Image();
+            const pending = String(imgRev);
+            img.dataset.pendingImg = pending;
+            pre.onload = () => {
+              if (img.dataset.pendingImg !== pending) return;
+              img.onload = null;
+              img.onerror = null;
+              img.src = challengeSrc;
+              finishOk();
+            };
+            pre.onerror = () => {
+              /* keep current image visible */
+            };
+            pre.src = challengeSrc;
           }
-          img.onload = finishOk;
-          img.onerror = () => {
-            if (img.dataset.fallback !== '1') {
-              img.dataset.fallback = '1';
-              img.src = frameSrc;
-              return;
-            }
-            finishFail();
-          };
-          img.src = nextSrc;
         } else if (img.complete && img.naturalWidth > 0) {
           finishOk();
         } else {
@@ -1073,16 +1096,33 @@ function updateLinkedInCaptchaNative(st) {
     if (grid) {
       grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
       grid.classList.add('li-captcha-grid--overlay');
-      grid.style.top = `${Number(ov.top) || 26}%`;
+      grid.style.top = `${Number(ov.top) || 0}%`;
       grid.style.left = `${Number(ov.left) || 0}%`;
       grid.style.width = `${Number(ov.width) || 100}%`;
-      grid.style.height = `${Number(ov.height) || 58}%`;
+      grid.style.height = `${Number(ov.height) || 100}%`;
       grid.style.right = 'auto';
       grid.style.bottom = 'auto';
       const cellCount = cols * cols;
       const prevRev = grid.dataset.rev;
-      const gridKey = `${rev}:overlay:${cols}:${Math.round(ov.top)}:${Math.round(ov.height)}:${Math.round(footerTrim)}`;
+      const gridKey = `${rev}:overlay:${cols}:${Math.round(ov.top)}:${Math.round(ov.width)}:${Math.round(ov.height)}`;
+      // Live Google selection wins after a soft/force image refresh (clears tiles
+      // whose image was swapped). Ignore stale selectedIndexes while a click is in flight.
+      const liveSelected = Array.isArray(st.captchaSelectedIndexes)
+        ? new Set(st.captchaSelectedIndexes.map((n) => String(n)))
+        : null;
+      const imgChanged = grid.dataset.lastImgRev !== String(imgRev);
+      if (imgChanged) {
+        grid.dataset.lastImgRev = String(imgRev);
+        grid.dataset.awaitSelectSync = '0';
+      }
+      const applyLive =
+        liveSelected && (imgChanged || grid.dataset.awaitSelectSync !== '1');
       if (prevRev !== gridKey || grid.childElementCount !== cellCount) {
+        const selected = applyLive
+          ? liveSelected
+          : new Set(
+              [...grid.querySelectorAll('.li-captcha-tile.is-selected')].map((t) => t.dataset.index)
+            );
         grid.dataset.rev = gridKey;
         grid.innerHTML = '';
         for (let i = 0; i < cellCount; i++) {
@@ -1091,13 +1131,31 @@ function updateLinkedInCaptchaNative(st) {
           btn.className = 'li-captcha-tile';
           btn.dataset.index = String(i);
           btn.title = `Tile ${i + 1}`;
+          if (selected.has(String(i))) btn.classList.add('is-selected');
           grid.appendChild(btn);
         }
+      } else if (applyLive) {
+        grid.querySelectorAll('.li-captcha-tile').forEach((btn) => {
+          btn.classList.toggle('is-selected', liveSelected.has(btn.dataset.index));
+        });
       }
     }
   } else if (linkedInCaptchaUserChecked) {
-    showWaitingTick();
-    hideTilesPanel();
+    // Keep an already-visible captcha panel up during brief sync gaps (no flicker).
+    const panelUp =
+      composite &&
+      !composite.classList.contains('hidden') &&
+      imageSlide &&
+      imageSlide.style.display !== 'none';
+    if (panelUp) {
+      keepChecked();
+      setCaptchaDeckPhase('image');
+      if (robotBtn) robotBtn.classList.add('is-loading');
+      if (hint) hint.textContent = 'Updating captcha…';
+    } else {
+      showWaitingTick();
+      hideTilesPanel();
+    }
   } else {
     setCaptchaDeckPhase('checkbox');
     if (robotBtn) {
@@ -5209,6 +5267,7 @@ function bindLinkedInCaptchaNativeControls(getToken) {
       if (!Number.isFinite(index)) return;
       // Optimistic highlight — don't wait for the VPS round-trip.
       tile.classList.add('is-selected');
+      if (grid) grid.dataset.awaitSelectSync = '1';
       void send({ type: 'clickCaptchaTile', index });
     });
   }
@@ -5617,12 +5676,32 @@ function renderFaq() {
       body: `<p>When H.A.L.O. Sign in looks messy (email/SMS field or captcha while the live screenshot still shows an app <strong>Sign-in request</strong>), LinkedIn is usually treating the VPS login as risky. Prep the phone app first:</p>
         <ol>
           <li>If you were logged out in the browser <em>and</em> the LinkedIn mobile app, <strong>sign into the app on your phone first</strong> (not via H.A.L.O.).</li>
-          <li>If LinkedIn shows a <strong>suspicious activity</strong> banner in the app, dismiss/confirm it there. Check that passport / ID verification is still OK if LinkedIn mentions it.</li>
-          <li>Then press <strong>Sign in</strong> once in H.A.L.O. Prefer approving the <strong>Sign-in request</strong> in the app — that usually finishes the session with no extra captcha.</li>
+          <li>If LinkedIn shows a <strong>suspicious activity</strong> banner in the app, dismiss/confirm it there.</li>
+          <li>Then press <strong>Sign in</strong> once in H.A.L.O. Prefer approving the <strong>Sign-in request</strong> in the app when it appears.</li>
           <li>Trust the <strong>live screenshot</strong> over a mismatched banner. Approve in the app and wait; do not solve a captcha or paste a code unless the live shot actually shows that step.</li>
-          <li>Two Sign-in request notifications for one click can come from LinkedIn itself — approve the matching one; H.A.L.O. only submits password once per attempt.</li>
         </ol>
+        <p><strong>What to expect after the image captcha</strong></p>
+        <ul>
+          <li>Most accounts get a <strong>confirmation code</strong> (email/SMS) next.</li>
+          <li>Accounts that are already <strong>identity-verified in LinkedIn</strong> more often continue with an app <strong>Sign-in request</strong> (approve on the phone).</li>
+          <li>Accounts that are <em>not</em> verified yet often continue with <strong>new LinkedIn email</strong> → <strong>Select an identification document</strong> (country + ID upload). H.A.L.O. cannot finish that ID step on the VPS.</li>
+        </ul>
+        <p>If you hit the ID-document screen: cancel Sign in here, complete LinkedIn identity verification once in the official LinkedIn app/browser, then retry — or paste fresh cookies (e.g. via EditThisCookie) into H.A.L.O. after a verified personal login.</p>
         <p>Still stuck: cancel Sign in, close personal LinkedIn tabs for that account, wait a minute, then retry once.</p>`,
+    },
+    {
+      id: 'id-document',
+      cat: 'LinkedIn',
+      q: 'LinkedIn asks for an ID document?',
+      short: 'Unverified accounts; finish ID in LinkedIn app',
+      keywords:
+        'identity document passport driver license verification country select identification document id verify email captcha editthiscookie cookies',
+      body: `<p>After image captcha + code, LinkedIn may show <strong>new email</strong> and then <strong>Select an identification document</strong> (choose country → upload passport / driver’s license). That path is typical for accounts that are <strong>not yet identity-verified</strong> in LinkedIn itself. Verified accounts more often get an app <strong>Sign-in request</strong> instead.</p>
+        <ul>
+          <li>H.A.L.O. <strong>cannot</strong> upload government IDs from the dashboard / VPS.</li>
+          <li><strong>Preferred:</strong> cancel Sign in, complete LinkedIn’s identity verification once in the official LinkedIn app (or personal browser on a normal network), then Sign in again in H.A.L.O.</li>
+          <li><strong>Alternative:</strong> sign in successfully in your personal browser after verification, copy cookies with an extension such as <strong>EditThisCookie</strong>, and paste them into H.A.L.O. (same LinkedIn / captcha popup area that accepts cookie paste). Close the personal LinkedIn tab right after copying.</li>
+        </ul>`,
     },
     {
       id: 'cookies',
