@@ -954,14 +954,10 @@ function updateLinkedInCaptchaNative(st) {
 
   const showWaitingTick = (msg) => {
     // Checkbox stays on screen with tick + spinner — never swipe it away.
-    setCaptchaDeckPhase('waiting');
+    // Do NOT hide an already-visible tile panel during a soft image refresh.
+    setCaptchaDeckPhase(imageSlide && imageSlide.style.display !== 'none' && composite && !composite.classList.contains('hidden') ? 'image' : 'waiting');
     keepChecked();
     if (robotBtn) robotBtn.classList.add('is-loading');
-    if (imageSlide) {
-      imageSlide.style.display = 'none';
-    }
-    if (composite) composite.classList.add('hidden');
-    if (verifyRow) verifyRow.classList.add('hidden');
     if (hint) {
       hint.textContent =
         msg ||
@@ -970,9 +966,15 @@ function updateLinkedInCaptchaNative(st) {
     }
   };
 
+  const hideTilesPanel = () => {
+    if (imageSlide) imageSlide.style.display = 'none';
+    if (composite) composite.classList.add('hidden');
+    if (verifyRow) verifyRow.classList.add('hidden');
+    setCaptchaDeckPhase('waiting');
+  };
+
   if (serverTilesReady && linkedInCaptchaUserChecked) {
     keepChecked();
-    if (robotBtn) robotBtn.classList.add('is-loading'); // spin until image paints
     if (promptEl) {
       promptEl.textContent = '';
       promptEl.classList.add('hidden');
@@ -985,6 +987,7 @@ function updateLinkedInCaptchaNative(st) {
     const revealTiles = () => {
       setCaptchaDeckPhase('image');
       if (imageSlide) imageSlide.style.display = '';
+      if (composite) composite.classList.remove('hidden');
       if (robotBtn) robotBtn.classList.remove('is-loading');
       keepChecked();
       if (verifyRow) {
@@ -999,7 +1002,6 @@ function updateLinkedInCaptchaNative(st) {
     };
 
     if (composite) {
-      composite.classList.remove('hidden');
       composite.classList.add('li-captcha-composite--compact');
       composite.style.setProperty('--trim-bottom', `${footerTrim}%`);
       if (grid && grid.parentElement !== composite) {
@@ -1010,23 +1012,41 @@ function updateLinkedInCaptchaNative(st) {
         const challengeSrc = `/api/linkedin/repair/captcha-challenge?token=${encodeURIComponent(token)}&r=${encodeURIComponent(rev)}`;
         const frameSrc = `/api/linkedin/repair/frame?token=${encodeURIComponent(token)}&r=${encodeURIComponent(rev)}`;
         const nextSrc = st.captchaHasChallengeJpg ? challengeSrc : frameSrc;
+        const alreadyShown = img.dataset.loaded === '1' && img.dataset.rev === String(rev);
         const finishOk = () => {
           img.dataset.loaded = '1';
           revealTiles();
         };
         const finishFail = () => {
           img.dataset.loaded = '0';
-          showWaitingTick('Captcha image failed to load — waiting for a fresh frame…');
+          if (img.dataset.rev === String(rev)) {
+            keepChecked();
+            if (robotBtn) robotBtn.classList.add('is-loading');
+            if (hint) hint.textContent = 'Captcha image failed to load — retrying…';
+          }
         };
-        if (img.dataset.rev !== String(rev)) {
+
+        if (alreadyShown) {
+          // Stable rev — keep tiles up; only refresh overlay metrics.
+          revealTiles();
+        } else if (img.dataset.rev !== String(rev)) {
+          const refreshing = img.dataset.loaded === '1';
           img.dataset.rev = String(rev);
           img.dataset.loaded = '0';
           img.dataset.fallback = '0';
           img.alt = 'Captcha challenge';
-          // Stay on waiting UI until the bytes arrive — avoids empty Verify panel.
-          setCaptchaDeckPhase('waiting');
-          if (imageSlide) imageSlide.style.display = 'none';
-          if (verifyRow) verifyRow.classList.add('hidden');
+          if (!refreshing) {
+            // First paint only — hide empty panel until bytes arrive.
+            hideTilesPanel();
+            if (robotBtn) robotBtn.classList.add('is-loading');
+          } else {
+            // Soft refresh after tile click — keep panel visible.
+            keepChecked();
+            if (robotBtn) robotBtn.classList.add('is-loading');
+            if (composite) composite.classList.remove('hidden');
+            if (imageSlide) imageSlide.style.display = '';
+            setCaptchaDeckPhase('image');
+          }
           img.onload = finishOk;
           img.onerror = () => {
             if (img.dataset.fallback !== '1') {
@@ -1037,13 +1057,16 @@ function updateLinkedInCaptchaNative(st) {
             finishFail();
           };
           img.src = nextSrc;
-        } else if (img.dataset.loaded === '1' || (img.complete && img.naturalWidth > 0)) {
+        } else if (img.complete && img.naturalWidth > 0) {
           finishOk();
         } else {
-          showWaitingTick('Loading captcha images…');
+          keepChecked();
+          if (robotBtn) robotBtn.classList.add('is-loading');
+          if (hint) hint.textContent = 'Loading captcha images…';
         }
       } else {
         showWaitingTick('Loading captcha images…');
+        hideTilesPanel();
       }
     }
 
@@ -1072,8 +1095,9 @@ function updateLinkedInCaptchaNative(st) {
         }
       }
     }
-  } else if (linkedInCaptchaUserChecked || (phase === 'waiting' && linkedInCaptchaUserChecked)) {
+  } else if (linkedInCaptchaUserChecked) {
     showWaitingTick();
+    hideTilesPanel();
   } else {
     setCaptchaDeckPhase('checkbox');
     if (robotBtn) {
@@ -1081,13 +1105,11 @@ function updateLinkedInCaptchaNative(st) {
       robotBtn.classList.remove('is-loading', 'is-checked');
       robotBtn.setAttribute('aria-pressed', 'false');
     }
-    if (imageSlide) imageSlide.style.display = 'none';
-    if (composite) composite.classList.add('hidden');
+    hideTilesPanel();
     if (promptEl) {
       promptEl.textContent = '';
       promptEl.classList.add('hidden');
     }
-    if (verifyRow) verifyRow.classList.add('hidden');
     if (hint) hint.textContent = 'Tap the HALO tile — LinkedIn must check it on the live session.';
   }
 }

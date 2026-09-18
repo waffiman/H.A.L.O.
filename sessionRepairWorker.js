@@ -875,13 +875,13 @@ async function syncCaptchaNativeUi(page, opts = {}) {
     );
   }
 
-  // Throttle — captureFrame runs often; clearing tiles every pass caused 404s in the popup.
+  // Throttle passive republish hard — only user actions bump the image.
   if (
     !force &&
-    Date.now() - lastCaptchaSyncAt < 2800 &&
     prev.captchaPhase === 'image' &&
     prev.captchaHasTiles &&
-    prev.captchaHasChallengeJpg
+    prev.captchaHasChallengeJpg &&
+    Date.now() - lastCaptchaSyncAt < 8000
   ) {
     return;
   }
@@ -1107,6 +1107,14 @@ async function syncCaptchaNativeUi(page, opts = {}) {
 
   publishCaptchaStaging(staging);
 
+  // Keep captchaGridRev stable across passive syncs so the dashboard does not
+  // tear down / rebuild the image every poll. Bump only on force (user click / verify)
+  // or the first successful image publish.
+  const gridRev =
+    force || !prev.captchaGridRev || prev.captchaPhase !== 'image'
+      ? Date.now()
+      : Number(prev.captchaGridRev) || Date.now();
+
   writeState({
     captchaPhase: 'image',
     captchaChecked: true,
@@ -1116,12 +1124,12 @@ async function syncCaptchaNativeUi(page, opts = {}) {
     captchaCols: cols,
     captchaOverlay: overlay,
     captchaFooterTrim: footerTrim,
-    captchaGridRev: Date.now(),
+    captchaGridRev: gridRev,
     captchaMode: 'composite',
     captchaHasChallengeJpg: true,
   });
   console.log(
-    `Captcha native UI: cols=${cols} footerTrim=${footerTrim.toFixed(1)} overlay=${JSON.stringify(overlay)} prompt="${(prompt || '').slice(0, 50)}"`
+    `Captcha native UI: cols=${cols} rev=${gridRev} force=${force} footerTrim=${footerTrim.toFixed(1)} overlay=${JSON.stringify(overlay)} prompt="${(prompt || '').slice(0, 50)}"`
   );
 }
 
@@ -1764,15 +1772,15 @@ async function drainInputs(page) {
           console.log('Repair clickRecaptcha — LinkedIn checkbox still unchecked');
         }
         // Fresh FRAME_PATH first — sync falls back to that when iframe shots fail.
-        await captureFrame(page, 'challenge');
+        await captureFrame(page, 'challenge', { forceCaptchaSync: true });
       } else if (ev.type === 'clickCaptchaTile' && Number.isFinite(Number(ev.index))) {
         await clickCaptchaTile(page, Number(ev.index));
         await page.waitForTimeout(400);
-        await captureFrame(page, 'challenge');
+        await captureFrame(page, 'challenge', { forceCaptchaSync: true });
       } else if (ev.type === 'captchaVerify') {
         await clickCaptchaVerify(page);
         await page.waitForTimeout(900);
-        await captureFrame(page, 'challenge');
+        await captureFrame(page, 'challenge', { forceCaptchaSync: true });
       } else if (ev.type === 'setValue' && typeof ev.text === 'string') {
         const ok = await fillChallengeCode(page, ev.text);
         if (!ok) {
@@ -1863,7 +1871,9 @@ async function captureFrame(page, forcedMode, opts = {}) {
   });
   await notifyChallengeNeeded(page);
   if (kind === 'captcha') {
-    await syncCaptchaNativeUi(page, { force: true }).catch((e) =>
+    // Routine polls must NOT force-republish — that bumps captchaGridRev and
+    // makes the dashboard flicker waiting ↔ image every second.
+    await syncCaptchaNativeUi(page, { force: !!opts.forceCaptchaSync }).catch((e) =>
       console.log('syncCaptchaNativeUi:', e.message)
     );
   } else {
