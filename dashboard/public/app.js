@@ -5275,6 +5275,9 @@ function bindLinkedInCaptchaNativeControls(getToken) {
       if (!tile) return;
       const index = Number(tile.dataset.index);
       if (!Number.isFinite(index)) return;
+      // Selected (green) tiles already fired once — ignore until Google clears
+      // selection (image swap) and the UI drops is-selected.
+      if (tile.classList.contains('is-selected')) return;
       // Optimistic highlight — don't wait for the VPS round-trip.
       tile.classList.add('is-selected');
       if (grid) grid.dataset.awaitSelectSync = '1';

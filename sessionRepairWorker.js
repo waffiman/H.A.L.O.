@@ -1222,6 +1222,21 @@ async function clickCaptchaTile(page, index) {
       n = await loc.count().catch(() => 0);
     }
     if (i < n) {
+      // Already selected on Google → do not click again (would toggle off / re-fire).
+      const alreadySelected = await loc
+        .nth(i)
+        .evaluate((td) => {
+          return (
+            td.classList.contains('rc-imageselect-tileselected') ||
+            td.getAttribute('aria-selected') === 'true' ||
+            /tileselected/i.test(td.className || '')
+          );
+        })
+        .catch(() => false);
+      if (alreadySelected) {
+        console.log('Repair captcha tile index', i, 'already selected — skip re-click');
+        return false;
+      }
       await loc.nth(i).click({ force: true, timeout: 5000 });
       console.log('Repair captcha tile index', i, `of ${n}`);
       return true;
