@@ -49,6 +49,38 @@ import {
   validateBookingSchedule,
 } from '../bookingSchedule.js';
 import { normalizeSmartTiming } from '../timezoneResolver.js';
+import { markSessionOk } from '../sessionHealth.js';
+
+/** After cookie / Sign-in restore: flip session ok and re-enable stages paused on death. */
+function markCabinetSessionRestored(ws, extra = {}) {
+  const paths = tenantPaths(ws);
+  const envPath = paths.isLegacy ? ENV_PATH : paths.envFile;
+  const statusFile = path.join(paths.root, 'session_status.json');
+  try {
+    markSessionOk({ workspaceId: ws, ...extra }, { envPath, statusFile });
+  } catch (e) {
+    console.log('markCabinetSessionRestored:', e.message);
+    try {
+      fs.writeFileSync(
+        statusFile,
+        JSON.stringify(
+          {
+            ok: true,
+            reason: null,
+            needsCookieRepair: false,
+            updatedAt: new Date().toISOString(),
+            workspaceId: ws,
+            ...extra,
+          },
+          null,
+          2
+        )
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
 export function notionConfigured(env = readEnvFile()) {
   if (String(env.CRM_BACKEND || 'notion').trim().toLowerCase() === 'supabase') {
@@ -577,29 +609,11 @@ export function ingestCookiePaste(raw, workspaceId = waffiWorkspaceId()) {
 
     fs.writeFileSync(paths.cookies, JSON.stringify(linkedIn, null, 2));
     const cleared = resetBrowserSessionsForCookieRepair(ws);
-    // mark session healthy after repair
-    try {
-      const statusPath = path.join(paths.root, 'session_status.json');
-      fs.writeFileSync(
-        statusPath,
-        JSON.stringify(
-          {
-            ok: true,
-            reason: null,
-            needsCookieRepair: false,
-            updatedAt: new Date().toISOString(),
-            source: 'dashboard_cookie_paste',
-            cookieCount: linkedIn.length,
-            profilesCleared: cleared,
-            workspaceId: ws,
-          },
-          null,
-          2
-        )
-      );
-    } catch {
-      /* ignore */
-    }
+    markCabinetSessionRestored(ws, {
+      source: 'dashboard_cookie_paste',
+      cookieCount: linkedIn.length,
+      profilesCleared: cleared,
+    });
     return {
       ok: true,
       mode: 'editthiscookie',
@@ -643,26 +657,10 @@ export function upsertLiAt(token, workspaceId = waffiWorkspaceId()) {
   });
   fs.writeFileSync(paths.cookies, JSON.stringify(rest, null, 2));
   const cleared = resetBrowserSessionsForCookieRepair(ws);
-  try {
-    fs.writeFileSync(
-      path.join(paths.root, 'session_status.json'),
-      JSON.stringify(
-        {
-          ok: true,
-          reason: null,
-          needsCookieRepair: false,
-          updatedAt: new Date().toISOString(),
-          source: 'dashboard_li_at_paste',
-          profilesCleared: cleared,
-          workspaceId: ws,
-        },
-        null,
-        2
-      )
-    );
-  } catch {
-    /* ignore */
-  }
+  markCabinetSessionRestored(ws, {
+    source: 'dashboard_li_at_paste',
+    profilesCleared: cleared,
+  });
   return {
     ok: true,
     mode: 'li_at',

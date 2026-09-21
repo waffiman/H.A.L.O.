@@ -725,8 +725,10 @@ function updateLinkedInChallengeModal(st) {
               : 'Verification code';
     }
     const pinInput = document.getElementById('li-modal-email-code');
-    if (pinInput && document.activeElement !== pinInput) {
-      setTimeout(() => pinInput.focus(), 200);
+    const firstOtp = document.querySelector('#li-modal-otp-slots .li-otp-cell');
+    const focusEl = firstOtp || pinInput;
+    if (focusEl && document.activeElement !== focusEl && !document.activeElement?.classList?.contains('li-otp-cell')) {
+      setTimeout(() => focusEl.focus(), 200);
     }
     return;
   }
@@ -841,10 +843,18 @@ function ensureLinkedInCaptchaModalOnBody() {
           <div class="li-challenge-extra hidden" id="li-challenge-extra">
             <div class="li-challenge-extra-block hidden" id="li-challenge-pin-block">
               <p class="li-challenge-status" id="li-modal-pin-hint"></p>
-              <label class="field li-modal-pin-field" for="li-modal-email-code">
+              <div class="field li-modal-pin-field">
                 <span id="li-modal-pin-label">Verification code</span>
-                <input id="li-modal-email-code" name="halo-li-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />
-              </label>
+                <div class="li-otp-underline" id="li-modal-otp-slots" role="group" aria-labelledby="li-modal-pin-label">
+                  <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="0" autocomplete="one-time-code" aria-label="Digit 1" />
+                  <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="1" aria-label="Digit 2" />
+                  <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="2" aria-label="Digit 3" />
+                  <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="3" aria-label="Digit 4" />
+                  <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="4" aria-label="Digit 5" />
+                  <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="5" aria-label="Digit 6" />
+                </div>
+                <input id="li-modal-email-code" name="halo-li-otp" class="li-otp-mirror" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" tabindex="-1" aria-hidden="true" />
+              </div>
               <div class="row section-actions">
                 <button type="button" class="btn primary" id="li-modal-submit-code">
                   <span class="btn-spinner" aria-hidden="true"></span>
@@ -5273,26 +5283,82 @@ function bindLinkedInCaptchaNativeControls(getToken) {
   }
   const modalCodeBtn = document.getElementById('li-modal-submit-code');
   const modalCodeInput = document.getElementById('li-modal-email-code');
+  const otpSlots = document.getElementById('li-modal-otp-slots');
+  if (otpSlots && !otpSlots.dataset.bound) {
+    otpSlots.dataset.bound = '1';
+    const cells = [...otpSlots.querySelectorAll('.li-otp-cell')];
+    const syncMirror = () => {
+      if (!modalCodeInput) return;
+      modalCodeInput.value = cells.map((c) => c.value.replace(/\D/g, '').slice(0, 1)).join('');
+    };
+    const fillFromString = (raw, start = 0) => {
+      const digits = String(raw || '').replace(/\D/g, '');
+      if (!digits) return;
+      let i = start;
+      for (const d of digits) {
+        if (i >= cells.length) break;
+        cells[i].value = d;
+        i += 1;
+      }
+      syncMirror();
+      const focusIdx = Math.min(i, cells.length - 1);
+      cells[focusIdx]?.focus();
+      cells[focusIdx]?.select?.();
+    };
+    cells.forEach((cell, idx) => {
+      cell.addEventListener('input', (e) => {
+        const v = String(e.target.value || '').replace(/\D/g, '');
+        if (v.length > 1) {
+          fillFromString(v, idx);
+          return;
+        }
+        e.target.value = v.slice(0, 1);
+        syncMirror();
+        if (v && idx < cells.length - 1) cells[idx + 1].focus();
+      });
+      cell.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !cell.value && idx > 0) {
+          cells[idx - 1].focus();
+          cells[idx - 1].value = '';
+          syncMirror();
+          e.preventDefault();
+        } else if (e.key === 'ArrowLeft' && idx > 0) {
+          cells[idx - 1].focus();
+          e.preventDefault();
+        } else if (e.key === 'ArrowRight' && idx < cells.length - 1) {
+          cells[idx + 1].focus();
+          e.preventDefault();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          modalCodeBtn?.click();
+        }
+      });
+      cell.addEventListener('paste', (e) => {
+        const text = e.clipboardData?.getData('text') || '';
+        if (!/\d/.test(text)) return;
+        e.preventDefault();
+        fillFromString(text, idx);
+      });
+      cell.addEventListener('focus', () => cell.select?.());
+    });
+  }
   if (modalCodeBtn && !modalCodeBtn.dataset.bound) {
     modalCodeBtn.dataset.bound = '1';
     const submitModalCode = () => {
+      if (otpSlots && modalCodeInput) {
+        const cells = [...otpSlots.querySelectorAll('.li-otp-cell')];
+        modalCodeInput.value = cells.map((c) => c.value.replace(/\D/g, '').slice(0, 1)).join('');
+      }
       const code = String(modalCodeInput?.value || '').trim();
       if (!code) {
         const hint = document.getElementById('li-modal-pin-hint');
         if (hint) hint.textContent = 'Enter the 6-digit code first.';
+        otpSlots?.querySelector('.li-otp-cell')?.focus();
         return;
       }
       void send({ type: 'submitCode', text: code }, { loadingBtn: modalCodeBtn });
     };
     modalCodeBtn.onclick = submitModalCode;
-    if (modalCodeInput) {
-      modalCodeInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          submitModalCode();
-        }
-      });
-    }
   }
 }
 
@@ -5680,13 +5746,14 @@ function renderFaq() {
           <li>Then press <strong>Sign in</strong> once in H.A.L.O. Prefer approving the <strong>Sign-in request</strong> in the app when it appears.</li>
           <li>Trust the <strong>live screenshot</strong> over a mismatched banner. Approve in the app and wait; do not solve a captcha or paste a code unless the live shot actually shows that step.</li>
         </ol>
+        <p><strong>Stay logged into the LinkedIn app for the same account</strong> while you activate the session in H.A.L.O. Logging out of that account on the phone (e.g. to test another cabinet) often makes dashboard Sign-in hit authenticator → ID verification, and LinkedIn may temporarily lock the account for “suspicious activity.” After the app session is healthy again, Sign in in H.A.L.O. usually jumps straight to an app <strong>Sign-in request</strong> (sometimes two notifications) and restores without captcha.</p>
         <p><strong>What to expect after the image captcha</strong></p>
         <ul>
-          <li>Most accounts get a <strong>confirmation code</strong> (email/SMS) next.</li>
-          <li>Accounts that are already <strong>identity-verified in LinkedIn</strong> more often continue with an app <strong>Sign-in request</strong> (approve on the phone).</li>
-          <li>Accounts that are <em>not</em> verified yet often continue with <strong>new LinkedIn email</strong> → <strong>Select an identification document</strong> (country + ID upload). H.A.L.O. cannot finish that ID step on the VPS.</li>
+          <li>Most accounts get a <strong>confirmation code</strong> (email/SMS / authenticator) next.</li>
+          <li>Accounts that are already <strong>identity-verified in LinkedIn</strong> and signed into the mobile app more often continue with an app <strong>Sign-in request</strong>.</li>
+          <li>Accounts that are <em>not</em> verified yet (or logged out of the app) often continue with <strong>new LinkedIn email</strong> → <strong>Select an identification document</strong>. H.A.L.O. cannot finish that ID step on the VPS.</li>
         </ul>
-        <p>If you hit the ID-document screen: cancel Sign in here, complete LinkedIn identity verification once in the official LinkedIn app/browser, then retry — or paste fresh cookies (e.g. via EditThisCookie) into H.A.L.O. after a verified personal login.</p>
+        <p>If you hit the ID-document screen: cancel Sign in here, log into the LinkedIn app for that account (wait out any temporary lock), complete identity verification if asked, then retry Sign in — or paste fresh cookies (EditThisCookie) after a verified personal login.</p>
         <p>Still stuck: cancel Sign in, close personal LinkedIn tabs for that account, wait a minute, then retry once.</p>`,
     },
     {

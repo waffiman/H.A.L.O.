@@ -7,7 +7,7 @@ Company behind outreach copy remains WAFFi.
 
 > **Agent knowledge base.** Read this first after any idle period.  
 > Keep this file updated whenever behavior, env flags, dashboard UI, or deploy paths change.  
-> Last updated: 2026-09-08 (support chat + attention flags, FAQ Contact support drawer, Resend/Telegram alerts).
+> Last updated: 2026-09-20 (OTP underline slots; session-dead auto-pause A/B; Sign-in FAQ).
 
 ---
 
@@ -345,8 +345,12 @@ See also §7 for `li_at` kill causes (Brain must never open LinkedIn).
 |----------|------|------|
 | Cookie jar | `cookies.json` | Must include `li_at` |
 | Chromium profile | `session_data/` | Persistent Playwright context |
-| Health | `session_status.json` | `{ ok, reason, needsCookieRepair, … }` |
+| Health | `session_status.json` | `{ ok, reason, needsCookieRepair, stagesPausedBySession, … }` |
 | Optional | `state.json` | storageState if present |
+
+### Dead session → auto-pause Stage A/B
+
+When [`sessionHealth.js`](sessionHealth.js) `markSessionDead` runs (ok→dead), it snapshots which stages were on into `stagesPausedBySession`, then sets `SKIP_STAGE_A=1`, `SKIP_STAGE_B=1`, `SKIP_CONVERSATION=1`, `OUTREACH_PAUSED=1` so the scheduler stops hammering LinkedIn. `markSessionOk` (Sign-in repair, cookie/`li_at` paste, feed-visible login) restores only the stages that were on at death and clears the snapshot. Idempotent while already dead (keeps the original snapshot). Telegram notify on the transition mentions stages are paused until restore.
 
 ### Rules
 
@@ -356,6 +360,7 @@ See also §7 for `li_at` kill causes (Brain must never open LinkedIn).
 4. **One browser session per cookie paste.** Don’t run Connect oneshots + DM agent in parallel on same account.
 5. Datacenter IP often burns `li_at` after 1–2 automation sessions → paste fresh EditThisCookie export.
 6. After paste: user closes LinkedIn tab immediately; agent must **not** run a separate probe browser (burns `li_at`).
+7. **Stages A/B run only while session is ok.** Dead session auto-pauses; restore re-enables the same stages (see above).
 
 ### Known `li_at` kill causes (do not repeat)
 
@@ -375,7 +380,7 @@ Confirmed in production runs — add new ones here when discovered:
 
 Dashboard paste: [`dashboard/lib/ops.js`](dashboard/lib/ops.js) `ingestCookiePaste` (EditThisCookie JSON or raw `li_at`). LinkedIn page UI: **Paste cookies** card → `POST /api/linkedin/cookies` (cabinet-scoped jar + Chromium cookie DB wipe). **Known empty-SERP cause (2026-09-14):** mobile Connect clicked English-only **People / Search**; on UA UI that misses **Люди / Пошук** and LinkedIn opens a universal-search cluster (`/groups/… Content Unavailable`). Fix: localized selectors + never treat Groups/cluster URLs as a People SERP — force `/search/results/people`.
 
-**Dashboard Sign in challenge (2026-09-16 / classify fix 2026-09-17):** after email/password, [`sessionRepairWorker.js`](sessionRepairWorker.js) classifies Chromium (`app_approval` | `pin` | `captcha` | `identity_document`). **Priority:** visible OTP / primary authenticator or email-code copy → `pin`; strong **Sign-in request / LinkedIn app** copy → `app_approval` (wins over “try another way: email” footnotes and invisible reCAPTCHA iframes); only **visible** captcha UI → `captcha`. Sticky: do not demote an active Sign-in request to captcha while that copy is still on screen. Duplicate password submits within 2 minutes are skipped. **App approve** → amber banner. **Email/SMS / authenticator (`pin`)** → inline code field. **Captcha** → popup on `document.body`. FAQ tile **“Sign-in asks for code / captcha wrongly?”** documents the prep tip: if logged out on phone + browser, sign into the LinkedIn app first, dismiss suspicious-activity, then one H.A.L.O. Sign in and trust the live screenshot. Live screenshot repair page remains a fallback. Captcha waits stay on the challenge page. Spinner stays until `li_at` is captured.
+**Dashboard Sign in challenge (2026-09-16 / classify fix 2026-09-17):** after email/password, [`sessionRepairWorker.js`](sessionRepairWorker.js) classifies Chromium (`app_approval` | `pin` | `captcha` | `identity_document`). **Priority:** visible OTP / primary authenticator or email-code copy → `pin`; strong **Sign-in request / LinkedIn app** copy → `app_approval` (wins over “try another way: email” footnotes and invisible reCAPTCHA iframes); only **visible** captcha UI → `captcha`. Sticky: do not demote an active Sign-in request to captcha while that copy is still on screen. Duplicate password submits within 2 minutes are skipped. **App approve** → amber banner. **Email/SMS / authenticator (`pin`)** → six underline digit slots in the challenge popup (mirrored into the submit payload). **Captcha** → popup on `document.body`. FAQ **session activate tips**: stay logged into the LinkedIn **mobile app** for the same account while activating in H.A.L.O.; logging out on the phone (e.g. to test another cabinet) often forces authenticator → ID verification and temporary “suspicious activity” locks; once the app session is healthy again, Sign in usually gets an app **Sign-in request** (sometimes two) and restores without captcha. Live screenshot repair page remains a fallback. Captcha waits stay on the challenge page. Spinner stays until `li_at` is captured.
 
 **Challenge kinds:** `app_approval` | `pin` (+ `challengePinSource`: `authenticator` \| `email_sms` \| `unknown`) | `captcha` (popup modal on `document.body`) | `identity_document` (government ID — **cannot** be completed in H.A.L.O.; user must verify in a personal browser then paste cookies) | `email_update`.
 
