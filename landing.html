@@ -89,12 +89,8 @@ h1{font-size:clamp(2.2rem,5.8vw,4.2rem);font-weight:900;line-height:1.05;letter-
 @media (prefers-reduced-motion:reduce){.hero-reel-track{animation:none}}
 .gr{background:linear-gradient(135deg,var(--g) 0%,#34d399 45%,var(--g) 90%);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:grS 4s ease-in-out infinite}
 @keyframes grS{0%,100%{background-position:0% center}50%{background-position:100% center}}
-.hero-type{display:inline-flex;vertical-align:middle;align-items:center;max-width:100%}
-.hero-type-field{
-  display:inline-flex;align-items:center;gap:2px;min-width:13ch;max-width:min(32ch,94vw);
-  padding:.06em .34em .1em;border:1.5px solid rgba(34,197,94,.38);border-radius:.22em;
-  background:rgba(34,197,94,.07);box-shadow:inset 0 0 0 1px rgba(34,197,94,.06),0 0 18px rgba(34,197,94,.08);
-}
+.hero-type{display:inline-flex;vertical-align:baseline;align-items:baseline;max-width:100%}
+.hero-type-field{display:inline-flex;align-items:baseline;gap:2px;min-height:1.05em;padding:0;border:0;background:none;box-shadow:none;box-sizing:content-box}
 .hero-type-text{white-space:nowrap;overflow:hidden}
 .hero-type-caret{
   display:inline-block;width:.09em;height:.78em;margin-left:.04em;flex:0 0 auto;
@@ -647,6 +643,7 @@ footer{padding:1.8rem 1.5rem;border-top:1px solid var(--ls);display:flex;align-i
 (()=>{
   const text=document.getElementById('hero-type-text');
   const wrap=document.querySelector('.hero-type');
+  const field=document.querySelector('.hero-type-field');
   if(!text) return;
   const phrases=[
     'never sleeps',
@@ -661,13 +658,31 @@ footer{padding:1.8rem 1.5rem;border-top:1px solid var(--ls);display:flex;align-i
     'runs on autopilot',
     'closes the loop'
   ];
+  const lockSize=()=>{
+    if(!field) return;
+    const probe=text.cloneNode(true);
+    probe.removeAttribute('id');
+    probe.style.cssText='position:absolute;left:-9999px;visibility:hidden;white-space:nowrap;pointer-events:none';
+    field.appendChild(probe);
+    let maxW=0,maxH=0;
+    for(const p of phrases){
+      probe.textContent=p;
+      maxW=Math.max(maxW,probe.offsetWidth);
+      maxH=Math.max(maxH,probe.offsetHeight);
+    }
+    probe.remove();
+    field.style.width=maxW+'px';
+    field.style.minHeight=maxH+'px';
+  };
+  lockSize();
+  addEventListener('resize',lockSize);
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let i=0;
   (async()=>{
     while(true){
       if(wrap) wrap.setAttribute('aria-label',phrases[i]);
-      await sleep(1800);
+      await sleep(4500);
       const cur=text.textContent;
       for(let n=cur.length;n>=0;n--){
         text.textContent=cur.slice(0,n);
