@@ -305,6 +305,12 @@ export function issueRepairToken(reason = 'session_dead') {
     containerId: null,
     error: null,
     liAtCaptured: false,
+    signInUsername: null,
+    lastSignInAt: null,
+    uiMode: null,
+    emailUpdateAttempted: false,
+    emailUpdateStatus: null,
+    lastFillError: null,
   });
   try {
     if (fs.existsSync(repairInputPath())) fs.unlinkSync(repairInputPath());
@@ -595,6 +601,11 @@ export function startDashboardLinkedInLogin(username, password, workspaceId = 'd
     lastSignInError: null,
     error: null,
     credentialErrorAt: null,
+    signInUsername: user,
+    lastSignInAt: null,
+    uiMode: null,
+    emailUpdateAttempted: false,
+    emailUpdateStatus: null,
     challengeKind: null,
     captchaPhase: 'none',
     captchaUiChecked: false,

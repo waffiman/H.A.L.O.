@@ -1589,46 +1589,45 @@ async function submitChallengeCode(page) {
   return false;
 }
 
+async function typeVisibleInput(page, loc, value) {
+  await loc.click({ timeout: 4000 });
+  await loc.press('Control+A').catch(() => {});
+  await loc.press('Backspace').catch(() => {});
+  if (typeof loc.pressSequentially === 'function') {
+    await loc.pressSequentially(String(value), { delay: 55 });
+  } else {
+    await loc.type(String(value), { delay: 55 });
+  }
+  const got = String((await loc.inputValue().catch(() => '')) || '');
+  return got === String(value);
+}
+
 /** LinkedIn "Provide a new email address" checkpoint after suspicious login. */
 async function fillEmailUpdate(page, email, profileUrl = '') {
   const em = String(email || '').trim();
-  if (!em) return false;
+  if (!em || !em.includes('@')) return false;
   const profile = String(profileUrl || '').trim();
-  const filled = await page
-    .evaluate(
-      ({ em, profile }) => {
-        const setVal = (el, val) => {
-          el.focus();
-          const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-          if (desc?.set) desc.set.call(el, val);
-          else el.value = val;
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-        };
-        const visible = (el) => {
-          const r = el.getBoundingClientRect();
-          return r.width > 8 && r.height > 8 && !el.disabled && el.type !== 'hidden';
-        };
-        const inputs = [...document.querySelectorAll('input')].filter(visible);
-        const emailish = inputs.filter(
-          (el) =>
-            el.type === 'email' ||
-            /email/i.test(
-              `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.getAttribute('aria-label') || ''}`
-            )
-        );
-        const targets = emailish.length >= 2 ? emailish : inputs.filter((el) => el.type !== 'password');
-        if (targets.length < 2) return { ok: false, reason: 'need_two_fields', n: targets.length };
-        setVal(targets[0], em);
-        setVal(targets[1], em);
-        if (profile && targets[2]) setVal(targets[2], profile);
-        return { ok: true, fields: targets.length };
-      },
-      { em, profile }
-    )
-    .catch((e) => ({ ok: false, reason: e.message }));
-  console.log('Repair fillEmailUpdate', filled);
-  if (!filled?.ok) return false;
+  const emailBoxes = page.locator(
+    'input[type="email"], input[name*="email" i], input[id*="email" i], input[autocomplete="email"]'
+  );
+  const n = await emailBoxes.count().catch(() => 0);
+  if (n < 1) {
+    console.log('Repair fillEmailUpdate no email fields');
+    return false;
+  }
+  const firstOk = await typeVisibleInput(page, emailBoxes.nth(0), em);
+  let secondOk = true;
+  if (n >= 2) secondOk = await typeVisibleInput(page, emailBoxes.nth(1), em);
+  if (profile) {
+    const urlBox = page
+      .locator('input[type="url"], input[name*="profile" i], input[placeholder*="linkedin.com" i]')
+      .first();
+    if (await urlBox.isVisible().catch(() => false)) {
+      await typeVisibleInput(page, urlBox, profile);
+    }
+  }
+  console.log('Repair fillEmailUpdate typed', { firstOk, secondOk, n });
+  if (!firstOk || !secondOk) return false;
   await page.waitForTimeout(400);
   await clickByText(page, ['^Continue$', 'Continue', 'Submit', 'Next']);
   await page.waitForTimeout(1000);
@@ -1755,8 +1754,13 @@ async function drainInputs(page) {
       if (ev.type === 'signin' && typeof ev.username === 'string' && typeof ev.password === 'string') {
         const cur = readState() || {};
         const lastAt = cur.lastSignInAt ? Date.parse(cur.lastSignInAt) : 0;
+        const sameUser =
+          String(cur.signInUsername || '').trim().toLowerCase() === String(ev.username || '').trim().toLowerCase();
         const recent =
-          Number.isFinite(lastAt) && Date.now() - lastAt < 120000 && (cur.uiMode === 'signing' || cur.uiMode === 'challenge');
+          sameUser &&
+          Number.isFinite(lastAt) &&
+          Date.now() - lastAt < 120000 &&
+          (cur.uiMode === 'signing' || cur.uiMode === 'challenge');
         if (recent) {
           console.log('Repair skip duplicate signin (already submitted recently)');
         } else {
@@ -1778,6 +1782,21 @@ async function drainInputs(page) {
         const hit = await clickByText(page, patterns);
         console.log('Repair clickText', key || patterns[0], '→', hit || 'not found');
         await page.waitForTimeout(700);
+        await captureFrame(page, 'challenge');
+      } else if (ev.type === 'fillEmailUpdate' && typeof ev.text === 'string') {
+        const email = String(ev.text || '').trim();
+        writeState({
+          signInUsername: email,
+          emailUpdateAttempted: false,
+          emailUpdateStatus: null,
+          lastFillError: null,
+        });
+        const ok = await fillEmailUpdate(page, email, String(ev.profileUrl || ''));
+        writeState({
+          emailUpdateAttempted: true,
+          emailUpdateStatus: ok ? 'submitted' : 'failed',
+          lastFillError: ok ? null : 'Could not type the email into LinkedIn — try again or use the live screenshot.',
+        });
         await captureFrame(page, 'challenge');
       } else if (ev.type === 'fillCode' && typeof ev.text === 'string') {
         const ok = await fillChallengeCode(page, ev.text);

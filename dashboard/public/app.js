@@ -750,6 +750,8 @@ function updateLinkedInChallengeModal(st) {
         emailStatus.textContent = `Will fill ${email} automatically…`;
       }
     }
+    const emailInput = document.getElementById('li-modal-new-email');
+    if (emailInput && email && !emailInput.value) emailInput.value = email;
     return;
   }
   if (kind === 'app_approval') {
@@ -786,10 +788,11 @@ function ensureLinkedInCaptchaModalOnBody() {
   // Drop stale shells from older deploys.
   if (
     modal &&
-    (modal.dataset.haloCaptchaUi !== 'stack3' ||
+    (modal.dataset.haloCaptchaUi !== 'stack4' ||
       !modal.querySelector('#li-captcha-deck') ||
       !modal.querySelector('#li-challenge-extra') ||
       !modal.querySelector('#li-modal-email-code') ||
+      !modal.querySelector('#li-modal-new-email') ||
       !modal.querySelector('#li-modal-pin-label'))
   ) {
     modal.remove();
@@ -799,7 +802,7 @@ function ensureLinkedInCaptchaModalOnBody() {
     modal = document.createElement('div');
     modal.id = 'li-captcha-modal';
     modal.className = 'li-captcha-modal hidden';
-    modal.dataset.haloCaptchaUi = 'stack3';
+    modal.dataset.haloCaptchaUi = 'stack4';
     modal.setAttribute('aria-hidden', 'true');
     modal.innerHTML = `
       <div class="li-captcha-modal-backdrop" data-li-captcha-close></div>
@@ -864,6 +867,15 @@ function ensureLinkedInCaptchaModalOnBody() {
             </div>
             <div class="li-challenge-extra-block hidden" id="li-challenge-email-block">
               <p class="li-challenge-status" id="li-modal-email-status">Preparing to fill your Sign-in email…</p>
+              <label class="field" for="li-modal-new-email">Sign-in email
+                <input id="li-modal-new-email" type="email" autocomplete="email" />
+              </label>
+              <div class="row section-actions">
+                <button type="button" class="btn primary" id="li-modal-submit-email">
+                  <span class="btn-spinner" aria-hidden="true"></span>
+                  <span class="btn-label">Fill &amp; Continue</span>
+                </button>
+              </div>
             </div>
             <div class="li-challenge-extra-block hidden" id="li-challenge-app-block">
               <p class="li-challenge-status">Open the LinkedIn app on your phone and tap <strong>Yes / Approve</strong> on the sign-in request. Keep this popup open — H.A.L.O. continues automatically.</p>
@@ -5931,6 +5943,21 @@ function bindLinkedInCaptchaNativeControls(getToken) {
       void send({ type: 'submitCode', text: code }, { loadingBtn: modalCodeBtn });
     };
     modalCodeBtn.onclick = submitModalCode;
+  }
+  const emailBtn = document.getElementById('li-modal-submit-email');
+  const emailInput = document.getElementById('li-modal-new-email');
+  if (emailBtn && !emailBtn.dataset.bound) {
+    emailBtn.dataset.bound = '1';
+    emailBtn.onclick = () => {
+      const email = String(emailInput?.value || '').trim();
+      if (!email || !email.includes('@')) {
+        const st = document.getElementById('li-modal-email-status');
+        if (st) st.textContent = 'Enter the LinkedIn email first.';
+        emailInput?.focus();
+        return;
+      }
+      void send({ type: 'fillEmailUpdate', text: email }, { loadingBtn: emailBtn });
+    };
   }
 }
 
