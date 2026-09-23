@@ -607,7 +607,7 @@ async function main() {
           challengeKind: 'rate_limited',
           status: 'error',
           error:
-            'X temporarily limited logins from this server IP. Wait 15–30 minutes, stay logged out of that account in your own browser, then press Sign in once.',
+            'X temporarily limited logins from this server IP. Do not Sign in again for 30–60 minutes. Stay logged out of that account in your own browser, or paste cookies from a normal Chrome session.',
         });
         await captureFrame(page);
         break;

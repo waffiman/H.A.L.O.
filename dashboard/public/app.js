@@ -5156,7 +5156,7 @@ const X_CHALLENGE_COPY = {
   },
   rate_limited: {
     title: 'X limited logins from the server',
-    body: 'This is the VPS datacenter IP, not your laptop. Wait 15–30 minutes, stay logged out of that X account in your own browser, then Sign in once.',
+    body: 'Do not Sign in again for 30–60 minutes. Stay logged out of that X account in your own browser, or paste cookies from a normal Chrome session. The live screenshot uses http://31.70.101.111 if trycloudflare is blocked.',
   },
   try_again: {
     title: 'X asked to try again',
@@ -5168,7 +5168,7 @@ let xActiveRepairToken = '';
 
 function ensureXChallengeModal() {
   let modal = document.getElementById('x-challenge-modal');
-  if (modal && modal.dataset.haloXUi !== 'v4') {
+  if (modal && modal.dataset.haloXUi !== 'v5') {
     modal.remove();
     modal = null;
   }
@@ -5176,7 +5176,7 @@ function ensureXChallengeModal() {
     modal = document.createElement('div');
     modal.id = 'x-challenge-modal';
     modal.className = 'li-captcha-modal hidden';
-    modal.dataset.haloXUi = 'v4';
+    modal.dataset.haloXUi = 'v5';
     modal.setAttribute('aria-hidden', 'true');
     modal.innerHTML = `
       <div class="li-captcha-modal-backdrop" data-x-challenge-close></div>
@@ -5234,6 +5234,7 @@ function ensureXChallengeModal() {
             </button>
           </div>
         </div>
+        <img id="x-challenge-frame" class="x-challenge-frame hidden" alt="X Chromium" />
         <p class="x-challenge-live-wrap">
           <a id="x-challenge-live-link" class="x-challenge-live-link" href="#" target="_blank" rel="noopener">Live Chromium screenshot</a>
         </p>
@@ -5460,8 +5461,26 @@ function updateXChallengeModal(state) {
   if (err) err.textContent = state.lastFillError || state.error || '';
   const live = document.getElementById('x-challenge-live-link');
   if (live && xActiveRepairToken) {
-    live.href = `/x-repair.html?token=${encodeURIComponent(xActiveRepairToken)}`;
+    live.href = xRepairLiveUrl(xActiveRepairToken);
   }
+  const frame = document.getElementById('x-challenge-frame');
+  if (frame && xActiveRepairToken) {
+    frame.classList.remove('hidden');
+    const next = `/api/x/session/login/frame?token=${encodeURIComponent(xActiveRepairToken)}&r=${Date.now()}`;
+    if (frame.dataset.src !== next) {
+      frame.dataset.src = next;
+      frame.src = next;
+    }
+  }
+}
+
+function xRepairLiveUrl(token) {
+  const qs = `token=${encodeURIComponent(token)}`;
+  const host = String(location.hostname || '');
+  if (/trycloudflare\.com$/i.test(host)) {
+    return `http://31.70.101.111/x-repair.html?${qs}`;
+  }
+  return `/x-repair.html?${qs}`;
 }
 
 function bindXSessionForm() {
