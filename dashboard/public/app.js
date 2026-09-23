@@ -23,7 +23,7 @@ const NAV = [
   { id: 'crm', label: 'CRM', title: 'Pipeline, leads, and CRM backend' },
   { id: 'linkedin', label: 'LinkedIn', title: 'LinkedIn channel settings and session' },
   { id: 'email', label: 'Email', title: 'Email outreach channel (coming soon)' },
-  { id: 'x', label: 'X', title: 'X channel (coming soon)' },
+  { id: 'x', label: 'X', title: 'X channel session' },
   { id: 'telegram', label: 'Telegram', title: 'Telegram channel (coming soon)' },
   { id: 'profile', label: 'Settings', title: 'Account, billing, and integrations' },
   { id: 'brain', label: 'Brain', title: 'Sales Brain — master prompt and strategy analysis' },
@@ -3048,7 +3048,7 @@ function renderDashboard() {
         leadsPerCycleLabel: LEADS_PER_CYCLE_LABEL,
         leadsEditable: true,
       })}
-      ${channelTile('x', 'X', s.channels.x, { comingSoon: true })}
+      ${channelTile('x', 'X', s.channels.x)}
       ${channelTile('telegram', 'Telegram', s.channels.telegram, { comingSoon: true })}
     </div>
     <div class="dash-quality-row">${leadQualityCardHtml()}</div>
@@ -4999,6 +4999,302 @@ function bindLinkedInCookiePaste() {
       btn.classList.remove('is-loading');
     }
   };
+}
+
+function xSessionOkFromSettings(s) {
+  if (s?.x?.sessionOk) return true;
+  const sess = s?.x?.session || s?.xSession || {};
+  const cookies = s?.x?.cookies || s?.xCookies || {};
+  return sess.ok === true && !sess.needsCookieRepair && cookies.present;
+}
+
+function renderX() {
+  const s = settings;
+  const sess = s.x?.session || s.xSession || {};
+  const cookies = s.x?.cookies || s.xCookies || {};
+  const ok = xSessionOkFromSettings(s);
+  setPageHeader('X', 'Session for the X channel (outreach comes later)');
+  titleEl.title = 'X channel';
+
+  const channelStrip = `<div class="li-channel-strip">
+      <div class="li-channel-strip-copy">
+        <strong>Channel</strong>
+        <span class="muted">Ready for Stage A / B later — not wired yet</span>
+        ${s.channels.x ? '<span class="badge">active</span>' : '<span class="badge off">off</span>'}
+      </div>
+      ${switchEl('ch-x', s.channels.x, 'Enable X channel')}
+    </div>`;
+
+  const sessionCard = ok
+    ? `<div class="card li-session-card li-session-active" title="X session is active">
+        <div class="li-session-head">
+          <span class="li-brand-icon" aria-hidden="true">${ICONS.x}</span>
+          <div class="li-session-head-text">
+            <h3>X session <span class="badge">Active</span></h3>
+            <p class="muted card-lead">Server has auth_token · ${cookies.count || 0} cookies${sess.updatedAt ? ` · verified ${escapeHtml(sess.updatedAt)}` : ''}</p>
+          </div>
+        </div>
+        ${channelStrip}
+      </div>`
+    : `<div class="card li-session-card li-session-inactive" title="Sign in to X for H.A.L.O.">
+        <div class="li-session-head">
+          <span class="li-brand-icon" aria-hidden="true">${ICONS.x}</span>
+          <div class="li-session-head-text">
+            <h3>X session <span class="badge bad">Inactive</span></h3>
+            <p class="muted card-lead">Sign in below, or paste cookies. Approve 2FA if X asks.</p>
+            ${sess.reason ? `<p class="muted" style="font-size:0.78rem;margin-top:6px">Reason: ${escapeHtml(sess.reason)}</p>` : ''}
+          </div>
+        </div>
+        <form id="x-session-form" class="li-session-form" autocomplete="on">
+          <div class="li-auth-stage" id="x-auth-stage" data-stage="credentials">
+            <div class="li-auth-track">
+              <div class="li-auth-panel li-auth-credentials" id="x-auth-credentials">
+                <label class="field" for="x-username">Username, email, or phone
+                  <input id="x-username" name="username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required />
+                </label>
+                <label class="field" for="x-password">Password
+                  <div class="pass-wrap">
+                    <input id="x-password" name="password" type="password" autocomplete="current-password" required />
+                    <button type="button" class="pass-toggle" id="x-pass-toggle" aria-label="Show password">Show</button>
+                  </div>
+                </label>
+                <div class="row section-actions">
+                  <button type="submit" class="btn primary" id="x-signin-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Sign in</span></button>
+                </div>
+              </div>
+              <div class="li-auth-panel li-auth-otp hidden" id="x-auth-otp" aria-hidden="true">
+                <p class="li-otp-hint muted">6-digit code from the X / Twitter authenticator, SMS, or email.</p>
+                <label class="field" for="x-email-code">Verification code
+                  <input id="x-email-code" name="emailCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />
+                </label>
+                <div class="row section-actions">
+                  <button type="button" class="btn primary" id="x-code-submit-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Submit code</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="muted" id="x-session-status" role="status"></p>
+        </form>
+        ${channelStrip}
+      </div>`;
+
+  const cookiePasteCard = `<div class="card li-cookie-paste-card" title="Paste X cookies from EditThisCookie">
+        <h3>Paste cookies (EditThisCookie / auth_token)</h3>
+        <p class="muted card-lead">In Chrome: open x.com while signed in → EditThisCookie → Export → paste below. Or paste only the <code>auth_token</code> value.</p>
+        <ol class="li-cookie-steps muted">
+          <li>Export cookies, then <strong>close the X tab immediately</strong>.</li>
+          <li>Do not open that X account in the browser until H.A.L.O. is done with the session.</li>
+        </ol>
+        <label class="field" for="x-cookie-paste">Cookie JSON or auth_token
+          <textarea id="x-cookie-paste" rows="5" spellcheck="false" autocomplete="off" placeholder='[{"domain":".x.com","name":"auth_token","value":"…"}, …]'></textarea>
+        </label>
+        <div class="row section-actions">
+          <button type="button" class="btn primary" id="x-cookie-apply"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Apply cookies</span></button>
+        </div>
+        <p class="muted" id="x-cookie-status" role="status"></p>
+      </div>`;
+
+  view.innerHTML = `
+    <div class="li-page">
+      ${sessionCard}
+      ${cookiePasteCard}
+    </div>
+  `;
+  bindSwitchAutosave();
+  bindXSessionForm();
+  bindXCookiePaste();
+}
+
+function bindXCookiePaste() {
+  const ta = document.getElementById('x-cookie-paste');
+  const btn = document.getElementById('x-cookie-apply');
+  const statusEl = document.getElementById('x-cookie-status');
+  if (!ta || !btn) return;
+
+  btn.onclick = async () => {
+    const text = String(ta.value || '').trim();
+    if (!text) {
+      if (statusEl) statusEl.textContent = 'Paste EditThisCookie JSON or a raw auth_token value.';
+      return;
+    }
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    if (statusEl) statusEl.textContent = 'Saving X cookies for this cabinet…';
+    try {
+      const res = await api('/api/x/cookies', {
+        method: 'POST',
+        body: JSON.stringify({ cookiePaste: text }),
+      });
+      const mode = res.mode === 'editthiscookie' ? 'EditThisCookie export' : 'auth_token only';
+      const preview = res.authTokenPreview ? ` (${res.authTokenPreview})` : '';
+      const msg = `Saved ${mode}${preview} · ${res.count || 0} cookie(s). Close X in your browser if it is still open.`;
+      if (statusEl) statusEl.textContent = msg;
+      toast(msg);
+      ta.value = '';
+      try {
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        if (settings.notifications) notifications = settings.notifications;
+        renderX();
+      } catch {
+        /* ignore */
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+      toast(err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+    }
+  };
+}
+
+function setXAuthStage(stage) {
+  const root = document.getElementById('x-auth-stage');
+  const creds = document.getElementById('x-auth-credentials');
+  const otp = document.getElementById('x-auth-otp');
+  if (root) root.dataset.stage = stage;
+  if (creds) creds.classList.toggle('hidden', stage === 'otp');
+  if (otp) {
+    otp.classList.toggle('hidden', stage !== 'otp');
+    otp.setAttribute('aria-hidden', stage === 'otp' ? 'false' : 'true');
+  }
+}
+
+function bindXSessionForm() {
+  const form = document.getElementById('x-session-form');
+  if (!form) return;
+  const passEl = document.getElementById('x-password');
+  const statusEl = document.getElementById('x-session-status');
+  const btn = document.getElementById('x-signin-btn');
+  const codeBtn = document.getElementById('x-code-submit-btn');
+  const codeEl = document.getElementById('x-email-code');
+  const toggle = document.getElementById('x-pass-toggle');
+  let activeToken = '';
+  let pollTimer = null;
+
+  setXAuthStage('credentials');
+
+  if (toggle && passEl) {
+    toggle.onclick = () => {
+      const show = passEl.type === 'password';
+      passEl.type = show ? 'text' : 'password';
+      toggle.textContent = show ? 'Hide' : 'Show';
+    };
+  }
+
+  const poll = async (token) => {
+    if (pollTimer) clearTimeout(pollTimer);
+    try {
+      const st = await api('/api/x/session/login/status?token=' + encodeURIComponent(token));
+      const state = st.state || {};
+      if (state.authTokenCaptured || state.status === 'success') {
+        toast('X session restored');
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        renderX();
+        return;
+      }
+      if (state.challengeKind === 'pin' || state.status === 'awaiting_code') {
+        setXAuthStage('otp');
+        if (statusEl) statusEl.textContent = 'Enter the 6-digit code from your authenticator / SMS.';
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('is-loading');
+        }
+      } else if (state.status === 'error' || state.status === 'cancelled') {
+        if (statusEl) statusEl.textContent = state.error || 'Sign in failed.';
+        toast(state.error || 'X Sign in failed', true);
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('is-loading');
+        }
+        return;
+      } else if (statusEl) {
+        statusEl.textContent = 'Signing in on remote Chromium…';
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+    }
+    pollTimer = setTimeout(() => poll(token), 2500);
+  };
+
+  const submitCode = async () => {
+    const code = String(codeEl?.value || '').trim();
+    if (!code) {
+      if (statusEl) statusEl.textContent = 'Enter the verification code first.';
+      return;
+    }
+    if (!activeToken) {
+      if (statusEl) statusEl.textContent = 'Sign-in session expired — press Sign in again.';
+      return;
+    }
+    if (codeBtn) {
+      codeBtn.disabled = true;
+      codeBtn.classList.add('is-loading');
+    }
+    try {
+      await api('/api/x/session/input', {
+        method: 'POST',
+        body: JSON.stringify({ token: activeToken, type: 'submitCode', text: code }),
+      });
+      if (statusEl) statusEl.textContent = 'Code sent — waiting for X…';
+      poll(activeToken);
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+      toast(err.message, true);
+    } finally {
+      if (codeBtn) {
+        codeBtn.disabled = false;
+        codeBtn.classList.remove('is-loading');
+      }
+    }
+  };
+
+  if (codeBtn) codeBtn.onclick = () => submitCode();
+  if (codeEl) {
+    codeEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitCode();
+      }
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (document.getElementById('x-auth-stage')?.dataset?.stage === 'otp') {
+      await submitCode();
+      return;
+    }
+    const username = document.getElementById('x-username')?.value?.trim() || '';
+    const password = passEl?.value || '';
+    if (!username || !password) {
+      if (statusEl) statusEl.textContent = 'Enter username and password.';
+      return;
+    }
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('is-loading');
+    }
+    if (statusEl) statusEl.textContent = 'Starting remote Chromium…';
+    try {
+      const res = await api('/api/x/session/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      });
+      activeToken = res.token || '';
+      if (statusEl) statusEl.textContent = 'Signing in on remote Chromium…';
+      poll(activeToken);
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+      toast(err.message, true);
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('is-loading');
+      }
+    }
+  });
 }
 
 function bindConnectAcceptExpireControls() {
@@ -7727,7 +8023,7 @@ function setNotifyOpen(open) {
 
 function updateSaveVisibility() {
   if (!topActions) return;
-  const hide = page === 'x' || page === 'telegram' || page === 'email' || page === 'faq';
+  const hide = page === 'telegram' || page === 'email' || page === 'faq';
   topActions.classList.toggle('no-save', hide);
 }
 
@@ -7743,7 +8039,7 @@ function render() {
   else if (page === 'crm') renderCrm();
   else if (page === 'linkedin') renderLinkedIn();
   else if (page === 'email') renderComing('Email');
-  else if (page === 'x') renderComing('X');
+  else if (page === 'x') renderX();
   else if (page === 'telegram') renderComing('Telegram');
   else if (page === 'integrations') renderIntegrations();
   else if (page === 'profile') renderProfile();

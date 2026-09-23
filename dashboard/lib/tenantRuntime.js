@@ -27,6 +27,10 @@ export function tenantPaths(workspaceId, appRoot = APP_ROOT) {
       root: appRoot,
       cookies: path.join(appRoot, 'cookies.json'),
       sessionData: path.join(appRoot, 'session_data'),
+      xCookies: path.join(appRoot, 'x_cookies.json'),
+      xSessionStatus: path.join(appRoot, 'x_session_status.json'),
+      xSessionData: path.join(appRoot, 'session_data_x'),
+      xSessionRepairData: path.join(appRoot, 'session_data_x_repair'),
       brain: path.join(appRoot, 'brain'),
       prompts: path.join(appRoot, 'prompts'),
       playbook: path.join(appRoot, 'salesPlaybook.md'),
@@ -40,6 +44,10 @@ export function tenantPaths(workspaceId, appRoot = APP_ROOT) {
     root,
     cookies: path.join(root, 'cookies.json'),
     sessionData: path.join(root, 'session_data'),
+    xCookies: path.join(root, 'x_cookies.json'),
+    xSessionStatus: path.join(root, 'x_session_status.json'),
+    xSessionData: path.join(root, 'session_data_x'),
+    xSessionRepairData: path.join(root, 'session_data_x_repair'),
     brain: path.join(root, 'brain'),
     prompts: path.join(root, 'prompts'),
     playbook: path.join(root, 'salesPlaybook.md'),
@@ -112,6 +120,7 @@ export function ensureTenantRuntime(workspaceId, appRoot = APP_ROOT) {
   if (paths.isLegacy) return paths;
   fs.mkdirSync(paths.root, { recursive: true });
   fs.mkdirSync(paths.sessionData, { recursive: true });
+  fs.mkdirSync(paths.xSessionData, { recursive: true });
   fs.mkdirSync(paths.brain, { recursive: true });
   fs.mkdirSync(paths.prompts, { recursive: true });
   seedTenantBrain(paths, appRoot);

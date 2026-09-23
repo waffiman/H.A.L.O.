@@ -50,6 +50,8 @@ import {
 } from '../bookingSchedule.js';
 import { normalizeSmartTiming } from '../timezoneResolver.js';
 import { markSessionOk } from '../sessionHealth.js';
+import { markXSessionOk } from '../xSessionHealth.js';
+import { isXCookieDomain } from '../leadChannel.js';
 
 /** After cookie / Sign-in restore: flip session ok and re-enable stages paused on death. */
 function markCabinetSessionRestored(ws, extra = {}) {
@@ -454,6 +456,178 @@ export function readLiAtPresent(workspaceId = waffiWorkspaceId()) {
   }
 }
 
+export function readXSessionStatus(workspaceId = waffiWorkspaceId()) {
+  try {
+    const p = tenantPaths(workspaceId).xSessionStatus;
+    if (!p || !fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function readXAuthPresent(workspaceId = waffiWorkspaceId()) {
+  try {
+    const cookiesPath = tenantPaths(workspaceId).xCookies;
+    if (!cookiesPath || !fs.existsSync(cookiesPath)) return { present: false, count: 0 };
+    const cookies = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
+    const list = Array.isArray(cookies) ? cookies : [];
+    return {
+      present: list.some((c) => c.name === 'auth_token' && c.value),
+      count: list.length,
+    };
+  } catch {
+    return { present: false, count: 0 };
+  }
+}
+
+/** Wipe only X Chromium cookie stores — never LinkedIn session_data. */
+export function resetXBrowserSessionsForCookieRepair(workspaceId = waffiWorkspaceId()) {
+  const paths = tenantPaths(workspaceId);
+  const profiles = [paths.xSessionData, paths.xSessionRepairData].filter(Boolean);
+  const cookieRel = [
+    'Default/Cookies',
+    'Default/Cookies-journal',
+    'Default/Network/Cookies',
+    'Default/Network/Cookies-journal',
+  ];
+  let cleared = 0;
+  for (const root of profiles) {
+    for (const rel of cookieRel) {
+      const p = path.join(root, rel);
+      try {
+        if (fs.existsSync(p)) {
+          fs.unlinkSync(p);
+          cleared += 1;
+        }
+      } catch {
+        /* ignore locked files */
+      }
+    }
+  }
+  return cleared;
+}
+
+function markCabinetXSessionRestored(ws, extra = {}) {
+  const paths = tenantPaths(ws);
+  try {
+    markXSessionOk({ workspaceId: ws, ...extra }, { statusFile: paths.xSessionStatus });
+  } catch (e) {
+    console.log('markCabinetXSessionRestored:', e.message);
+    try {
+      fs.writeFileSync(
+        paths.xSessionStatus,
+        JSON.stringify(
+          {
+            ok: true,
+            reason: null,
+            needsCookieRepair: false,
+            updatedAt: new Date().toISOString(),
+            workspaceId: ws,
+            ...extra,
+          },
+          null,
+          2
+        )
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/**
+ * Accept EditThisCookie JSON for x.com / twitter.com, or raw auth_token.
+ * Writes x_cookies.json only — never cookies.json / li_at.
+ */
+export function ingestXCookiePaste(raw, workspaceId = waffiWorkspaceId()) {
+  const text = String(raw || '').trim();
+  if (!text) throw new Error('Empty cookie paste');
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  ensureTenantRuntime(ws);
+  const paths = tenantPaths(ws);
+
+  if (text.startsWith('[')) {
+    let arr;
+    try {
+      arr = JSON.parse(text);
+    } catch {
+      throw new Error('Could not parse cookie JSON — paste EditThisCookie export as-is');
+    }
+    if (!Array.isArray(arr) || !arr.length) throw new Error('Cookie JSON is empty');
+
+    const xCookies = arr
+      .filter((c) => isXCookieDomain(c.domain))
+      .map(toPlaywrightCookie)
+      .filter(Boolean)
+      .map((c) => {
+        if (!c.domain || isXCookieDomain(c.domain)) {
+          const d = String(c.domain || 'x.com').replace(/^\./, '');
+          return { ...c, domain: d.endsWith('twitter.com') ? c.domain : c.domain || '.x.com' };
+        }
+        return c;
+      });
+
+    if (!xCookies.length) throw new Error('No X / Twitter cookies found in paste');
+    const auth = xCookies.find((c) => c.name === 'auth_token');
+    if (!auth?.value) throw new Error('auth_token cookie not found in EditThisCookie export');
+
+    fs.writeFileSync(paths.xCookies, JSON.stringify(xCookies, null, 2));
+    const cleared = resetXBrowserSessionsForCookieRepair(ws);
+    markCabinetXSessionRestored(ws, {
+      source: 'dashboard_x_cookie_paste',
+      cookieCount: xCookies.length,
+      profilesCleared: cleared,
+    });
+    return {
+      ok: true,
+      mode: 'editthiscookie',
+      count: xCookies.length,
+      authTokenPresent: true,
+      authTokenPreview: `${auth.value.slice(0, 6)}…${auth.value.slice(-4)}`,
+      profilesCleared: cleared,
+      workspaceId: ws,
+    };
+  }
+
+  const value = text;
+  if (value.length < 20) throw new Error('auth_token looks too short');
+  let cookies = [];
+  if (fs.existsSync(paths.xCookies)) {
+    try {
+      cookies = JSON.parse(fs.readFileSync(paths.xCookies, 'utf8'));
+      if (!Array.isArray(cookies)) cookies = [];
+    } catch {
+      cookies = [];
+    }
+  }
+  const rest = cookies.filter((c) => c.name !== 'auth_token');
+  rest.push({
+    name: 'auth_token',
+    value,
+    domain: '.x.com',
+    path: '/',
+    expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 180,
+    httpOnly: true,
+    secure: true,
+    sameSite: 'None',
+  });
+  fs.writeFileSync(paths.xCookies, JSON.stringify(rest, null, 2));
+  const cleared = resetXBrowserSessionsForCookieRepair(ws);
+  markCabinetXSessionRestored(ws, {
+    source: 'dashboard_x_auth_token_paste',
+    profilesCleared: cleared,
+  });
+  return {
+    ok: true,
+    mode: 'auth_token',
+    count: rest.length,
+    authTokenPresent: true,
+    profilesCleared: cleared,
+    workspaceId: ws,
+  };
+}
+
 export async function countNotionStatuses(workspaceId) {
   const now = Date.now();
   const wsKey = String(workspaceId || '').trim() || '_env_';
@@ -710,6 +884,10 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
   const masterOn = stageAOn && stageBOn;
   const session = readSessionStatus(ws);
   const cookies = readLiAtPresent(ws);
+  const xSession = readXSessionStatus(ws);
+  const xCookies = readXAuthPresent(ws);
+  const xSessionOk =
+    xSession?.ok === true && !xSession?.needsCookieRepair && xCookies.present;
   // Only push TG session alerts for the active request cabinet
   syncSessionNotifications(session, cookies, ws);
   // Read the policy file once — this block used to re-read and re-parse
@@ -777,6 +955,14 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
     notionCrmUrl: notionCrmUrl(),
     session,
     cookies,
+    x: {
+      session: xSession,
+      cookies: xCookies,
+      sessionOk: xSessionOk,
+    },
+    xSession,
+    xCookies,
+    xSessionOk,
     prompts: {
       playbook: readPrompt('playbook', cp),
       ice_breaker: readPrompt('ice_breaker', cp),

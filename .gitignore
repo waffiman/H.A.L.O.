@@ -6,6 +6,12 @@
 n8n-public.env
 **/cookies.json
 **/cookies*.json
+**/x_cookies.json
+**/x_session_status.json
+**/x_session_repair.json
+**/x_session_repair_input.jsonl
+session_data_x/
+session_data_x_repair/
 halo-tenants/
 **/session_repair*.json
 **/session_repair*.jpg

@@ -3,6 +3,7 @@ import {
   buildSettingsView,
   countNotionStatuses,
   ingestCookiePaste,
+  ingestXCookiePaste,
   invalidateNotionCountsCache,
   listNotifications,
   markAllNotificationsRead,
@@ -83,6 +84,13 @@ import {
   maybeResumeAgentAfterRepair,
   forceStopStageR,
 } from './lib/sessionRepair.js';
+import {
+  appendXRepairInput,
+  forceStopXRepair,
+  readXRepairState,
+  startDashboardXLogin,
+  xRepairContainerRunning,
+} from './lib/xSessionRepair.js';
 import {
   listMessages,
   sendMessage,
@@ -1203,6 +1211,71 @@ app.post('/api/linkedin/session/login/cancel', (req, res) => {
     const result = forceStopStageR('user_cancel');
     const resume = maybeResumeAgentAfterRepair();
     res.json({ ok: true, ...result, resume });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/x/cookies', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const raw = req.body?.cookiePaste || req.body?.authToken || req.body?.text || '';
+    const result = ingestXCookiePaste(raw, req.tenant.workspaceId);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/x/session/login', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const { username, password } = req.body || {};
+    const result = startDashboardXLogin(username, password, req.tenant.workspaceId);
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/x/session/login/cancel', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const result = forceStopXRepair('user_cancel');
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/x/session/input', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const token = String(req.body?.token || '');
+    const type = String(req.body?.type || 'submitCode');
+    const text = String(req.body?.text || '');
+    const result = appendXRepairInput(token, { type, text });
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/x/session/login/status', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const token = String(req.query.token || '');
+    const st = readXRepairState();
+    if (!token || !st?.token || st.token !== token) {
+      return res.status(403).json({ ok: false, error: 'Invalid X sign-in token' });
+    }
+    const workerAlive = xRepairContainerRunning();
+    res.json({
+      ok: true,
+      state: st,
+      workerAlive,
+      captured: !!st.authTokenCaptured,
+    });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }

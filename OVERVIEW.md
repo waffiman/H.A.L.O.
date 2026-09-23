@@ -7,7 +7,7 @@ Company behind outreach copy remains WAFFi.
 
 > **Agent knowledge base.** Read this first after any idle period.  
 > Keep this file updated whenever behavior, env flags, dashboard UI, or deploy paths change.  
-> Last updated: 2026-09-20 (OTP underline slots; session-dead auto-pause A/B; Sign-in FAQ).
+> Last updated: 2026-09-22 (X channel phase 1 — isolated session + cookie/Sign-in; no outreach yet).
 
 ---
 
@@ -571,7 +571,21 @@ My Network import cap UI removed from dashboard. When needed (rollback/debug), s
 | `SKIP_STAGE_A` | Skip Stage A |
 | `SKIP_STAGE_B` / `SKIP_CONVERSATION` | Skip Stage B |
 | `CHANNEL_LINKEDIN_ENABLED` | Channel kill switch |
+| `CHANNEL_X_ENABLED` | X channel toggle (dashboard). **Phase 1:** session only — Stage A/B ignore it |
 | `ALLOW_AUTO_LOGIN` | **Keep `0`** |
+
+### X session (phase 1)
+
+Isolated from LinkedIn. Do not reuse `li_at` / `cookies.json` / `session_data/`.
+
+| Artifact | Path | Role |
+|----------|------|------|
+| Cookie jar | `x_cookies.json` | Must include `auth_token` (+ `ct0`) |
+| Chromium profile | `session_data_x/` | Future X Playwright (not used in phase 1 outreach) |
+| Repair profile | `session_data_x_repair/` | Dashboard X Sign in |
+| Health | `x_session_status.json` | `{ ok, reason, needsCookieRepair }` |
+
+Dashboard: `/?page=x` — Sign in (`POST /api/x/session/login`) or EditThisCookie paste (`POST /api/x/cookies`). Worker: [`xSessionRepairWorker.js`](xSessionRepairWorker.js) / container `x-repair`. LI `markSessionDead` must not write these files.
 
 ### Stage A / sync
 
