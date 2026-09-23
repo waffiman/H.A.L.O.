@@ -175,13 +175,8 @@ export function startXRepairWorkerSync(token, workspaceId = 'default') {
   const isDefault = ws === waffiWorkspaceId();
   if (!isDefault) ensureTenantRuntime(ws);
   const paths = tenantPaths(ws, root);
-  try {
-    if (fs.existsSync(paths.xSessionRepairData)) {
-      fs.rmSync(paths.xSessionRepairData, { recursive: true, force: true });
-    }
-  } catch (e) {
-    console.warn('[x-repair] wipe profile:', e.message || e);
-  }
+  // Keep the Chromium profile — wiping it every Sign in looks like a new device.
+  // Set X_REPAIR_FRESH=1 on the worker to reset.
   fs.mkdirSync(paths.xSessionRepairData, { recursive: true });
 
   const args = [
@@ -211,6 +206,8 @@ export function startXRepairWorkerSync(token, workspaceId = 'default') {
     '-w',
     '/app',
     'cold-outreach-agent-linkedin-agent',
+    'xvfb-run',
+    '-a',
     'node',
     'xSessionRepairWorker.js'
   );

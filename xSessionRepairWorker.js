@@ -5,9 +5,12 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { dataRoot } from './dataRoot.js';
 import { markXSessionOk, xCookiesFile, xSessionStatusFile } from './xSessionHealth.js';
+
+chromium.use(StealthPlugin());
 
 const TOKEN = String(process.env.REPAIR_TOKEN || '').trim();
 const ROOT = dataRoot();
@@ -17,6 +20,14 @@ const FRAME_PATH = path.join(ROOT, 'x_session_repair_frame.jpg');
 const PROFILE = path.join(ROOT, 'session_data_x_repair');
 const JAR = xCookiesFile(ROOT);
 const VP = { width: 1280, height: 800 };
+// Match Playwright 1.41 Chromium on this Linux VPS — do not claim Windows
+// (WebGL/OS mismatch is a stronger bot signal than a Linux desktop UA).
+const X_UA =
+  process.env.X_USER_AGENT ||
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+const FRESH = String(process.env.X_REPAIR_FRESH || '').trim() === '1';
+const HEADLESS =
+  String(process.env.X_REPAIR_HEADLESS || '').trim() === '1' || !process.env.DISPLAY;
 
 function readState() {
   try {
@@ -422,22 +433,39 @@ async function main() {
     challengeKind: 'generic',
     viewport: VP,
   });
-  wipeDir(PROFILE);
+  if (FRESH) wipeDir(PROFILE);
+  else fs.mkdirSync(PROFILE, { recursive: true });
 
   const browser = await chromium.launchPersistentContext(PROFILE, {
-    headless: true,
+    headless: HEADLESS,
     viewport: VP,
     locale: 'en-US',
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-    args: ['--disable-blink-features=AutomationControlled'],
+    timezoneId: 'Europe/Berlin',
+    colorScheme: 'light',
+    userAgent: X_UA,
+    extraHTTPHeaders: {
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    ignoreDefaultArgs: ['--enable-automation'],
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--password-store=basic',
+      `--window-size=${VP.width},${VP.height}`,
+    ],
   });
   const page = browser.pages()[0] || (await browser.newPage());
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
   });
+  console.log('X repair — browser', { headless: HEADLESS, display: process.env.DISPLAY || '', fresh: FRESH });
 
   try {
+    if (await persistXCookies(browser)) {
+      console.log('X repair — already signed in from reused profile');
+      return;
+    }
     await page.goto('https://x.com/i/flow/login', { waitUntil: 'domcontentloaded', timeout: 90000 });
     await page.waitForTimeout(1800);
     await captureFrame(page);
