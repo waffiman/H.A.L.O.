@@ -5025,62 +5025,34 @@ function renderX() {
       ${switchEl('ch-x', s.channels.x, 'Enable X channel')}
     </div>`;
 
-  const sessionCard = ok
-    ? `<div class="card li-session-card li-session-active" title="X session is active">
-        <div class="li-session-head">
-          <span class="li-brand-icon" aria-hidden="true">${ICONS.x}</span>
-          <div class="li-session-head-text">
-            <h3>X session <span class="badge">Active</span></h3>
-            <p class="muted card-lead">Server has auth_token · ${cookies.count || 0} cookies${sess.updatedAt ? ` · verified ${escapeHtml(sess.updatedAt)}` : ''}</p>
-          </div>
-        </div>
-        ${channelStrip}
-      </div>`
-    : `<div class="card li-session-card li-session-inactive" title="Sign in to X for H.A.L.O.">
-        <div class="li-session-head">
-          <span class="li-brand-icon" aria-hidden="true">${ICONS.x}</span>
-          <div class="li-session-head-text">
-            <h3>X session <span class="badge bad">Inactive</span></h3>
-            <p class="muted card-lead">Sign in below, or paste cookies. Approve 2FA if X asks.</p>
-            ${sess.reason ? `<p class="muted" style="font-size:0.78rem;margin-top:6px">Reason: ${escapeHtml(sess.reason)}</p>` : ''}
-          </div>
-        </div>
-        <form id="x-session-form" class="li-session-form" autocomplete="on">
-          <div class="li-auth-stage" id="x-auth-stage" data-stage="credentials">
-            <div class="li-auth-track">
-              <div class="li-auth-panel li-auth-credentials" id="x-auth-credentials">
-                <label class="field" for="x-username">Username, email, or phone
-                  <input id="x-username" name="username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required />
-                </label>
-                <label class="field" for="x-password">Password
-                  <div class="pass-wrap">
-                    <input id="x-password" name="password" type="password" autocomplete="current-password" required />
-                    <button type="button" class="pass-toggle" id="x-pass-toggle" aria-label="Show password">Show</button>
-                  </div>
-                </label>
-                <div class="row section-actions">
-                  <button type="submit" class="btn primary" id="x-signin-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Sign in</span></button>
-                </div>
-              </div>
-              <div class="li-auth-panel li-auth-otp hidden" id="x-auth-otp" aria-hidden="true">
-                <p class="li-otp-hint muted">6-digit code from the X / Twitter authenticator, SMS, or email.</p>
-                <label class="field" for="x-email-code">Verification code
-                  <input id="x-email-code" name="emailCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />
-                </label>
-                <div class="row section-actions">
-                  <button type="button" class="btn primary" id="x-code-submit-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Submit code</span></button>
-                </div>
-              </div>
-            </div>
+  const signInForm = `<form id="x-session-form" class="li-session-form" autocomplete="on">
+          <label class="field" for="x-username">Email or username
+            <input id="x-username" name="username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required />
+          </label>
+          <div class="row section-actions">
+            <button type="submit" class="btn primary" id="x-signin-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">${ok ? 'Sign in again' : 'Sign in'}</span></button>
           </div>
           <p class="muted" id="x-session-status" role="status"></p>
-        </form>
+        </form>`;
+
+  const sessionCard = `<div class="card li-session-card ${ok ? 'li-session-active' : 'li-session-inactive'}" title="${ok ? 'X session is active' : 'Sign in to X for H.A.L.O.'}">
+        <div class="li-session-head">
+          <span class="li-brand-icon" aria-hidden="true">${ICONS.x}</span>
+          <div class="li-session-head-text">
+            <h3>X session ${ok ? '<span class="badge">Active</span>' : '<span class="badge bad">Inactive</span>'}</h3>
+            <p class="muted card-lead">${ok
+              ? `Server has auth_token · ${cookies.count || 0} cookies${sess.updatedAt ? ` · verified ${escapeHtml(sess.updatedAt)}` : ''}. Sign in again to replace the session.`
+              : 'Enter email or username. Code, extra username, and captcha open in a popup — same as LinkedIn.'}</p>
+            ${sess.reason && !ok ? `<p class="muted" style="font-size:0.78rem;margin-top:6px">Reason: ${escapeHtml(sess.reason)}</p>` : ''}
+          </div>
+        </div>
+        ${signInForm}
         ${channelStrip}
       </div>`;
 
-  const cookiePasteCard = `<div class="card li-cookie-paste-card" title="Paste X cookies from EditThisCookie">
-        <h3>Paste cookies (EditThisCookie / auth_token)</h3>
-        <p class="muted card-lead">In Chrome: open x.com while signed in → EditThisCookie → Export → paste below. Or paste only the <code>auth_token</code> value.</p>
+  const cookiePasteCard = `<details class="card li-cookie-paste-card nc-manual-advanced" title="Fallback: paste X cookies">
+        <summary>Fallback — paste cookies (EditThisCookie / auth_token)</summary>
+        <p class="muted card-lead">Use this only if Sign in fails. In Chrome: open x.com while signed in → EditThisCookie → Export → paste below. Or paste only the <code>auth_token</code> value.</p>
         <ol class="li-cookie-steps muted">
           <li>Export cookies, then <strong>close the X tab immediately</strong>.</li>
           <li>Do not open that X account in the browser until H.A.L.O. is done with the session.</li>
@@ -5092,7 +5064,7 @@ function renderX() {
           <button type="button" class="btn primary" id="x-cookie-apply"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Apply cookies</span></button>
         </div>
         <p class="muted" id="x-cookie-status" role="status"></p>
-      </div>`;
+      </details>`;
 
   view.innerHTML = `
     <div class="li-page">
@@ -5149,39 +5121,311 @@ function bindXCookiePaste() {
   };
 }
 
-function setXAuthStage(stage) {
-  const root = document.getElementById('x-auth-stage');
-  const creds = document.getElementById('x-auth-credentials');
-  const otp = document.getElementById('x-auth-otp');
-  if (root) root.dataset.stage = stage;
-  if (creds) creds.classList.toggle('hidden', stage === 'otp');
-  if (otp) {
-    otp.classList.toggle('hidden', stage !== 'otp');
-    otp.setAttribute('aria-hidden', stage === 'otp' ? 'false' : 'true');
+const X_CHALLENGE_COPY = {
+  generic: {
+    title: 'Signing in to X…',
+    body: 'Keep this popup open. Next X will send a 6-digit email code, or ask for your username first.',
+  },
+  username: {
+    title: 'X asks for your username',
+    body: 'Enter the X username (not the email), then Next. After that X usually emails a 6-digit code.',
+  },
+  pin: {
+    title: 'Email code needed',
+    body: 'X emailed a 6-digit code. Enter it below.',
+  },
+  password_optional: {
+    title: 'Email code needed',
+    body: 'X may also offer a password — ignore it. Enter the 6-digit email code, or tap the code field on the screenshot.',
+  },
+  captcha: {
+    title: 'Security check required',
+    body: 'X is showing a captcha. Use the live screenshot link below if you need to see the Chromium page.',
+  },
+  identity_document: {
+    title: 'X asks for extra identity verification',
+    body: 'Finish that once in your own browser, close the X tab, then Sign in again (or paste cookies).',
+  },
+};
+
+let xActiveRepairToken = '';
+
+function ensureXChallengeModal() {
+  let modal = document.getElementById('x-challenge-modal');
+  if (modal && modal.dataset.haloXUi !== 'v2') {
+    modal.remove();
+    modal = null;
+  }
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'x-challenge-modal';
+    modal.className = 'li-captcha-modal hidden';
+    modal.dataset.haloXUi = 'v2';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `
+      <div class="li-captcha-modal-backdrop" data-x-challenge-close></div>
+      <div class="li-captcha-modal-panel x-challenge-panel" role="dialog" aria-modal="true" aria-labelledby="x-challenge-title">
+        <header class="li-captcha-modal-head">
+          <div class="li-captcha-modal-intro">
+            <span class="li-challenge-pulse" aria-hidden="true"></span>
+            <div>
+              <strong class="li-challenge-title" id="x-challenge-title">Signing in to X…</strong>
+              <p class="li-challenge-body" id="x-challenge-body">Keep this popup open.</p>
+            </div>
+          </div>
+          <button type="button" class="btn ghost" data-x-challenge-close aria-label="Close">Close</button>
+        </header>
+        <p class="muted" id="x-challenge-fill-error" role="status"></p>
+        <div class="x-challenge-extra" id="x-challenge-username-block">
+          <label class="field" for="x-modal-username">X username
+            <input id="x-modal-username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <div class="row section-actions">
+            <button type="button" class="btn primary" id="x-modal-submit-username">
+              <span class="btn-spinner" aria-hidden="true"></span>
+              <span class="btn-label">Next</span>
+            </button>
+          </div>
+        </div>
+        <div class="x-challenge-extra hidden" id="x-challenge-pin-block">
+          <div class="field li-modal-pin-field">
+            <span id="x-modal-pin-label">Email code</span>
+            <div class="li-otp-underline" id="x-modal-otp-slots" role="group" aria-labelledby="x-modal-pin-label">
+              <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="0" autocomplete="one-time-code" aria-label="Digit 1" />
+              <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="1" aria-label="Digit 2" />
+              <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="2" aria-label="Digit 3" />
+              <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="3" aria-label="Digit 4" />
+              <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="4" aria-label="Digit 5" />
+              <input class="li-otp-cell" type="text" inputmode="numeric" maxlength="1" data-otp-i="5" aria-label="Digit 6" />
+            </div>
+            <input id="x-modal-email-code" class="li-otp-mirror" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" tabindex="-1" aria-hidden="true" />
+          </div>
+          <div class="row section-actions">
+            <button type="button" class="btn primary" id="x-modal-submit-code">
+              <span class="btn-spinner" aria-hidden="true"></span>
+              <span class="btn-label">Submit code</span>
+            </button>
+          </div>
+        </div>
+        <p class="x-challenge-live-wrap">
+          <a id="x-challenge-live-link" class="x-challenge-live-link" href="#" target="_blank" rel="noopener">Live Chromium screenshot</a>
+        </p>
+      </div>`;
+    document.body.appendChild(modal);
+    bindXChallengeModalControls();
+  } else if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+  return modal;
+}
+
+function openXChallengeModal() {
+  const modal = ensureXChallengeModal();
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  modal.style.cssText =
+    'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:20px;margin:0;box-sizing:border-box;background:transparent;';
+  const panel = modal.querySelector('.li-captcha-modal-panel');
+  if (panel) {
+    panel.style.cssText =
+      'position:relative;z-index:1;width:min(440px,100%);max-height:min(90vh,720px);overflow:auto;border-radius:14px;border:1px solid rgba(252,211,77,0.35);background:#181d26;color:#e8edf5;box-shadow:0 28px 72px rgba(0,0,0,0.65);padding:16px 18px 18px;';
+  }
+  document.body.classList.add('li-captcha-modal-open');
+}
+
+function closeXChallengeModal() {
+  const modal = document.getElementById('x-challenge-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  modal.style.display = 'none';
+  document.body.classList.remove('li-captcha-modal-open');
+}
+
+function xOtpValue() {
+  const slots = document.getElementById('x-modal-otp-slots');
+  const mirror = document.getElementById('x-modal-email-code');
+  if (slots) {
+    const code = [...slots.querySelectorAll('.li-otp-cell')]
+      .map((c) => c.value.replace(/\D/g, '').slice(0, 1))
+      .join('');
+    if (mirror) mirror.value = code;
+    return code;
+  }
+  return String(mirror?.value || '').trim();
+}
+
+function bindXChallengeModalControls() {
+  const modal = document.getElementById('x-challenge-modal');
+  if (!modal || modal.dataset.bound === '1') return;
+  modal.dataset.bound = '1';
+  modal.querySelectorAll('[data-x-challenge-close]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      closeXChallengeModal();
+      if (!xActiveRepairToken) return;
+      try {
+        await api('/api/x/session/login/cancel', { method: 'POST', body: JSON.stringify({}) });
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+  const userBtn = document.getElementById('x-modal-submit-username');
+  const userEl = document.getElementById('x-modal-username');
+  const sendUsername = async () => {
+    const text = String(userEl?.value || '').trim();
+    if (!text || !xActiveRepairToken) return;
+    if (userBtn) {
+      userBtn.disabled = true;
+      userBtn.classList.add('is-loading');
+    }
+    try {
+      await api('/api/x/session/input', {
+        method: 'POST',
+        body: JSON.stringify({ token: xActiveRepairToken, type: 'submitUsername', text }),
+      });
+    } catch (err) {
+      toast(err.message, true);
+    } finally {
+      if (userBtn) {
+        userBtn.disabled = false;
+        userBtn.classList.remove('is-loading');
+      }
+    }
+  };
+  if (userBtn) userBtn.onclick = () => sendUsername();
+  if (userEl) {
+    userEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendUsername();
+      }
+    });
+  }
+  const otpSlots = document.getElementById('x-modal-otp-slots');
+  const codeBtn = document.getElementById('x-modal-submit-code');
+  if (otpSlots && !otpSlots.dataset.bound) {
+    otpSlots.dataset.bound = '1';
+    const cells = [...otpSlots.querySelectorAll('.li-otp-cell')];
+    const fillFromString = (raw, start = 0) => {
+      const digits = String(raw || '').replace(/\D/g, '');
+      let i = start;
+      for (const d of digits) {
+        if (i >= cells.length) break;
+        cells[i].value = d;
+        i += 1;
+      }
+      xOtpValue();
+      cells[Math.min(i, cells.length - 1)]?.focus();
+    };
+    cells.forEach((cell, idx) => {
+      cell.addEventListener('input', (e) => {
+        const v = String(e.target.value || '').replace(/\D/g, '');
+        if (v.length > 1) {
+          fillFromString(v, idx);
+          return;
+        }
+        e.target.value = v.slice(0, 1);
+        xOtpValue();
+        if (v && idx < cells.length - 1) cells[idx + 1].focus();
+      });
+      cell.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !cell.value && idx > 0) {
+          cells[idx - 1].focus();
+          cells[idx - 1].value = '';
+          xOtpValue();
+          e.preventDefault();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          codeBtn?.click();
+        }
+      });
+      cell.addEventListener('paste', (e) => {
+        const text = e.clipboardData?.getData('text') || '';
+        if (!/\d/.test(text)) return;
+        e.preventDefault();
+        fillFromString(text, idx);
+      });
+    });
+  }
+  if (codeBtn) {
+    codeBtn.onclick = async () => {
+      const code = xOtpValue();
+      if (!code || !xActiveRepairToken) return;
+      codeBtn.disabled = true;
+      codeBtn.classList.add('is-loading');
+      try {
+        await api('/api/x/session/input', {
+          method: 'POST',
+          body: JSON.stringify({ token: xActiveRepairToken, type: 'submitCode', text: code }),
+        });
+      } catch (err) {
+        toast(err.message, true);
+      } finally {
+        codeBtn.disabled = false;
+        codeBtn.classList.remove('is-loading');
+      }
+    };
+  }
+}
+
+function updateXChallengeModal(state) {
+  const kind = state.challengeKind || 'generic';
+  const copy = X_CHALLENGE_COPY[kind] || X_CHALLENGE_COPY.generic;
+  const title = document.getElementById('x-challenge-title');
+  const body = document.getElementById('x-challenge-body');
+  if (title) title.textContent = copy.title;
+  if (body) body.textContent = copy.body;
+  const userBlock = document.getElementById('x-challenge-username-block');
+  const pinBlock = document.getElementById('x-challenge-pin-block');
+  const showPin = kind === 'pin' || kind === 'password_optional' || state.status === 'awaiting_code';
+  const showUser = !showPin;
+  if (userBlock) userBlock.classList.toggle('hidden', !showUser);
+  if (pinBlock) pinBlock.classList.toggle('hidden', !showPin);
+  const err = document.getElementById('x-challenge-fill-error');
+  if (err) err.textContent = state.lastFillError || state.error || '';
+  const live = document.getElementById('x-challenge-live-link');
+  if (live && xActiveRepairToken) {
+    live.href = `/x-repair.html?token=${encodeURIComponent(xActiveRepairToken)}`;
   }
 }
 
 function bindXSessionForm() {
   const form = document.getElementById('x-session-form');
   if (!form) return;
-  const passEl = document.getElementById('x-password');
   const statusEl = document.getElementById('x-session-status');
   const btn = document.getElementById('x-signin-btn');
-  const codeBtn = document.getElementById('x-code-submit-btn');
-  const codeEl = document.getElementById('x-email-code');
-  const toggle = document.getElementById('x-pass-toggle');
-  let activeToken = '';
   let pollTimer = null;
 
-  setXAuthStage('credentials');
+  const stopPoll = () => {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+  };
 
-  if (toggle && passEl) {
-    toggle.onclick = () => {
-      const show = passEl.type === 'password';
-      passEl.type = show ? 'text' : 'password';
-      toggle.textContent = show ? 'Hide' : 'Show';
-    };
-  }
+  const finishOk = async () => {
+    stopPoll();
+    closeXChallengeModal();
+    xActiveRepairToken = '';
+    toast('X session restored');
+    try {
+      const data = await api('/api/settings');
+      settings = data.settings || settings;
+    } catch {
+      /* ignore */
+    }
+    renderX();
+  };
+
+  const finishErr = (msg) => {
+    stopPoll();
+    closeXChallengeModal();
+    if (statusEl) statusEl.textContent = msg;
+    toast(msg, true);
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+    }
+  };
 
   const poll = async (token) => {
     if (pollTimer) clearTimeout(pollTimer);
@@ -5189,88 +5433,27 @@ function bindXSessionForm() {
       const st = await api('/api/x/session/login/status?token=' + encodeURIComponent(token));
       const state = st.state || {};
       if (state.authTokenCaptured || state.status === 'success') {
-        toast('X session restored');
-        const data = await api('/api/settings');
-        settings = data.settings || settings;
-        renderX();
+        await finishOk();
         return;
       }
-      if (state.challengeKind === 'pin' || state.status === 'awaiting_code') {
-        setXAuthStage('otp');
-        if (statusEl) statusEl.textContent = 'Enter the 6-digit code from your authenticator / SMS.';
-        if (btn) {
-          btn.disabled = false;
-          btn.classList.remove('is-loading');
-        }
-      } else if (state.status === 'error' || state.status === 'cancelled') {
-        if (statusEl) statusEl.textContent = state.error || 'Sign in failed.';
-        toast(state.error || 'X Sign in failed', true);
-        if (btn) {
-          btn.disabled = false;
-          btn.classList.remove('is-loading');
-        }
+      if (state.status === 'error' || state.status === 'cancelled') {
+        finishErr(state.error || 'X Sign in failed');
         return;
-      } else if (statusEl) {
-        statusEl.textContent = 'Signing in on remote Chromium…';
       }
+      openXChallengeModal();
+      updateXChallengeModal(state);
+      if (statusEl) statusEl.textContent = 'Complete the step in the popup…';
     } catch (err) {
       if (statusEl) statusEl.textContent = err.message;
     }
-    pollTimer = setTimeout(() => poll(token), 2500);
+    pollTimer = setTimeout(() => poll(token), 2000);
   };
-
-  const submitCode = async () => {
-    const code = String(codeEl?.value || '').trim();
-    if (!code) {
-      if (statusEl) statusEl.textContent = 'Enter the verification code first.';
-      return;
-    }
-    if (!activeToken) {
-      if (statusEl) statusEl.textContent = 'Sign-in session expired — press Sign in again.';
-      return;
-    }
-    if (codeBtn) {
-      codeBtn.disabled = true;
-      codeBtn.classList.add('is-loading');
-    }
-    try {
-      await api('/api/x/session/input', {
-        method: 'POST',
-        body: JSON.stringify({ token: activeToken, type: 'submitCode', text: code }),
-      });
-      if (statusEl) statusEl.textContent = 'Code sent — waiting for X…';
-      poll(activeToken);
-    } catch (err) {
-      if (statusEl) statusEl.textContent = err.message;
-      toast(err.message, true);
-    } finally {
-      if (codeBtn) {
-        codeBtn.disabled = false;
-        codeBtn.classList.remove('is-loading');
-      }
-    }
-  };
-
-  if (codeBtn) codeBtn.onclick = () => submitCode();
-  if (codeEl) {
-    codeEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        submitCode();
-      }
-    });
-  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (document.getElementById('x-auth-stage')?.dataset?.stage === 'otp') {
-      await submitCode();
-      return;
-    }
     const username = document.getElementById('x-username')?.value?.trim() || '';
-    const password = passEl?.value || '';
-    if (!username || !password) {
-      if (statusEl) statusEl.textContent = 'Enter username and password.';
+    if (!username) {
+      if (statusEl) statusEl.textContent = 'Enter email or username.';
       return;
     }
     if (btn) {
@@ -5281,18 +5464,15 @@ function bindXSessionForm() {
     try {
       const res = await api('/api/x/session/login', {
         method: 'POST',
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username }),
       });
-      activeToken = res.token || '';
-      if (statusEl) statusEl.textContent = 'Signing in on remote Chromium…';
-      poll(activeToken);
+      xActiveRepairToken = res.token || '';
+      openXChallengeModal();
+      updateXChallengeModal({ challengeKind: 'generic', status: 'running' });
+      if (statusEl) statusEl.textContent = 'Complete the step in the popup…';
+      poll(xActiveRepairToken);
     } catch (err) {
-      if (statusEl) statusEl.textContent = err.message;
-      toast(err.message, true);
-      if (btn) {
-        btn.disabled = false;
-        btn.classList.remove('is-loading');
-      }
+      finishErr(err.message);
     }
   });
 }

@@ -90,6 +90,7 @@ import {
   readXRepairState,
   startDashboardXLogin,
   xRepairContainerRunning,
+  xRepairFramePath,
 } from './lib/xSessionRepair.js';
 import {
   listMessages,
@@ -222,10 +223,11 @@ function isPublicPath(req) {
   if (p.startsWith('/api/telegram/webhook')) return true;
   if (p.startsWith('/api/calendar/')) return true;
   if (p === '/api/health') return true;
-  if (p.startsWith('/repair')) return true;
+  if (p.startsWith('/repair') || p === '/x-repair.html') return true;
   // Token-gated in handlers — must stay public so <img> captcha/frame loads
   // without relying on the cabinet session cookie (and so /repair.html works standalone).
   if (p.startsWith('/api/linkedin/repair/')) return true;
+  if (p === '/api/x/session/login/frame') return true;
   if (p === '/marketing' || p.startsWith('/marketing/')) return true;
   return false;
 }
@@ -1230,8 +1232,8 @@ app.post('/api/x/cookies', (req, res) => {
 app.post('/api/x/session/login', (req, res) => {
   try {
     if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
-    const { username, password } = req.body || {};
-    const result = startDashboardXLogin(username, password, req.tenant.workspaceId);
+    const { username } = req.body || {};
+    const result = startDashboardXLogin(username, req.tenant.workspaceId);
     res.json(result);
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
@@ -1242,7 +1244,8 @@ app.post('/api/x/session/login/cancel', (req, res) => {
   try {
     if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
     const result = forceStopXRepair('user_cancel');
-    res.json({ ok: true, ...result });
+    const resume = maybeResumeAgentAfterRepair();
+    res.json({ ok: true, ...result, resume });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
@@ -1251,14 +1254,27 @@ app.post('/api/x/session/login/cancel', (req, res) => {
 app.post('/api/x/session/input', (req, res) => {
   try {
     if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
-    const token = String(req.body?.token || '');
-    const type = String(req.body?.type || 'submitCode');
-    const text = String(req.body?.text || '');
-    const result = appendXRepairInput(token, { type, text });
+    const { token, ...event } = req.body || {};
+    const result = appendXRepairInput(String(token || ''), event);
     res.json(result);
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
+});
+
+app.get('/api/x/session/login/frame', (req, res) => {
+  const token = String(req.query.token || '');
+  const st = readXRepairState();
+  if (!token || !st?.token || st.token !== token) {
+    return res.status(403).send('forbidden');
+  }
+  const frame = xRepairFramePath();
+  if (!fs.existsSync(frame)) {
+    return res.status(404).send('no frame yet');
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('jpeg');
+  fs.createReadStream(frame).pipe(res);
 });
 
 app.get('/api/x/session/login/status', (req, res) => {
@@ -1270,11 +1286,13 @@ app.get('/api/x/session/login/status', (req, res) => {
       return res.status(403).json({ ok: false, error: 'Invalid X sign-in token' });
     }
     const workerAlive = xRepairContainerRunning();
+    const resume = workerAlive ? { resumed: false, reason: 'x_repair_running' } : maybeResumeAgentAfterRepair();
     res.json({
       ok: true,
       state: st,
       workerAlive,
       captured: !!st.authTokenCaptured,
+      resume,
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });

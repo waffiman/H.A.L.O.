@@ -585,7 +585,7 @@ Isolated from LinkedIn. Do not reuse `li_at` / `cookies.json` / `session_data/`.
 | Repair profile | `session_data_x_repair/` | Dashboard X Sign in |
 | Health | `x_session_status.json` | `{ ok, reason, needsCookieRepair }` |
 
-Dashboard: `/?page=x` — Sign in (`POST /api/x/session/login`) or EditThisCookie paste (`POST /api/x/cookies`). Worker: [`xSessionRepairWorker.js`](xSessionRepairWorker.js) / container `x-repair`. LI `markSessionDead` must not write these files.
+Dashboard: `/?page=x` — **preferred** Sign in is **email or username only** (`POST /api/x/session/login`). No password field. After Continue, X may ask for username (`Confirm your account`) then email a 6-digit code. Those steps run in a compact popup (username field + OTP). Live Chromium is a discreet footer link (`/x-repair.html?token=…`, frame `x_session_repair_frame.jpg`) — not the main UI. If X shows **Something went wrong, please try again**, the worker reloads `/i/flow/login` and replays email → username (up to 2 times). Password is an X alternative and is not submitted. Cookie paste (`POST /api/x/cookies`) stays the fallback. Worker: [`xSessionRepairWorker.js`](xSessionRepairWorker.js) / container `x-repair`. Fresh `session_data_x_repair/` every Sign in. Form stays visible when the session is Active (Sign in again). `maybeResumeAgentAfterRepair` waits while `x-repair` is up so LinkedIn Chromium does not overlap. LI `markSessionDead` must not write these files.
 
 ### Stage A / sync
 

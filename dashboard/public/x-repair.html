@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>X Chromium screenshot</title>
+  <style>
+    html, body { margin: 0; background: #0b0e14; color: #8b95a7; font: 13px/1.4 system-ui, sans-serif; }
+    p { margin: 10px 14px; }
+    img { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <p>Dev live view — refreshes while X Sign in is running.</p>
+  <img id="frame" alt="X Chromium" />
+  <script>
+    const token = new URLSearchParams(location.search).get('token') || '';
+    const img = document.getElementById('frame');
+    function tick() {
+      if (!token) return;
+      img.src = '/api/x/session/login/frame?token=' + encodeURIComponent(token) + '&r=' + Date.now();
+    }
+    tick();
+    setInterval(tick, 1500);
+  </script>
+</body>
+</html>

@@ -2175,6 +2175,20 @@ select {
 .li-captcha-modal.hidden {
   display: none !important;
 }
+.x-challenge-extra { margin-top: 8px; }
+.x-challenge-extra.hidden { display: none !important; }
+#x-challenge-fill-error { min-height: 1.1em; font-size: 0.78rem; }
+#x-challenge-body { white-space: pre-wrap; word-spacing: 0.12em; }
+.x-challenge-live-wrap {
+  margin: 18px 0 0;
+  text-align: right;
+}
+.x-challenge-live-link {
+  font-size: 0.72rem;
+  color: #6b7380;
+  text-decoration: none;
+}
+.x-challenge-live-link:hover { color: #9aa3b2; text-decoration: underline; }
 .li-captcha-modal-backdrop {
   position: absolute;
   inset: 0;

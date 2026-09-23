@@ -10,6 +10,7 @@ n8n-public.env
 **/x_session_status.json
 **/x_session_repair.json
 **/x_session_repair_input.jsonl
+**/x_session_repair_frame.jpg
 session_data_x/
 session_data_x_repair/
 halo-tenants/

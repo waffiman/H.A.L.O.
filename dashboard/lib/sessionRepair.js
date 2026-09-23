@@ -200,6 +200,7 @@ export function maybeResumeAgentAfterRepair(root = hostAppRoot()) {
   const plan = readResumePlan(root);
   if (!plan) return { resumed: false };
   if (repairContainerRunning(root)) return { resumed: false, reason: 'repair_running' };
+  if (namedContainerRunning('x-repair')) return { resumed: false, reason: 'x_repair_running' };
 
   const st = readRepairState(root);
   const status = st?.status || 'idle';
@@ -245,17 +246,20 @@ export function maybeResumeAgentAfterRepair(root = hostAppRoot()) {
 }
 
 /** True when linkedin-repair container is actually running (not just stale JSON state). */
-export function repairContainerRunning(root = hostAppRoot()) {
+function namedContainerRunning(name) {
   try {
-    const out = execFileSync(
-      'docker',
-      ['ps', '-q', '-f', 'name=^linkedin-repair$'],
-      { encoding: 'utf8', timeout: 15000 }
-    ).trim();
+    const out = execFileSync('docker', ['ps', '-q', '-f', `name=^${name}$`], {
+      encoding: 'utf8',
+      timeout: 15000,
+    }).trim();
     return !!out;
   } catch {
     return false;
   }
+}
+
+export function repairContainerRunning(root = hostAppRoot()) {
+  return namedContainerRunning('linkedin-repair');
 }
 
 export function readRepairState(root = appRoot()) {

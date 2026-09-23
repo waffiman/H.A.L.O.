@@ -23,6 +23,10 @@ export function xRepairInputPath(root = APP_ROOT) {
   return path.join(root, 'x_session_repair_input.jsonl');
 }
 
+export function xRepairFramePath(root = APP_ROOT) {
+  return path.join(root, 'x_session_repair_frame.jpg');
+}
+
 export function readXRepairState(root = APP_ROOT) {
   try {
     const p = xRepairStatePath(root);
@@ -91,11 +95,10 @@ function issueXRepairToken(reason = 'dashboard_login') {
   return token;
 }
 
-export function startDashboardXLogin(username, password, workspaceId = 'default') {
+export function startDashboardXLogin(username, workspaceId = 'default') {
   const user = String(username || '').trim();
-  const pass = String(password || '');
   const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
-  if (!user || !pass) throw new Error('Username and password are required');
+  if (!user) throw new Error('Email or username is required');
 
   stopXRepairWorker();
   const lock = readHostCycleLock();
@@ -110,11 +113,12 @@ export function startDashboardXLogin(username, password, workspaceId = 'default'
     status: 'awaiting_user',
     lastSignInError: null,
     error: null,
-    challengeKind: null,
+    challengeKind: 'generic',
     workspaceId: ws,
+    signInUsername: user,
   });
   const started = startXRepairWorkerSync(token, ws);
-  appendXRepairInput(token, { type: 'signin', username: user, password: pass });
+  appendXRepairInput(token, { type: 'signin', username: user });
   return {
     ok: true,
     token,
@@ -171,6 +175,13 @@ export function startXRepairWorkerSync(token, workspaceId = 'default') {
   const isDefault = ws === waffiWorkspaceId();
   if (!isDefault) ensureTenantRuntime(ws);
   const paths = tenantPaths(ws, root);
+  try {
+    if (fs.existsSync(paths.xSessionRepairData)) {
+      fs.rmSync(paths.xSessionRepairData, { recursive: true, force: true });
+    }
+  } catch (e) {
+    console.warn('[x-repair] wipe profile:', e.message || e);
+  }
   fs.mkdirSync(paths.xSessionRepairData, { recursive: true });
 
   const args = [
