@@ -1,7 +1,7 @@
 /**
  * Dashboard X Sign in — Playwright on x.com only.
- * Identifier (email/username) → optional extra username → email code / captcha.
- * Password is not used (X offers it as an alternative). Never writes LinkedIn cookies.
+ * Identifier (email/username) → password if X asks (username-first) → extra
+ * username → email code / captcha. Never writes LinkedIn cookies.
  */
 import fs from 'fs';
 import path from 'path';
@@ -100,6 +100,17 @@ async function classify(page) {
   if (/couldn.?t find your account|не удалось найти|account doesn.?t exist/i.test(t)) {
     return 'bad_credentials';
   }
+  const passVisibleEarly = await page
+    .locator('input[name="password"], input[type="password"], input[autocomplete="current-password"]')
+    .first()
+    .isVisible()
+    .catch(() => false);
+  if (
+    passVisibleEarly &&
+    /wrong password|incorrect password|неверный пароль|that password is incorrect/i.test(t)
+  ) {
+    return 'bad_password';
+  }
   if (/something went wrong/i.test(t) && /try again/i.test(t) && !/try again later/i.test(t)) {
     return 'try_again';
   }
@@ -130,7 +141,7 @@ async function classify(page) {
   if (/temporarily locked|try again later/i.test(t) && !textVisible && !passVisible) {
     return 'unusual';
   }
-  if (passVisible && !textVisible) return 'password_optional';
+  if (passVisible && !textVisible) return 'password';
   if (textVisible) {
     if (
       /confirm your account|information associated with your account|enter (the |your )?username|enter your (phone number or )?username|phone number or username to continue/i.test(
@@ -190,7 +201,7 @@ async function clickFirst(page, selectors) {
 
 async function continueState(page) {
   return page.evaluate(() => {
-    const labels = /^(continue|next|продолжить|далее)$/i;
+    const labels = /^(continue|next|log in|sign in|продолжить|далее|войти)$/i;
     const btn = [...document.querySelectorAll('button, [role="button"], div[role="button"]')].find((el) =>
       labels.test(String(el.innerText || '').replace(/\s+/g, ' ').trim())
     );
@@ -225,9 +236,13 @@ async function clickContinueOrNext(page, waitMs = 8000) {
   const named = [
     page.getByRole('button', { name: /^Continue$/i }),
     page.getByRole('button', { name: /^Next$/i }),
+    page.getByRole('button', { name: /^Log in$/i }),
+    page.getByRole('button', { name: /^Sign in$/i }),
     page.getByRole('button', { name: /^Продолжить$/i }),
     page.getByRole('button', { name: /^Далее$/i }),
+    page.getByRole('button', { name: /^Войти$/i }),
     page.locator('[data-testid="ocfEnterTextNextButton"]'),
+    page.locator('[data-testid="LoginForm_Login_Button"]'),
   ];
   for (const loc of named) {
     const btn = loc.first();
@@ -237,7 +252,7 @@ async function clickContinueOrNext(page, waitMs = 8000) {
     return true;
   }
   const clicked = await page.evaluate(() => {
-    const labels = /^(continue|next|продолжить|далее)$/i;
+    const labels = /^(continue|next|log in|sign in|продолжить|далее|войти)$/i;
     const btn = [...document.querySelectorAll('button, [role="button"], div[role="button"]')].find((el) =>
       labels.test(String(el.innerText || '').replace(/\s+/g, ' ').trim())
     );
@@ -268,6 +283,28 @@ async function applyIdentifier(page, identifier) {
   if (!clicked) throw new Error('Continue stayed disabled — submit the username again');
   await page.waitForTimeout(1800);
   console.log('X repair — identifier submitted');
+}
+
+async function applyPassword(page, password) {
+  writeState({ lastFillError: null, status: 'running' });
+  const ok = await typeInto(
+    page,
+    ['input[name="password"]', 'input[type="password"]', 'input[autocomplete="current-password"]'],
+    password
+  );
+  if (!ok) throw new Error('Could not find the X password field');
+  await page.keyboard.press('Tab').catch(() => {});
+  await page.waitForTimeout(400);
+  let clicked = await clickContinueOrNext(page);
+  if (!clicked) {
+    await page.keyboard.press('Enter');
+    console.log('X repair — pressed Enter after password');
+    await page.waitForTimeout(800);
+    clicked = await clickContinueOrNext(page);
+  }
+  if (!clicked) throw new Error('Continue stayed disabled — submit the password again');
+  await page.waitForTimeout(1800);
+  console.log('X repair — password submitted');
 }
 
 async function applyCode(page, code) {
@@ -332,11 +369,19 @@ function publishKind(kind, identifierSubmitted) {
     });
     return;
   }
-  if (kind === 'password_optional') {
+  if (kind === 'password') {
     writeState({
-      challengeKind: 'password_optional',
-      status: 'awaiting_code',
+      challengeKind: 'password',
+      status: 'awaiting_password',
       error: null,
+    });
+    return;
+  }
+  if (kind === 'bad_password') {
+    writeState({
+      challengeKind: 'password',
+      status: 'awaiting_password',
+      lastFillError: 'X rejected that password — try again.',
     });
     return;
   }
@@ -392,6 +437,7 @@ async function main() {
     let lastAdvanceAt = 0;
     let lastEmail = '';
     let lastExtraUsername = '';
+    let lastPassword = '';
     let tryAgainCount = 0;
     const deadline = Date.now() + 12 * 60 * 1000;
     while (Date.now() < deadline && !signed) {
@@ -410,6 +456,10 @@ async function main() {
             lastExtraUsername = ev.text;
             await applyIdentifier(page, ev.text);
             identifierSubmitted = true;
+            lastAdvanceAt = Date.now();
+          } else if (ev.type === 'submitPassword' && ev.text) {
+            lastPassword = ev.text;
+            await applyPassword(page, ev.text);
             lastAdvanceAt = Date.now();
           } else if (ev.type === 'submitCode' && ev.text) {
             await applyCode(page, ev.text);
@@ -450,11 +500,11 @@ async function main() {
         await captureFrame(page);
         break;
       } else if (kind === 'try_again') {
-        if (tryAgainCount >= 2) {
+        if (tryAgainCount >= 3) {
           writeState({
             status: 'error',
             challengeKind: 'try_again',
-            error: 'X said try again twice — press Sign in again in a minute.',
+            error: 'X said try again three times — press Sign in again in a minute.',
           });
           await captureFrame(page);
           break;
@@ -466,6 +516,11 @@ async function main() {
           status: 'running',
           lastFillError: 'X hiccup — reloading login and retrying…',
         });
+        const tryAgainBtn = page.getByRole('button', { name: /^Try again$/i }).first();
+        if (await tryAgainBtn.isVisible().catch(() => false)) {
+          await tryAgainBtn.click({ timeout: 4000 }).catch(() => {});
+          await page.waitForTimeout(1600);
+        }
         await page.goto('https://x.com/i/flow/login', { waitUntil: 'domcontentloaded', timeout: 90000 });
         await page.waitForTimeout(2200);
         identifierSubmitted = false;
@@ -475,9 +530,15 @@ async function main() {
           identifierSubmitted = true;
           lastAdvanceAt = Date.now();
         }
-        const waitExtra = Date.now() + 18000;
+        const waitExtra = Date.now() + 22000;
         while (Date.now() < waitExtra) {
           const k2 = await classify(page);
+          if (k2 === 'try_again') break;
+          if ((k2 === 'password' || k2 === 'bad_password') && lastPassword) {
+            await applyPassword(page, lastPassword);
+            lastAdvanceAt = Date.now();
+            continue;
+          }
           if (k2 === 'username_extra' && lastExtraUsername) {
             await applyIdentifier(page, lastExtraUsername);
             lastAdvanceAt = Date.now();

@@ -7,7 +7,7 @@ Company behind outreach copy remains WAFFi.
 
 > **Agent knowledge base.** Read this first after any idle period.  
 > Keep this file updated whenever behavior, env flags, dashboard UI, or deploy paths change.  
-> Last updated: 2026-09-22 (X channel phase 1 — isolated session + cookie/Sign-in; no outreach yet).
+> Last updated: 2026-09-23 (public HTTP landing on :80; X Sign in username → password → email code).
 
 ---
 
@@ -540,10 +540,12 @@ Rate limits: login 10 / 15 min / IP, register 5 / hr / IP.
 
 Auth: Basic `DASHBOARD_USER` / `DASHBOARD_PASSWORD`.
 
-**Access:** dashboard binds `127.0.0.1:3080` on the VPS (not public by default).
+**Access:** dashboard binds `127.0.0.1:3080` (loopback) **and** public `80:3080`.
 
-- Always-on (preferred): Cloudflare quick tunnel container `dash-cf-tunnel` → public `https://….trycloudflare.com` (URL changes if that container is recreated).
-- Local SSH: run [`scripts/keep-dashboard-tunnel.py`](scripts/keep-dashboard-tunnel.py) (auto-reconnect) or [`scripts/ssh-tunnel-dashboard.py`](scripts/ssh-tunnel-dashboard.py), then open **http://127.0.0.1:3080/**.
+- **Landing (share this):** `http://31.70.101.111/landing.html` — works from any browser/device that can reach a normal HTTP site. UFW already allows 80.
+- **Do not share `*.trycloudflare.com` as the marketing URL.** `dash-cf-tunnel` is a Cloudflare *quick* tunnel (`cloudflared tunnel --url http://127.0.0.1:3080`). Quick hostnames are blocked by OpenDNS, EasyList, many AV/EDR products, and some ISP DNS (typical Ukraine/corporate “не удаётся получить доступ”). The hostname also changes if that container is recreated.
+- `halo.waffiweb.com` is **not** in DNS (as of 2026-09-23). `waffiweb.com` points at IONOS web hosting `217.160.250.66`, not this VPS. To use the branded hostname: add an A record `halo` → `31.70.101.111`, then add HTTPS (named Cloudflare tunnel or Caddy).
+- HTTPS dashboard (operator): current `https://….trycloudflare.com` still works from networks that do not filter it. Local SSH: [`scripts/keep-dashboard-tunnel.py`](scripts/keep-dashboard-tunnel.py) → **http://127.0.0.1:3080/**.
 
 ### Notifications
 
@@ -585,7 +587,7 @@ Isolated from LinkedIn. Do not reuse `li_at` / `cookies.json` / `session_data/`.
 | Repair profile | `session_data_x_repair/` | Dashboard X Sign in |
 | Health | `x_session_status.json` | `{ ok, reason, needsCookieRepair }` |
 
-Dashboard: `/?page=x` — **preferred** Sign in is **email or username only** (`POST /api/x/session/login`). No password field. After Continue, X may ask for username (`Confirm your account`) then email a 6-digit code. Those steps run in a compact popup (username field + OTP). Live Chromium is a discreet footer link (`/x-repair.html?token=…`, frame `x_session_repair_frame.jpg`) — not the main UI. If X shows **Something went wrong, please try again**, the worker reloads `/i/flow/login` and replays email → username (up to 2 times). Password is an X alternative and is not submitted. Cookie paste (`POST /api/x/cookies`) stays the fallback. Worker: [`xSessionRepairWorker.js`](xSessionRepairWorker.js) / container `x-repair`. Fresh `session_data_x_repair/` every Sign in. Form stays visible when the session is Active (Sign in again). `maybeResumeAgentAfterRepair` waits while `x-repair` is up so LinkedIn Chromium does not overlap. LI `markSessionDead` must not write these files.
+Dashboard: `/?page=x` — first field is **email or username** (`POST /api/x/session/login`). Popup steps match X: extra username (`Confirm your account`), **password** when the identifier was a username (`submitPassword`), then 6-digit email code. Live Chromium is a discreet footer link (`/x-repair.html?token=…`). If X shows **Something went wrong, please try again**, the worker clicks Try again when present, reloads `/i/flow/login`, and replays identifier → password → extra username (up to 3 times). Cookie paste (`POST /api/x/cookies`) stays the fallback. Worker: [`xSessionRepairWorker.js`](xSessionRepairWorker.js) / container `x-repair`. Fresh `session_data_x_repair/` every Sign in. `maybeResumeAgentAfterRepair` waits while `x-repair` is up. LI `markSessionDead` must not write these files.
 
 ### Stage A / sync
 

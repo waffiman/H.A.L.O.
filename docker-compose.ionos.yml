@@ -41,6 +41,8 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:3080:3080"
+      # Public HTTP landing (trycloudflare is blocked by many ISPs / adblockers).
+      - "80:3080"
     env_file:
       - .env
     environment:

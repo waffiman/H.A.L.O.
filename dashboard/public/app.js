@@ -5124,19 +5124,23 @@ function bindXCookiePaste() {
 const X_CHALLENGE_COPY = {
   generic: {
     title: 'Signing in to X…',
-    body: 'Keep this popup open. Next X will send a 6-digit email code, or ask for your username first.',
+    body: 'Keep this popup open. If you entered a username, X will ask for the password, then email a 6-digit code.',
   },
   username: {
     title: 'X asks for your username',
     body: 'Enter the X username (not the email), then Next. After that X usually emails a 6-digit code.',
+  },
+  password: {
+    title: 'X password',
+    body: 'Enter the account password. Next X emails a 6-digit code that you will type here.',
   },
   pin: {
     title: 'Email code needed',
     body: 'X emailed a 6-digit code. Enter it below.',
   },
   password_optional: {
-    title: 'Email code needed',
-    body: 'X may also offer a password — ignore it. Enter the 6-digit email code, or tap the code field on the screenshot.',
+    title: 'X password',
+    body: 'Enter the account password. Next X emails a 6-digit code that you will type here.',
   },
   captcha: {
     title: 'Security check required',
@@ -5152,7 +5156,7 @@ let xActiveRepairToken = '';
 
 function ensureXChallengeModal() {
   let modal = document.getElementById('x-challenge-modal');
-  if (modal && modal.dataset.haloXUi !== 'v2') {
+  if (modal && modal.dataset.haloXUi !== 'v3') {
     modal.remove();
     modal = null;
   }
@@ -5160,7 +5164,7 @@ function ensureXChallengeModal() {
     modal = document.createElement('div');
     modal.id = 'x-challenge-modal';
     modal.className = 'li-captcha-modal hidden';
-    modal.dataset.haloXUi = 'v2';
+    modal.dataset.haloXUi = 'v3';
     modal.setAttribute('aria-hidden', 'true');
     modal.innerHTML = `
       <div class="li-captcha-modal-backdrop" data-x-challenge-close></div>
@@ -5182,6 +5186,17 @@ function ensureXChallengeModal() {
           </label>
           <div class="row section-actions">
             <button type="button" class="btn primary" id="x-modal-submit-username">
+              <span class="btn-spinner" aria-hidden="true"></span>
+              <span class="btn-label">Next</span>
+            </button>
+          </div>
+        </div>
+        <div class="x-challenge-extra hidden" id="x-challenge-password-block">
+          <label class="field" for="x-modal-password">X password
+            <input id="x-modal-password" type="password" autocomplete="current-password" />
+          </label>
+          <div class="row section-actions">
+            <button type="button" class="btn primary" id="x-modal-submit-password">
               <span class="btn-spinner" aria-hidden="true"></span>
               <span class="btn-label">Next</span>
             </button>
@@ -5302,6 +5317,39 @@ function bindXChallengeModalControls() {
       }
     });
   }
+  const passBtn = document.getElementById('x-modal-submit-password');
+  const passEl = document.getElementById('x-modal-password');
+  const sendPassword = async () => {
+    const text = String(passEl?.value || '');
+    if (!text || !xActiveRepairToken) return;
+    if (passBtn) {
+      passBtn.disabled = true;
+      passBtn.classList.add('is-loading');
+    }
+    try {
+      await api('/api/x/session/input', {
+        method: 'POST',
+        body: JSON.stringify({ token: xActiveRepairToken, type: 'submitPassword', text }),
+      });
+      if (passEl) passEl.value = '';
+    } catch (err) {
+      toast(err.message, true);
+    } finally {
+      if (passBtn) {
+        passBtn.disabled = false;
+        passBtn.classList.remove('is-loading');
+      }
+    }
+  };
+  if (passBtn) passBtn.onclick = () => sendPassword();
+  if (passEl) {
+    passEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendPassword();
+      }
+    });
+  }
   const otpSlots = document.getElementById('x-modal-otp-slots');
   const codeBtn = document.getElementById('x-modal-submit-code');
   if (otpSlots && !otpSlots.dataset.bound) {
@@ -5377,11 +5425,18 @@ function updateXChallengeModal(state) {
   if (title) title.textContent = copy.title;
   if (body) body.textContent = copy.body;
   const userBlock = document.getElementById('x-challenge-username-block');
+  const passBlock = document.getElementById('x-challenge-password-block');
   const pinBlock = document.getElementById('x-challenge-pin-block');
-  const showPin = kind === 'pin' || kind === 'password_optional' || state.status === 'awaiting_code';
-  const showUser = !showPin;
+  const showPassword = kind === 'password' || kind === 'password_optional' || state.status === 'awaiting_password';
+  const showPin = !showPassword && (kind === 'pin' || state.status === 'awaiting_code');
+  const showUser = !showPin && !showPassword;
   if (userBlock) userBlock.classList.toggle('hidden', !showUser);
+  if (passBlock) passBlock.classList.toggle('hidden', !showPassword);
   if (pinBlock) pinBlock.classList.toggle('hidden', !showPin);
+  if (showPassword) {
+    const passEl = document.getElementById('x-modal-password');
+    if (passEl && document.activeElement !== passEl) setTimeout(() => passEl.focus(), 200);
+  }
   const err = document.getElementById('x-challenge-fill-error');
   if (err) err.textContent = state.lastFillError || state.error || '';
   const live = document.getElementById('x-challenge-live-link');
