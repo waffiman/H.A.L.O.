@@ -5150,13 +5150,25 @@ const X_CHALLENGE_COPY = {
     title: 'X asks for extra identity verification',
     body: 'Finish that once in your own browser, close the X tab, then Sign in again (or paste cookies).',
   },
+  unusual: {
+    title: 'X blocked this login',
+    body: 'Finish any check in your own browser, close the X tab, wait a bit, then Sign in once.',
+  },
+  rate_limited: {
+    title: 'X limited logins from the server',
+    body: 'This is the VPS datacenter IP, not your laptop. Wait 15–30 minutes, stay logged out of that X account in your own browser, then Sign in once.',
+  },
+  try_again: {
+    title: 'X asked to try again',
+    body: 'The remote Chromium is retrying. If this repeats, wait a few minutes before Sign in again.',
+  },
 };
 
 let xActiveRepairToken = '';
 
 function ensureXChallengeModal() {
   let modal = document.getElementById('x-challenge-modal');
-  if (modal && modal.dataset.haloXUi !== 'v3') {
+  if (modal && modal.dataset.haloXUi !== 'v4') {
     modal.remove();
     modal = null;
   }
@@ -5164,7 +5176,7 @@ function ensureXChallengeModal() {
     modal = document.createElement('div');
     modal.id = 'x-challenge-modal';
     modal.className = 'li-captcha-modal hidden';
-    modal.dataset.haloXUi = 'v3';
+    modal.dataset.haloXUi = 'v4';
     modal.setAttribute('aria-hidden', 'true');
     modal.innerHTML = `
       <div class="li-captcha-modal-backdrop" data-x-challenge-close></div>
@@ -5427,9 +5439,16 @@ function updateXChallengeModal(state) {
   const userBlock = document.getElementById('x-challenge-username-block');
   const passBlock = document.getElementById('x-challenge-password-block');
   const pinBlock = document.getElementById('x-challenge-pin-block');
-  const showPassword = kind === 'password' || kind === 'password_optional' || state.status === 'awaiting_password';
-  const showPin = !showPassword && (kind === 'pin' || state.status === 'awaiting_code');
-  const showUser = !showPin && !showPassword;
+  const blocked =
+    state.status === 'error' ||
+    kind === 'unusual' ||
+    kind === 'rate_limited' ||
+    kind === 'try_again' ||
+    kind === 'identity_document';
+  const showPassword =
+    !blocked && (kind === 'password' || kind === 'password_optional' || state.status === 'awaiting_password');
+  const showPin = !blocked && !showPassword && (kind === 'pin' || state.status === 'awaiting_code');
+  const showUser = !blocked && !showPassword && !showPin && kind === 'username';
   if (userBlock) userBlock.classList.toggle('hidden', !showUser);
   if (passBlock) passBlock.classList.toggle('hidden', !showPassword);
   if (pinBlock) pinBlock.classList.toggle('hidden', !showPin);

@@ -111,6 +111,13 @@ async function classify(page) {
   ) {
     return 'bad_password';
   }
+  if (
+    /temporarily limited your logins|limited your logins|temporarily (limited|locked)|try again later/i.test(
+      t
+    )
+  ) {
+    return 'rate_limited';
+  }
   if (/something went wrong/i.test(t) && /try again/i.test(t) && !/try again later/i.test(t)) {
     return 'try_again';
   }
@@ -138,7 +145,7 @@ async function classify(page) {
     .first()
     .isVisible()
     .catch(() => false);
-  if (/temporarily locked|try again later/i.test(t) && !textVisible && !passVisible) {
+  if (/temporarily locked|unusual login|we suspect/i.test(t) && !textVisible && !passVisible) {
     return 'unusual';
   }
   if (passVisible && !textVisible) return 'password';
@@ -426,6 +433,9 @@ async function main() {
     args: ['--disable-blink-features=AutomationControlled'],
   });
   const page = browser.pages()[0] || (await browser.newPage());
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
 
   try {
     await page.goto('https://x.com/i/flow/login', { waitUntil: 'domcontentloaded', timeout: 90000 });
@@ -533,7 +543,7 @@ async function main() {
         const waitExtra = Date.now() + 22000;
         while (Date.now() < waitExtra) {
           const k2 = await classify(page);
-          if (k2 === 'try_again') break;
+          if (k2 === 'try_again' || k2 === 'rate_limited' || k2 === 'unusual') break;
           if ((k2 === 'password' || k2 === 'bad_password') && lastPassword) {
             await applyPassword(page, lastPassword);
             lastAdvanceAt = Date.now();
@@ -549,6 +559,15 @@ async function main() {
         }
         await captureFrame(page);
         continue;
+      } else if (kind === 'rate_limited') {
+        writeState({
+          challengeKind: 'rate_limited',
+          status: 'error',
+          error:
+            'X temporarily limited logins from this server IP. Wait 15–30 minutes, stay logged out of that account in your own browser, then press Sign in once.',
+        });
+        await captureFrame(page);
+        break;
       } else if (kind === 'unusual') {
         writeState({
           challengeKind: 'unusual',
@@ -559,11 +578,7 @@ async function main() {
         await captureFrame(page);
         break;
       } else {
-        if (
-          identifierSubmitted &&
-          (kind === 'username' || kind === 'username_extra') &&
-          Date.now() - lastAdvanceAt > 4000
-        ) {
+        if (identifierSubmitted && kind === 'username_extra' && Date.now() - lastAdvanceAt > 4000) {
           const again = await clickContinueOrNext(page, 400);
           console.log('X repair — retry Continue/Next', again, kind, page.url());
           if (again) lastAdvanceAt = Date.now();

@@ -77,7 +77,9 @@ nav.scrolled{background:rgba(12,15,18,.93);box-shadow:0 4px 30px rgba(0,0,0,.4)}
 .hero-badge .pulse{width:6px;height:6px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:bk 2s infinite}
 @keyframes bk{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes fU{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-h1{font-size:clamp(2.2rem,5.8vw,4.2rem);font-weight:900;line-height:1.05;letter-spacing:-.04em;margin-bottom:1.2rem;animation:fU .9s ease-out .2s both}
+h1{display:flex;flex-direction:column;align-items:center;font-size:clamp(2.2rem,5.8vw,4.2rem);font-weight:900;line-height:1.05;letter-spacing:-.04em;margin-bottom:1.2rem;animation:fU .9s ease-out .2s both}
+.hero-h1-a{display:flex;align-items:center;justify-content:center;gap:.18em;min-height:clamp(2rem,5vw,3.8rem)}
+.hero-h1-b{display:flex;justify-content:center;align-items:baseline;height:1.2em;width:100%;white-space:nowrap;overflow:hidden}
 .hero-reel{display:inline-block;vertical-align:middle;width:clamp(2rem,5vw,3.8rem);height:clamp(2rem,5vw,3.8rem);overflow:hidden;position:relative}
 .hero-reel-track{display:flex;flex-direction:column;will-change:transform;animation:heroReel 5.4s cubic-bezier(.16,1,.3,1) infinite}
 .hero-reel-track svg{display:block;width:clamp(2rem,5vw,3.8rem);height:clamp(2rem,5vw,3.8rem);flex:0 0 clamp(2rem,5vw,3.8rem)}
@@ -89,8 +91,8 @@ h1{font-size:clamp(2.2rem,5.8vw,4.2rem);font-weight:900;line-height:1.05;letter-
 @media (prefers-reduced-motion:reduce){.hero-reel-track{animation:none}}
 .gr{background:linear-gradient(135deg,var(--g) 0%,#34d399 45%,var(--g) 90%);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:grS 4s ease-in-out infinite}
 @keyframes grS{0%,100%{background-position:0% center}50%{background-position:100% center}}
-.hero-type{display:inline-flex;vertical-align:baseline;align-items:baseline;max-width:100%}
-.hero-type-field{display:inline-flex;align-items:baseline;gap:2px;min-height:1.05em;padding:0;border:0;background:none;box-shadow:none;box-sizing:content-box}
+.hero-type{display:inline-flex;vertical-align:baseline;align-items:baseline}
+.hero-type-field{display:inline-flex;align-items:baseline;gap:2px;padding:0;border:0;background:none;box-shadow:none}
 .hero-type-text{white-space:nowrap;overflow:hidden}
 .hero-type-caret{
   display:inline-block;width:.09em;height:.78em;margin-left:.04em;flex:0 0 auto;
@@ -358,7 +360,7 @@ footer{padding:1.8rem 1.5rem;border-top:1px solid var(--ls);display:flex;align-i
   <div class="hero-inner">
     <div class="hero-logo"><svg viewBox="0 0 64 64" fill="none"><defs><linearGradient id="hr2" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#4ade80"/><stop offset="1" stop-color="#16a34a"/></linearGradient></defs><circle cx="32" cy="32" r="21" fill="#090b0e"/><circle cx="32" cy="32" r="27" stroke="url(#hr2)" stroke-width="2.2" opacity=".35"/><circle cx="32" cy="32" r="21" stroke="url(#hr2)" stroke-width="2.6"/><circle cx="32" cy="11" r="2.2" fill="#4ade80"/><g stroke="#4ade80" stroke-width="1.7" stroke-linecap="round" fill="none"><path d="M14.5 24.5c-3.2 3.4-3.8 8.2-2.2 12.2"><animate attributeName="opacity" values=".25;.85;.25" dur="1.35s" repeatCount="indefinite"/></path><path d="M18.2 26.2c-2.1 2.4-2.5 5.8-1.4 8.6"><animate attributeName="opacity" values=".35;1;.35" dur="1.35s" begin=".12s" repeatCount="indefinite"/></path><path d="M49.5 24.5c3.2 3.4 3.8 8.2 2.2 12.2"><animate attributeName="opacity" values=".25;.85;.25" dur="1.35s" begin=".08s" repeatCount="indefinite"/></path><path d="M45.8 26.2c2.1 2.4 2.5 5.8 1.4 8.6"><animate attributeName="opacity" values=".35;1;.35" dur="1.35s" begin=".18s" repeatCount="indefinite"/></path></g><path fill="#e8eaed" d="M24.8 33.2c-1 0-1.8.9-1.8 2.1v3.8c0 6.6 4.4 11.4 11.8 11.4 6.6 0 10.7-4.3 10.7-10.4V25.2c0-1.3-1-2.3-2.2-2.3s-2.2 1-2.2 2.3v9.2h-1.4V21.4c0-1.3-1-2.4-2.3-2.4s-2.2 1.1-2.2 2.4v13.2h-1.5V20.2c0-1.3-1-2.4-2.3-2.4s-2.3 1.1-2.3 2.4v15.2h-1.4v-7.6c0-1.2-1-2.1-2.2-2.1s-2.1.9-2.1 2.1v6.2h-.6z"><animateTransform attributeName="transform" type="rotate" values="-24 34 44;12 34 44;-24 34 44" dur="1.35s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .2 1;.4 0 .2 1"/></path></svg></div>
     <div class="hero-badge"><span class="pulse"></span> Headless Automated Lead Operator</div>
-    <h1>Your <span class="hero-reel" aria-hidden="true"><span class="hero-reel-track"><svg viewBox="0 0 24 24"><path fill="#0a66c2" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><svg viewBox="0 0 24 24"><path fill="#e8eaed" d="M18.9 2H22l-6.8 7.8L23 22h-6.5l-5.1-6.7L5.7 22H2.6l7.3-8.4L1 2h6.7l4.6 6.1L18.9 2zm-1.1 18h1.8L7.3 3.9H5.4L17.8 20z"/></svg><svg viewBox="0 0 24 24"><path fill="#0a66c2" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></span></span> sales team<br>that <span class="hero-type" role="text" aria-label="never sleeps"><span class="hero-type-field"><span class="hero-type-text gr" id="hero-type-text">never sleeps</span><span class="hero-type-caret" aria-hidden="true"></span></span></span></h1>
+    <h1><span class="hero-h1-a">Your <span class="hero-reel" aria-hidden="true"><span class="hero-reel-track"><svg viewBox="0 0 24 24"><path fill="#0a66c2" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><svg viewBox="0 0 24 24"><path fill="#e8eaed" d="M18.9 2H22l-6.8 7.8L23 22h-6.5l-5.1-6.7L5.7 22H2.6l7.3-8.4L1 2h6.7l4.6 6.1L18.9 2zm-1.1 18h1.8L7.3 3.9H5.4L17.8 20z"/></svg><svg viewBox="0 0 24 24"><path fill="#0a66c2" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></span></span> sales team</span><span class="hero-h1-b">that <span class="hero-type" role="text" aria-label="never sleeps"><span class="hero-type-field"><span class="hero-type-text gr" id="hero-type-text">never sleeps</span><span class="hero-type-caret" aria-hidden="true"></span></span></span></span></h1>
     <p class="hero-sub">Autonomous AI agent that finds buyers, starts conversations, and books calls — fully on autopilot.</p>
     <div class="hero-btns">
       <a href="#signup" class="btn-g">Start Free Trial →</a>
@@ -644,7 +646,6 @@ footer{padding:1.8rem 1.5rem;border-top:1px solid var(--ls);display:flex;align-i
 (()=>{
   const text=document.getElementById('hero-type-text');
   const wrap=document.querySelector('.hero-type');
-  const field=document.querySelector('.hero-type-field');
   if(!text) return;
   const phrases=[
     'never sleeps',
@@ -659,24 +660,6 @@ footer{padding:1.8rem 1.5rem;border-top:1px solid var(--ls);display:flex;align-i
     'runs on autopilot',
     'closes the loop'
   ];
-  const lockSize=()=>{
-    if(!field) return;
-    const probe=text.cloneNode(true);
-    probe.removeAttribute('id');
-    probe.style.cssText='position:absolute;left:-9999px;visibility:hidden;white-space:nowrap;pointer-events:none';
-    field.appendChild(probe);
-    let maxW=0,maxH=0;
-    for(const p of phrases){
-      probe.textContent=p;
-      maxW=Math.max(maxW,probe.offsetWidth);
-      maxH=Math.max(maxH,probe.offsetHeight);
-    }
-    probe.remove();
-    field.style.width=maxW+'px';
-    field.style.minHeight=maxH+'px';
-  };
-  lockSize();
-  addEventListener('resize',lockSize);
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let i=0;
