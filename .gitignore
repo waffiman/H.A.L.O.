@@ -7,6 +7,7 @@ n8n-public.env
 **/cookies.json
 **/cookies*.json
 **/x_cookies.json
+**/x_storage_state.json
 **/x_session_status.json
 **/x_session_repair.json
 **/x_session_repair_input.jsonl

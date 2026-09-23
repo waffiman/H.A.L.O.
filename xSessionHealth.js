@@ -14,6 +14,10 @@ export function xCookiesFile(root = dataRoot()) {
   return path.join(root, 'x_cookies.json');
 }
 
+export function xStorageStateFile(root = dataRoot()) {
+  return path.join(root, 'x_storage_state.json');
+}
+
 export function readXSessionStatus(filePath = xSessionStatusFile()) {
   try {
     if (!fs.existsSync(filePath)) return null;

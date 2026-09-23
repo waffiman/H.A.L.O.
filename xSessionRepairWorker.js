@@ -8,7 +8,7 @@ import path from 'path';
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { dataRoot } from './dataRoot.js';
-import { markXSessionOk, xCookiesFile, xSessionStatusFile } from './xSessionHealth.js';
+import { markXSessionOk, xCookiesFile, xSessionStatusFile, xStorageStateFile } from './xSessionHealth.js';
 
 chromium.use(StealthPlugin());
 
@@ -19,15 +19,18 @@ const INPUT_FILE = path.join(ROOT, 'x_session_repair_input.jsonl');
 const FRAME_PATH = path.join(ROOT, 'x_session_repair_frame.jpg');
 const PROFILE = path.join(ROOT, 'session_data_x_repair');
 const JAR = xCookiesFile(ROOT);
+const STORAGE = xStorageStateFile(ROOT);
 const VP = { width: 1280, height: 800 };
-// Match Playwright 1.41 Chromium on this Linux VPS — do not claim Windows
-// (WebGL/OS mismatch is a stronger bot signal than a Linux desktop UA).
-const X_UA =
-  process.env.X_USER_AGENT ||
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+// Default: Playwright/Chromium Linux UA. Override only if it still matches Linux.
+const X_UA = String(process.env.X_USER_AGENT || '').trim();
 const FRESH = String(process.env.X_REPAIR_FRESH || '').trim() === '1';
+const SKIP_WARMUP = String(process.env.X_REPAIR_SKIP_WARMUP || '').trim() === '1';
 const HEADLESS =
   String(process.env.X_REPAIR_HEADLESS || '').trim() === '1' || !process.env.DISPLAY;
+
+function humanPause(minMs, maxMs) {
+  return minMs + Math.floor(Math.random() * Math.max(1, maxMs - minMs));
+}
 
 function readState() {
   try {
@@ -88,6 +91,7 @@ async function persistXCookies(context) {
   const auth = xOnly.find((c) => c.name === 'auth_token' && c.value);
   if (!auth) return false;
   fs.writeFileSync(JAR, JSON.stringify(xOnly.map(toPlaywrightCookie).filter(Boolean), null, 2));
+  await context.storageState({ path: STORAGE }).catch(() => {});
   markXSessionOk(
     { source: 'x_session_repair', cookieCount: xOnly.length },
     { statusFile: xSessionStatusFile(ROOT) }
@@ -193,7 +197,7 @@ async function typeInto(page, selectors, value) {
   await loc.press('Backspace').catch(() => {});
   // Real key events — X's React ignores fill() and stays with a disabled Continue.
   if (typeof loc.pressSequentially === 'function') {
-    await loc.pressSequentially(String(value), { delay: 45 });
+    await loc.pressSequentially(String(value), { delay: 80 });
   } else {
     await loc.type(String(value), { delay: 45 });
   }
@@ -290,7 +294,7 @@ async function applyIdentifier(page, identifier) {
   );
   if (!ok) throw new Error('Could not find the X email / username field');
   await page.keyboard.press('Tab').catch(() => {});
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(humanPause(3500, 8000));
   let clicked = await clickContinueOrNext(page);
   if (!clicked) {
     await page.keyboard.press('Enter');
@@ -299,7 +303,7 @@ async function applyIdentifier(page, identifier) {
     clicked = await clickContinueOrNext(page);
   }
   if (!clicked) throw new Error('Continue stayed disabled — submit the username again');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(humanPause(1800, 3200));
   console.log('X repair — identifier submitted');
 }
 
@@ -312,7 +316,7 @@ async function applyPassword(page, password) {
   );
   if (!ok) throw new Error('Could not find the X password field');
   await page.keyboard.press('Tab').catch(() => {});
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(humanPause(3000, 7000));
   let clicked = await clickContinueOrNext(page);
   if (!clicked) {
     await page.keyboard.press('Enter');
@@ -436,13 +440,12 @@ async function main() {
   if (FRESH) wipeDir(PROFILE);
   else fs.mkdirSync(PROFILE, { recursive: true });
 
-  const browser = await chromium.launchPersistentContext(PROFILE, {
+  const launchOpts = {
     headless: HEADLESS,
     viewport: VP,
     locale: 'en-US',
     timezoneId: 'Europe/Berlin',
     colorScheme: 'light',
-    userAgent: X_UA,
     extraHTTPHeaders: {
       'Accept-Language': 'en-US,en;q=0.9',
     },
@@ -454,7 +457,9 @@ async function main() {
       '--password-store=basic',
       `--window-size=${VP.width},${VP.height}`,
     ],
-  });
+  };
+  if (X_UA) launchOpts.userAgent = X_UA;
+  const browser = await chromium.launchPersistentContext(PROFILE, launchOpts);
   const page = browser.pages()[0] || (await browser.newPage());
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -466,8 +471,18 @@ async function main() {
       console.log('X repair — already signed in from reused profile');
       return;
     }
+    if (!SKIP_WARMUP) {
+      writeState({ lastFillError: 'Warming up the browser…', status: 'running' });
+      for (const url of ['https://www.google.com/', 'https://www.wikipedia.org/']) {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch((e) => {
+          console.log('X repair — warmup skip', url, e.message);
+        });
+        await page.mouse.move(180 + Math.random() * 500, 160 + Math.random() * 280).catch(() => {});
+        await page.waitForTimeout(humanPause(2200, 4200));
+      }
+    }
     await page.goto('https://x.com/i/flow/login', { waitUntil: 'domcontentloaded', timeout: 90000 });
-    await page.waitForTimeout(1800);
+    await page.waitForTimeout(humanPause(1600, 2800));
     await captureFrame(page);
 
     let signed = false;
@@ -538,7 +553,7 @@ async function main() {
         await captureFrame(page);
         break;
       } else if (kind === 'try_again') {
-        if (tryAgainCount >= 3) {
+        if (tryAgainCount >= 1) {
           writeState({
             status: 'error',
             challengeKind: 'try_again',
