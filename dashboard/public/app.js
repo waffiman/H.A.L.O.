@@ -5180,7 +5180,7 @@ let xActiveRepairToken = '';
 
 function ensureXChallengeModal() {
   let modal = document.getElementById('x-challenge-modal');
-  if (modal && modal.dataset.haloXUi !== 'v5') {
+  if (modal && modal.dataset.haloXUi !== 'v6') {
     modal.remove();
     modal = null;
   }
@@ -5188,7 +5188,7 @@ function ensureXChallengeModal() {
     modal = document.createElement('div');
     modal.id = 'x-challenge-modal';
     modal.className = 'li-captcha-modal hidden';
-    modal.dataset.haloXUi = 'v5';
+    modal.dataset.haloXUi = 'v6';
     modal.setAttribute('aria-hidden', 'true');
     modal.innerHTML = `
       <div class="li-captcha-modal-backdrop" data-x-challenge-close></div>
@@ -5461,7 +5461,11 @@ function updateXChallengeModal(state) {
   const showPassword =
     !blocked && (kind === 'password' || kind === 'password_optional' || state.status === 'awaiting_password');
   const showPin = !blocked && !showPassword && (kind === 'pin' || state.status === 'awaiting_code');
-  const showUser = !blocked && !showPassword && !showPin && kind === 'username';
+  const showUser = !blocked && !showPassword && !showPin;
+  if (showUser && (kind === 'username' || state.status === 'awaiting_username')) {
+    if (title) title.textContent = X_CHALLENGE_COPY.username.title;
+    if (body) body.textContent = X_CHALLENGE_COPY.username.body;
+  }
   if (userBlock) userBlock.classList.toggle('hidden', !showUser);
   if (passBlock) passBlock.classList.toggle('hidden', !showPassword);
   if (pinBlock) pinBlock.classList.toggle('hidden', !showPin);

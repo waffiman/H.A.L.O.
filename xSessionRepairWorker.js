@@ -175,6 +175,13 @@ async function classify(page) {
   ) {
     return 'bad_password';
   }
+  if (
+    /confirm your account|information associated with your account|enter (the |your )?username|enter your (phone number or )?username|phone number or username to continue/i.test(
+      t
+    )
+  ) {
+    return 'username_extra';
+  }
   if (/\/i\/jf\/onboarding|knowledge_check|\/i\/flow\/consent/i.test(url)) {
     if (/temporarily limited your logins|we've temporarily limited/i.test(t)) return 'rate_limited';
     return 'onboarding';
@@ -641,6 +648,7 @@ async function main() {
     await dismissXCookieBanner(page);
     await page.waitForSelector(IDENT_SELS.join(', '), { timeout: 20000 }).catch(() => {});
     await captureFrame(page);
+    writeState({ lastFillError: null, status: 'running' });
 
     let signed = false;
     let identifierSubmitted = false;
