@@ -206,10 +206,9 @@ export function startXRepairWorkerSync(token, workspaceId = 'default') {
     '-w',
     '/app',
     'cold-outreach-agent-linkedin-agent',
-    'xvfb-run',
-    '-a',
-    'node',
-    'xSessionRepairWorker.js'
+    'sh',
+    '-c',
+    'Xvfb :99 -ac -screen 0 1280x1024x24 >/tmp/xvfb.log 2>&1 & sleep 1; export DISPLAY=:99; exec node xSessionRepairWorker.js',
   );
 
   try {

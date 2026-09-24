@@ -49,7 +49,7 @@ function isConnectActionLabel(raw) {
   const t = normalizeActionLabel(raw);
   if (!t || t.includes('connections') || t.includes('pending') || t.includes('withdraw')) return false;
   // EN
-  if (t === 'connect' || t === '+ connect' || /^\+?\s*connect$/.test(t)) return true;
+  if (t === 'connect' || t === '+ connect' || /^\+?\s*connect(\s+\S.*)?$/.test(t)) return true;
   if (t.startsWith('invite ') && t.includes('to connect')) return true;
   // UA / RU / PL (Dmytro-class cabinets often keep native LinkedIn UI)
   if (
@@ -204,7 +204,9 @@ async function navigateMobilePeopleSearch(page, keywords) {
     .locator(
       'button:has-text("People"), a:has-text("People"), [role="tab"]:has-text("People"), li:has-text("People") button, ' +
         'button:has-text("Люди"), a:has-text("Люди"), [role="tab"]:has-text("Люди"), ' +
-        'button:has-text("Osoby"), a:has-text("Osoby"), [role="tab"]:has-text("Osoby")'
+        'button:has-text("Osoby"), a:has-text("Osoby"), [role="tab"]:has-text("Osoby"), ' +
+        'button:has-text("Personen"), a:has-text("Personen"), [role="tab"]:has-text("Personen"), ' +
+        'button:has-text("Personas"), a:has-text("Personas"), [role="tab"]:has-text("Personas")'
     )
     .first();
   if (await people.isVisible().catch(() => false)) {
@@ -241,6 +243,11 @@ async function ensurePeopleSerp(page, keywords, { isMobile = false } = {}) {
     'a:has-text("Люди")',
     'button:has-text("Osoby")',
     '[role="tab"]:has-text("Osoby")',
+    'button:has-text("Personen")',
+    '[role="tab"]:has-text("Personen")',
+    'a:has-text("Personen")',
+    'button:has-text("Personas")',
+    '[role="tab"]:has-text("Personas")',
   ]) {
     const el = page.locator(sel).first();
     if (await el.isVisible().catch(() => false)) {
@@ -992,6 +999,20 @@ async function ensureSerpHasResults(page, searchUrl, { keywordFallbacks = [], is
   for (let attempt = 0; attempt < 6; attempt++) {
     await dismissLinkedInCookieBanner(page, `search-${attempt}`);
     await sleep(1500);
+    if (attempt === 0) {
+      await page.mouse.wheel(0, 900).catch(() => {});
+      await sleep(1200);
+      const seeAll = page
+        .locator(
+          'a:has-text("See all people results"), button:has-text("See all people results"), ' +
+            'a:has-text("See all people"), a:has-text("Alle Personen"), a:has-text("Показати всі")'
+        )
+        .first();
+      if (await seeAll.isVisible().catch(() => false)) {
+        await seeAll.click({ force: true }).catch(() => {});
+        await sleep(2500);
+      }
+    }
     if (!(await serpLooksEmpty(page))) return true;
 
     const removeFilters = page
@@ -1042,6 +1063,8 @@ async function collectSerpConnectButtons(page) {
       'li.reusable-search__result-container button',
       'div.entity-result button',
       'div[data-chameleon-result-urn] button',
+      'button.cta-button.connect',
+      'button.connect',
       'button.artdeco-button',
       'a.artdeco-button',
       '[role="button"]',

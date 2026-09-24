@@ -71,6 +71,25 @@ function wipeDirContents(dir) {
   }
 }
 
+/** After Sign in, Stage A/B must reuse the live repair profile — wiping it made People search look like a new device. */
+function promoteRepairProfileToAgent() {
+  const src = sessionRepairDataDir();
+  const dest = sessionDataDir();
+  if (!src || src === dest || !fs.existsSync(src)) return;
+  fs.mkdirSync(dest, { recursive: true });
+  wipeDirContents(dest);
+  let n = 0;
+  for (const name of fs.readdirSync(src)) {
+    try {
+      fs.cpSync(path.join(src, name), path.join(dest, name), { recursive: true, force: true });
+      n += 1;
+    } catch (e) {
+      console.error('promote profile:', name, e.message);
+    }
+  }
+  console.log(`Promoted repair Chromium profile → session_data (${n} entries)`);
+}
+
 /** Stricter than body "sign in" grep — mobile feed promos must not block harvest. */
 async function pageLooksLikeAuthWall(page) {
   const url = (page.url() || '').toLowerCase();
@@ -166,12 +185,8 @@ async function tryHarvest(context, page, { requireLive = true } = {}) {
   const stillLi = packed.find((c) => c.name === 'li_at' && c.value && c.value.length > 20);
   if (!stillLi) return false;
   fs.writeFileSync(cookiesPath(), JSON.stringify(packed, null, 2));
-  // Bind-mounted session_data cannot be renamed (EBUSY) — clear contents instead.
-  try {
-    wipeDirContents(sessionDataDir());
-  } catch (e) {
-    console.error('session_data reset:', e.message);
-  }
+  // Do not wipe session_data here — Chromium still holds session_data_repair.
+  // After context.close(), promoteRepairProfileToAgent() copies the live jar.
   try {
     const statePath = stateJsonFile();
     if (fs.existsSync(statePath)) fs.unlinkSync(statePath);
@@ -2092,6 +2107,7 @@ async function runRepair() {
   // Reuse repair profile only if feed is actually live — never export a dead li_at.
   if (await tryHarvest(context, page, { requireLive: true })) {
     await context.close().catch(() => {});
+    promoteRepairProfileToAgent();
     return;
   }
 
@@ -2123,8 +2139,8 @@ async function runRepair() {
         const lastNudge = cur?.lastFeedNudgeAt ? Date.parse(cur.lastFeedNudgeAt) : 0;
         const postChallenge = since && !cur?.liAtCaptured;
 
-        // LinkedIn often drops back to an empty Sign in form after a failed
-        // checkpoint (no phone push). Stop the infinite "Extra verification" loop.
+        // LinkedIn often flashes /login after a successful app Sign-in request
+        // (cookie handshake). Do not treat that as a failed checkpoint.
         if (postChallenge && mode !== 'challenge') {
           const bouncedToLogin = await page
             .evaluate(() => {
@@ -2135,23 +2151,42 @@ async function runRepair() {
                 'input#password, input[name="session_password"], input[type="password"]'
               );
               const url = location.href || '';
-              return !!(user && pass && /login|uas\/login|session_redirect/i.test(url));
+              const visible = (el) => {
+                if (!el) return false;
+                const r = el.getBoundingClientRect();
+                const st = getComputedStyle(el);
+                return r.width > 8 && r.height > 8 && st.visibility !== 'hidden' && st.display !== 'none';
+              };
+              return !!(visible(user) && visible(pass) && /login|uas\/login|session_redirect/i.test(url));
             })
             .catch(() => false);
+          const afterApp = cur?.challengeKind === 'app_approval';
           if (bouncedToLogin && Date.now() - since > 20000) {
-            const msg =
-              'LinkedIn bounced back to Sign in without completing verification ' +
-              '(no app Sign-in request / checkpoint failed). Close all personal LinkedIn tabs, ' +
-              'disable browser extensions on linkedin.com, then try Sign in again.';
-            console.log('Challenge bounce → login form:', msg);
-            writeState({
-              status: 'error',
-              error: msg,
-              uiMode: 'form',
-              challengeKind: null,
-              lastSignInError: msg,
-            });
-            break;
+            if (afterApp) {
+              const lastProbe = cur?.lastFeedNudgeAt ? Date.parse(cur.lastFeedNudgeAt) : 0;
+              if (!lastProbe || Date.now() - lastProbe > 8000) {
+                writeState({ lastFeedNudgeAt: new Date().toISOString(), uiMode: 'challenge' });
+                console.log('Login URL after app approval — probing feed (not a bounce)');
+                await page
+                  .goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded', timeout: 60000 })
+                  .catch(() => {});
+                await page.waitForTimeout(2500);
+                if (await tryHarvest(context, page, { requireLive: true })) break;
+              }
+            } else if (Date.now() - since > 45000) {
+              const msg =
+                'LinkedIn bounced back to Sign in without completing verification ' +
+                '(checkpoint failed). Close all personal LinkedIn tabs, then try Sign in again.';
+              console.log('Challenge bounce → login form:', msg);
+              writeState({
+                status: 'error',
+                error: msg,
+                uiMode: 'form',
+                challengeKind: null,
+                lastSignInError: msg,
+              });
+              break;
+            }
           }
         }
 
@@ -2175,8 +2210,13 @@ async function runRepair() {
             } else {
               await page.waitForTimeout(2000);
             }
-          } else if (nudgeN >= 6 && nudgeN % 6 === 0 && liveKind === 'app_approval') {
-            // App-only: occasional feed probe after a long wait (not for captcha/pin).
+          } else if (
+            liveKind === 'app_approval' &&
+            nudgeN >= 2 &&
+            (nudgeN === 2 || (nudgeN - 2) % 3 === 0)
+          ) {
+            // App-only: first feed probe ~13s, then every ~24s. LinkedIn often
+            // lands on /login while li_at is already in the jar.
             console.log('Post-challenge feed fallback (after waiting on app approval)…');
             await page
               .goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded', timeout: 60000 })
@@ -2190,7 +2230,8 @@ async function runRepair() {
           if (await tryHarvest(context, page, { requireLive: true })) break;
         }
         if (mode !== 'challenge') {
-          if (cur?.uiMode === 'challenge') {
+          // After app approval LinkedIn flashes /login — keep challenge UI until li_at.
+          if (cur?.uiMode === 'challenge' && cur?.challengeKind !== 'app_approval') {
             writeState({ uiMode: 'form', status: 'running' });
           }
         }
@@ -2211,6 +2252,7 @@ async function runRepair() {
 
   await context.close().catch(() => {});
   const final = readState();
+  if (final?.liAtCaptured) promoteRepairProfileToAgent();
   if (final?.status === 'credential_error') {
     process.exitCode = 0;
     return;

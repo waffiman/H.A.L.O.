@@ -5,6 +5,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { spawn } from 'child_process';
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { dataRoot } from './dataRoot.js';
@@ -25,8 +26,56 @@ const VP = { width: 1280, height: 800 };
 const X_UA = String(process.env.X_USER_AGENT || '').trim();
 const FRESH = String(process.env.X_REPAIR_FRESH || '').trim() === '1';
 const SKIP_WARMUP = String(process.env.X_REPAIR_SKIP_WARMUP || '').trim() === '1';
-const HEADLESS =
-  String(process.env.X_REPAIR_HEADLESS || '').trim() === '1' || !process.env.DISPLAY;
+
+const IDENT_SELS = [
+  'input[data-testid="ocfEnterTextTextInput"]',
+  'input[autocomplete="username"]',
+  'input[name="text"]',
+  'input[name="username"]',
+  'input[type="email"]',
+  'input[placeholder*="email" i]',
+  'input[placeholder*="phone" i]',
+  'input[placeholder*="username" i]',
+  'input[aria-label*="email" i]',
+  'input[aria-label*="username" i]',
+  'input[type="text"]',
+];
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Headed Chromium — X paints a white shell for headless. Start Xvfb if docker forgot DISPLAY. */
+async function ensureDisplay() {
+  if (process.env.DISPLAY) return process.env.DISPLAY;
+  if (process.platform === 'win32') return '';
+  for (const n of [99, 100, 101]) {
+    const display = `:${n}`;
+    if (fs.existsSync(`/tmp/.X11-unix/X${n}`)) {
+      process.env.DISPLAY = display;
+      return display;
+    }
+    try {
+      const child = spawn('Xvfb', [display, '-ac', '-screen', '0', '1280x1024x24'], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+      await sleep(900);
+      if (fs.existsSync(`/tmp/.X11-unix/X${n}`)) {
+        process.env.DISPLAY = display;
+        return display;
+      }
+    } catch (e) {
+      console.log('X repair — Xvfb', display, e.message);
+    }
+  }
+  return '';
+}
+
+function wantHeadless() {
+  return String(process.env.X_REPAIR_HEADLESS || '').trim() === '1' || !process.env.DISPLAY;
+}
 
 function humanPause(minMs, maxMs) {
   return minMs + Math.floor(Math.random() * Math.max(1, maxMs - minMs));
@@ -126,11 +175,11 @@ async function classify(page) {
   ) {
     return 'bad_password';
   }
-  if (
-    /temporarily limited your logins|limited your logins|temporarily (limited|locked)|try again later/i.test(
-      t
-    )
-  ) {
+  if (/\/i\/jf\/onboarding|knowledge_check|\/i\/flow\/consent/i.test(url)) {
+    if (/temporarily limited your logins|we've temporarily limited/i.test(t)) return 'rate_limited';
+    return 'onboarding';
+  }
+  if (/temporarily limited your logins|limited your logins|we've temporarily limited/i.test(t)) {
     return 'rate_limited';
   }
   if (/something went wrong/i.test(t) && /try again/i.test(t) && !/try again later/i.test(t)) {
@@ -155,11 +204,7 @@ async function classify(page) {
     .first()
     .isVisible()
     .catch(() => false);
-  const textVisible = await page
-    .locator('input[autocomplete="username"], input[name="text"], input[type="text"]')
-    .first()
-    .isVisible()
-    .catch(() => false);
+  const textVisible = await page.locator(IDENT_SELS.join(', ')).first().isVisible().catch(() => false);
   if (/temporarily locked|unusual login|we suspect/i.test(t) && !textVisible && !passVisible) {
     return 'unusual';
   }
@@ -187,6 +232,29 @@ async function waitVisible(page, selectors, timeoutMs = 12000) {
     await page.waitForTimeout(250);
   }
   return null;
+}
+
+async function dismissXCookieBanner(page) {
+  // X's cookie sheet sits under a portal overlay — Playwright click() never lands.
+  const clicked = await page.evaluate(() => {
+    const re = /accept all cookies|allow all cookies|alle akzeptieren|принять все/i;
+    const nodes = [...document.querySelectorAll('button, [role="button"], span, div, a')];
+    const el = nodes.find((b) => {
+      const t = String(b.innerText || '').replace(/\s+/g, ' ').trim();
+      return re.test(t) && t.length < 48;
+    });
+    if (!el) return false;
+    const hit = el.closest('button, [role="button"]') || el;
+    hit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    hit.click();
+    return true;
+  });
+  if (clicked) {
+    console.log('X repair — cookie banner accepted');
+    await page.waitForTimeout(800);
+    return true;
+  }
+  return false;
 }
 
 async function typeInto(page, selectors, value) {
@@ -249,7 +317,7 @@ async function waitContinueReady(page, timeoutMs = 10000) {
 }
 
 /** Exact Continue/Next — never "Continue with Google/Apple/phone". Skips a gray/disabled button. */
-async function clickContinueOrNext(page, waitMs = 8000) {
+async function clickContinueOrNext(page, waitMs = 8000, { allowSignIn = true } = {}) {
   const ready = await waitContinueReady(page, waitMs);
   if (!ready) {
     console.log('X repair — Continue still disabled');
@@ -258,14 +326,18 @@ async function clickContinueOrNext(page, waitMs = 8000) {
   const named = [
     page.getByRole('button', { name: /^Continue$/i }),
     page.getByRole('button', { name: /^Next$/i }),
-    page.getByRole('button', { name: /^Log in$/i }),
-    page.getByRole('button', { name: /^Sign in$/i }),
     page.getByRole('button', { name: /^Продолжить$/i }),
     page.getByRole('button', { name: /^Далее$/i }),
-    page.getByRole('button', { name: /^Войти$/i }),
     page.locator('[data-testid="ocfEnterTextNextButton"]'),
     page.locator('[data-testid="LoginForm_Login_Button"]'),
   ];
+  if (allowSignIn) {
+    named.push(
+      page.getByRole('button', { name: /^Log in$/i }),
+      page.getByRole('button', { name: /^Sign in$/i }),
+      page.getByRole('button', { name: /^Войти$/i })
+    );
+  }
   for (const loc of named) {
     const btn = loc.first();
     if (!(await btn.isVisible().catch(() => false))) continue;
@@ -273,42 +345,94 @@ async function clickContinueOrNext(page, waitMs = 8000) {
     await btn.click({ timeout: 5000 });
     return true;
   }
-  const clicked = await page.evaluate(() => {
-    const labels = /^(continue|next|log in|sign in|продолжить|далее|войти)$/i;
+  const clicked = await page.evaluate((allowSignInLabel) => {
+    const labels = allowSignInLabel
+      ? /^(continue|next|log in|sign in|продолжить|далее|войти)$/i
+      : /^(continue|next|продолжить|далее)$/i;
     const btn = [...document.querySelectorAll('button, [role="button"], div[role="button"]')].find((el) =>
       labels.test(String(el.innerText || '').replace(/\s+/g, ' ').trim())
     );
     if (!btn || btn.getAttribute('aria-disabled') === 'true' || btn.matches(':disabled')) return false;
     btn.click();
     return true;
-  });
+  }, allowSignIn);
   return !!clicked;
+}
+
+async function waitForIdentField(page, timeoutMs = 22000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    await dismissXCookieBanner(page);
+    const loc = await waitVisible(page, IDENT_SELS, 1500);
+    if (loc) return loc;
+    await page.waitForTimeout(400);
+  }
+  return null;
+}
+
+async function loginDiagnostics(page) {
+  return page
+    .evaluate(() => {
+      const inputs = [...document.querySelectorAll('input, textarea')].map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          type: el.type,
+          name: el.name,
+          auto: el.autocomplete,
+          testid: el.getAttribute('data-testid'),
+          ph: el.placeholder,
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+        };
+      });
+      return {
+        href: location.href,
+        title: document.title,
+        text: String(document.body?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 220),
+        inputs,
+      };
+    })
+    .catch(() => null);
 }
 
 async function applyIdentifier(page, identifier) {
   writeState({ lastFillError: null, status: 'running' });
-  const ok = await typeInto(
-    page,
-    ['input[autocomplete="username"]', 'input[name="text"]', 'input[type="text"]'],
-    identifier
-  );
-  if (!ok) throw new Error('Could not find the X email / username field');
+  await dismissXCookieBanner(page);
+  let loc = await waitForIdentField(page, 22000);
+  if (!loc) {
+    console.log('X repair — login field missing, reload flow');
+    await page.goto('https://x.com/i/flow/login', { waitUntil: 'domcontentloaded', timeout: 90000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+    await dismissXCookieBanner(page);
+    loc = await waitForIdentField(page, 15000);
+  }
+  const ok = loc ? await typeInto(page, IDENT_SELS, identifier) : false;
+  if (!ok) {
+    const dump = await loginDiagnostics(page);
+    console.log('X repair — no identifier field', JSON.stringify(dump));
+    throw new Error('Could not find the X email / username field');
+  }
+  await captureFrame(page);
   await page.keyboard.press('Tab').catch(() => {});
   await page.waitForTimeout(humanPause(3500, 8000));
-  let clicked = await clickContinueOrNext(page);
+  await captureFrame(page);
+  let clicked = await clickContinueOrNext(page, 8000, { allowSignIn: false });
   if (!clicked) {
     await page.keyboard.press('Enter');
     console.log('X repair — pressed Enter after identifier');
     await page.waitForTimeout(800);
-    clicked = await clickContinueOrNext(page);
+    clicked = await clickContinueOrNext(page, 4000, { allowSignIn: false });
   }
   if (!clicked) throw new Error('Continue stayed disabled — submit the username again');
   await page.waitForTimeout(humanPause(1800, 3200));
+  await waitForPainted(page, 8000);
+  await captureFrame(page);
   console.log('X repair — identifier submitted');
 }
 
 async function applyPassword(page, password) {
   writeState({ lastFillError: null, status: 'running' });
+  await dismissXCookieBanner(page);
   const ok = await typeInto(
     page,
     ['input[name="password"]', 'input[type="password"]', 'input[autocomplete="current-password"]'],
@@ -352,8 +476,28 @@ async function applyCode(page, code) {
   await page.waitForTimeout(2200);
 }
 
+async function waitForPainted(page, timeoutMs = 8000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const ok = await page
+      .evaluate(() => {
+        const text = String(document.body?.innerText || '').replace(/\s+/g, ' ').trim();
+        const hit = [...document.querySelectorAll('input, textarea, button, [role="button"]')].some((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 20 && r.height > 8;
+        });
+        return text.length > 24 || hit;
+      })
+      .catch(() => false);
+    if (ok) return true;
+    await page.waitForTimeout(300);
+  }
+  return false;
+}
+
 async function captureFrame(page) {
-  await page.screenshot({ path: FRAME_PATH, type: 'jpeg', quality: 58 }).catch(() => {});
+  await waitForPainted(page, 4000);
+  await page.screenshot({ path: FRAME_PATH, type: 'jpeg', quality: 62, animations: 'disabled' }).catch(() => {});
   writeState({
     lastFrameAt: new Date().toISOString(),
     viewport: VP,
@@ -415,6 +559,15 @@ function publishKind(kind, identifierSubmitted) {
     });
     return;
   }
+  if (kind === 'onboarding') {
+    writeState({
+      challengeKind: 'generic',
+      status: 'awaiting_user',
+      error: null,
+      lastFillError: 'X opened an extra check — use the live screenshot (do not close the popup).',
+    });
+    return;
+  }
   if (kind === 'unknown') {
     writeState({ challengeKind: 'generic', status: 'running' });
   }
@@ -440,8 +593,10 @@ async function main() {
   if (FRESH) wipeDir(PROFILE);
   else fs.mkdirSync(PROFILE, { recursive: true });
 
+  const display = await ensureDisplay();
+  const headless = wantHeadless();
   const launchOpts = {
-    headless: HEADLESS,
+    headless,
     viewport: VP,
     locale: 'en-US',
     timezoneId: 'Europe/Berlin',
@@ -464,7 +619,7 @@ async function main() {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
   });
-  console.log('X repair — browser', { headless: HEADLESS, display: process.env.DISPLAY || '', fresh: FRESH });
+  console.log('X repair — browser', { headless, display: display || process.env.DISPLAY || '', fresh: FRESH });
 
   try {
     if (await persistXCookies(browser)) {
@@ -483,6 +638,8 @@ async function main() {
     }
     await page.goto('https://x.com/i/flow/login', { waitUntil: 'domcontentloaded', timeout: 90000 });
     await page.waitForTimeout(humanPause(1600, 2800));
+    await dismissXCookieBanner(page);
+    await page.waitForSelector(IDENT_SELS.join(', '), { timeout: 20000 }).catch(() => {});
     await captureFrame(page);
 
     let signed = false;
@@ -494,6 +651,7 @@ async function main() {
     let tryAgainCount = 0;
     const deadline = Date.now() + 12 * 60 * 1000;
     while (Date.now() < deadline && !signed) {
+      await dismissXCookieBanner(page);
       for (const ev of drainInput()) {
         try {
           if (ev.type === 'signin' && ev.username) {
@@ -621,7 +779,33 @@ async function main() {
         await captureFrame(page);
         break;
       } else {
-        if (identifierSubmitted && kind === 'username_extra' && Date.now() - lastAdvanceAt > 4000) {
+        if (kind === 'username_extra') {
+          await dismissXCookieBanner(page);
+          if (lastExtraUsername && Date.now() - lastAdvanceAt > 4000) {
+            try {
+              await applyIdentifier(page, lastExtraUsername);
+              lastAdvanceAt = Date.now();
+            } catch (e) {
+              console.log('X repair — username_extra refill:', e.message);
+            }
+          } else if (identifierSubmitted && !lastExtraUsername && Date.now() - lastAdvanceAt > 4000) {
+            console.log('X repair — waiting for X username (Continue stays gray until the popup submits it)');
+            lastAdvanceAt = Date.now();
+          }
+        } else if (!identifierSubmitted && lastEmail && (kind === 'unknown' || kind === 'username') && Date.now() - lastAdvanceAt > 6000) {
+          console.log('X repair — retry identifier after empty login paint', kind, page.url());
+          writeState({ lastFillError: 'Login form was blank — waiting and retrying email…', status: 'running' });
+          try {
+            await applyIdentifier(page, lastEmail);
+            identifierSubmitted = true;
+            lastAdvanceAt = Date.now();
+            writeState({ lastFillError: null });
+          } catch (e) {
+            writeState({ lastFillError: e.message });
+            lastAdvanceAt = Date.now();
+            console.error('X repair identifier retry:', e.message);
+          }
+        } else if (identifierSubmitted && kind === 'username' && Date.now() - lastAdvanceAt > 4000) {
           const again = await clickContinueOrNext(page, 400);
           console.log('X repair — retry Continue/Next', again, kind, page.url());
           if (again) lastAdvanceAt = Date.now();

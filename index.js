@@ -218,11 +218,16 @@ function inboxRowLooksInbound(row) {
   return Boolean(row?.unread);
 }
 
-/** LinkedIn ads / sponsored conversation rows — never notify or reply. */
+/** LinkedIn ads / Recruiter InMail requests / system rows — never notify or reply. */
 function isSponsoredInboxRow(row) {
-  return /sponsored|promoted|\bad\b|advertisement/i.test(
-    `${row?.name || ''} ${row?.preview || ''}`
-  );
+  const name = String(row?.name || '').replace(/\s+/g, ' ').trim();
+  const preview = String(row?.preview || '').replace(/\s+/g, ' ').trim();
+  const blob = `${name} ${preview}`;
+  if (/sponsored|promoted|\bad\b|advertisement|gesponsert|werbung|anzeige/i.test(blob)) return true;
+  if (/recruiter\s+inmail|inmail\s+anfrage|linkedin\s+recruiter/i.test(blob)) return true;
+  // DE/EN LinkedIn labels a Recruiter InMail *request* as the participant name.
+  if (/^(anfrage|request|inmail|linkedin)$/i.test(name)) return true;
+  return false;
 }
 
 function inboxNotifyKey(row) {

@@ -327,20 +327,22 @@ export function preferFullerPersonName(existingName, incomingName) {
 }
 
 /**
- * Enrich must not overwrite Name already set in CRM (e.g. after accept → Lead ready).
- * Returns nameForNotion=null when CRM name should be kept; ice-breaker still uses CRM name.
+ * Official LinkedIn name (Apify) overwrites a manual CRM nickname so compose
+ * typeahead can find the person. Keep CRM only when Apify is empty or only
+ * returned an abbreviated last initial while CRM already has a fuller name.
  */
 export function resolveEnrichDisplayName(crmName, apifyName) {
   const crm = String(crmName || '').replace(/\s+/g, ' ').trim();
   const apify = String(apifyName || '').replace(/\s+/g, ' ').trim();
-  if (crm.length >= 2) {
-    return { nameForNotion: null, nameForIce: crm, keptCrm: true };
+  if (!apify) {
+    return { nameForNotion: null, nameForIce: crm, keptCrm: crm.length >= 2 };
   }
-  const resolved = preferFullerPersonName(crm, apify) || apify;
+  const resolved = preferFullerPersonName(apify, crm) || apify;
+  const same = resolved.toLowerCase() === crm.toLowerCase();
   return {
-    nameForNotion: resolved || null,
-    nameForIce: resolved || apify,
-    keptCrm: false,
+    nameForNotion: same ? null : resolved,
+    nameForIce: resolved,
+    keptCrm: same,
   };
 }
 
@@ -384,12 +386,12 @@ export async function enrichOneLead(lead) {
     const profile = await scrapeLinkedInProfile(lead.url);
     const apifyName = (profile.name || '').trim();
     const { nameForNotion, nameForIce, keptCrm } = resolveEnrichDisplayName(lead.name, apifyName);
-    if (keptCrm && apifyName && apifyName !== nameForIce) {
-      console.log(`  Name kept from CRM (acceptance): "${nameForIce}" (Apify had "${apifyName}")`);
-    } else if (nameForNotion && nameForNotion !== apifyName) {
+    if (nameForNotion && nameForNotion !== String(lead.name || '').trim()) {
       console.log(
-        `  Name keep/expand: Apify="${apifyName}" CRM="${lead.name || ''}" → "${nameForNotion}"`
+        `  Name set from LinkedIn: "${nameForNotion}" (CRM had "${lead.name || ''}")`
       );
+    } else if (keptCrm && apifyName && apifyName !== nameForIce) {
+      console.log(`  Name kept fuller CRM: "${nameForIce}" (Apify abbreviated "${apifyName}")`);
     }
     console.log(
       `  Profile: ${nameForIce || '(no name)'} | ${profile.company || profile.headline || ''}` +
@@ -431,7 +433,7 @@ export async function enrichOneLead(lead) {
         (profile.email ? ` | email=${profile.email}` : '') +
         (leadScore != null ? ` | score=${leadScore}` : '') +
         (setProcessingAt ? ' | Processing at=UTC now' : ' | Processing at kept') +
-        (keptCrm ? ' | Name unchanged in CRM' : '')
+        (nameForNotion ? ` | Name → ${nameForNotion}` : '')
     );
     await sleep(APIFY_PAUSE_MS);
     return {

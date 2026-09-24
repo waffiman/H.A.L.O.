@@ -159,19 +159,26 @@ export function compileSearchKeywords(portrait, linkedInSearch = defaultLinkedIn
   return kw || 'founder';
 }
 
+function isLatinSearchToken(s) {
+  return /[A-Za-z]/.test(s) && !/[А-Яа-яЁёІіЇїЄєҐґ]/.test(s);
+}
+
 /** Shorter keywords for Connect (mobile SERP breaks on long faceted queries). */
 export function compileConnectSearchKeywords(portrait, linkedInSearch = defaultLinkedInSearch()) {
   const p = normalizePortrait(portrait);
   const li = normalizeLinkedInSearch(linkedInSearch);
   const parts = [];
-  if (p.roles.length) parts.push(...p.roles.slice(0, 2));
+  const latinRoles = p.roles.filter(isLatinSearchToken);
+  const roles = (latinRoles.length ? latinRoles : p.roles).slice(0, 2);
+  if (roles.length) parts.push(...roles);
   else if (p.industries.length) parts.push(p.industries[0]);
   if (li.keywordsExtra) {
-    parts.push(
-      ...String(li.keywordsExtra)
-        .split(/\s+/)
-        .slice(0, 2)
-    );
+    for (const w of String(li.keywordsExtra).split(/\s+/).slice(0, 2)) {
+      if (!w) continue;
+      if (parts.some((p0) => p0.toLowerCase() === w.toLowerCase())) continue;
+      if (latinRoles.length && !isLatinSearchToken(w)) continue;
+      parts.push(w);
+    }
   }
   const kw = parts.join(' ').replace(/\s+/g, ' ').trim();
   return kw || 'founder CEO';
