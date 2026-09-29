@@ -380,6 +380,112 @@ export async function scoreLead(profileData, salesPolicyOrPortrait = null) {
   return computeLeadScore(profileData, portrait);
 }
 
+function lastLeadBlob(thread = '') {
+  const parts = String(thread || '').split(/\n---\n/);
+  const hit = [...parts].reverse().find((p) => /^\[LEAD/i.test(String(p).trim()));
+  return String(hit || '').trim();
+}
+
+/**
+ * Heuristic nudge of the enrich-time score from the latest inbound (LLM off / failed).
+ * Moves at most ±3 unless a clear buy or hard no.
+ */
+export function heuristicReplyRescore({ previousScore, inboundText = '', thread = '' } = {}) {
+  const src = String(inboundText || '').trim() || lastLeadBlob(thread);
+  const blob = src.toLowerCase();
+  const buying =
+    /\b(book|schedule|let'?s (do|book|talk)|sounds good|interested|send (the )?link|when (can|are|would)|available|happy to (chat|talk|meet)|yes let's)\b/i.test(
+      blob
+    );
+  const disqualify =
+    /\b(not interested|no thanks|stop (messaging|contacting)|unsubscribe|don'?t contact|remove me|not a fit|no budget|wrong person)\b/i.test(
+      blob
+    );
+  const question = /\?/.test(src);
+  const later = /\b(later|busy|next (week|month)|circle back|not now)\b/i.test(blob);
+  let delta = 0;
+  if (disqualify) delta -= 2;
+  else if (buying) delta += 2;
+  else if (question) delta += 1;
+  else if (later) delta -= 1;
+  const prev = Number(previousScore);
+  const base = Number.isFinite(prev) ? prev : 5;
+  const hard = buying || disqualify;
+  let score = Math.round(base + delta);
+  if (!hard) score = Math.max(base - 3, Math.min(base + 3, score));
+  score = Math.max(1, Math.min(10, score));
+  return {
+    score,
+    summary: disqualify
+      ? 'Inbound looks like a hard no'
+      : buying
+        ? 'Inbound shows buying / meeting intent'
+        : question
+          ? 'Inbound is a question — slight lift'
+          : later
+            ? 'Inbound defers — slight drop'
+            : 'Inbound is neutral — score mostly unchanged',
+    breakdown: {
+      intent: { points: Math.max(0, Math.min(10, 5 + delta)), detail: 'heuristic' },
+      buying: { points: !disqualify && buying ? 8 : 2, detail: !disqualify && buying ? 'positive' : 'none' },
+      previousScore: Number.isFinite(prev) ? prev : null,
+      total: score,
+      max: 10,
+      source: 'reply_heuristic',
+      disqualify,
+    },
+  };
+}
+
+/**
+ * Revise lead_score from a Stage B inbound, persist, return the new score.
+ * Does not throw — reply copy must still run if scoring fails.
+ * LEAD_SCORE_ON_REPLY=0 disables. LEAD_SCORE_LLM=0 uses the heuristic.
+ */
+export async function rescoreLeadOnReply({
+  lead = {},
+  inboundText = '',
+  thread = '',
+  salesPolicyOrPortrait = null,
+} = {}) {
+  if (process.env.LEAD_SCORE_ON_REPLY === '0') return null;
+  const inbound = String(inboundText || '').trim() || lastLeadBlob(thread);
+  if (!inbound) return null;
+  const portrait = resolvePortrait(salesPolicyOrPortrait);
+  const prev = Number(lead.leadScore ?? lead.lead_score);
+  let result = null;
+  if (process.env.LEAD_SCORE_LLM !== '0') {
+    try {
+      const { scoreLeadFromReply } = await import('./salesBrain.js');
+      result = await scoreLeadFromReply({
+        inboundText: inbound,
+        thread,
+        previousScore: Number.isFinite(prev) ? prev : null,
+        previousBreakdown: lead.scoreBreakdown || lead.score_breakdown || null,
+        lead,
+        portrait,
+      });
+    } catch (e) {
+      console.error('  Reply rescore LLM failed — heuristic:', e.message);
+    }
+  }
+  if (!result?.score) {
+    result = heuristicReplyRescore({ previousScore: prev, inboundText: inbound, thread });
+  }
+  if (!result?.score) return null;
+  if (lead.id) {
+    try {
+      const { patchLead } = await import('./crmStore.js');
+      await patchLead(lead.id, { leadScore: result.score, scoreBreakdown: result.breakdown });
+    } catch (e) {
+      console.error('  Reply rescore persist failed:', e.message);
+    }
+  }
+  const prevLabel = Number.isFinite(prev) ? `${prev}` : '—';
+  console.log(`  Lead score (reply ${result.breakdown?.source || 'n/a'}): ${prevLabel} → ${result.score}/10`);
+  return result;
+}
+
 export function leadScoreColor(score) {
   const n = Number(score);
   if (!Number.isFinite(n)) return null;

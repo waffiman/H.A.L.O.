@@ -103,14 +103,29 @@ export function formatThreadForPrompt(messages = []) {
     .join('\n---\n');
 }
 
-export async function decideReplyForLead(lead, { thread = '' } = {}) {
+export async function decideReplyForLead(lead, { thread = '', inboundText = '' } = {}) {
   const notesText = await readPageBodyText(lead.id).catch(() => '');
+  const working = { ...lead, notesText, msg: lead.msg };
+  try {
+    const { rescoreLeadOnReply } = await import('./leadScoring.js');
+    const scored = await rescoreLeadOnReply({
+      lead: working,
+      inboundText,
+      thread,
+    });
+    if (scored?.score != null) {
+      working.leadScore = scored.score;
+      working.scoreBreakdown = scored.breakdown;
+    }
+  } catch (e) {
+    console.error('  Reply rescore skipped:', e.message);
+  }
   const decision = await generateSalesMessage({
     mode: 'reply',
-    lead: { ...lead, notesText, msg: lead.msg },
+    lead: working,
     thread,
   });
-  return { ...decision, notesText };
+  return { ...decision, notesText, leadScore: working.leadScore, scoreBreakdown: working.scoreBreakdown };
 }
 
 export async function craftClosingFollowup(lead) {

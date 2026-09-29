@@ -161,6 +161,11 @@ function buildUserContext({
     `Company: ${profile.company || lead.company || ''}`,
     `Location: ${profile.location || lead.location || ''}`,
     leadTz ? `Lead timezone: ${leadTz}` : 'Lead timezone: (unknown — labels still use host TZ fallback)',
+    Number.isFinite(Number(lead.leadScore))
+      ? `Lead score (1–10, Inspector; revised on inbound replies): ${Math.round(Number(lead.leadScore))}${
+          lead.scoreBreakdown?.summary ? ` — ${String(lead.scoreBreakdown.summary).slice(0, 160)}` : ''
+        }`
+      : 'Lead score: (none yet)',
     `Top role: ${profile.topRole || ''}`,
     `Existing ice-breaker we already sent (if any):\n${lead.msg || lead.ice || '(none)'}`,
     `Lead notes from CRM page body:\n${lead.notesText || '(empty)'}`,
@@ -723,6 +728,92 @@ export async function scoreLeadIcpFit({ profile = {}, portrait = {} } = {}) {
   const raw = await callRole('inspector', ICP_SCORE_SYSTEM, user, { temperature: 0.15 });
   if (!raw || raw.length < 8) return null;
   return parseIcpScoreJson(raw);
+}
+
+const ICP_REPLY_SCORE_SYSTEM = `ROLE: Inspector — revise the existing ICP lead score after a new inbound reply.
+You judge commercial fit and buying intent from the latest message. Do NOT write outreach copy.
+
+Return STRICT JSON only (no markdown):
+{
+  "score": <integer 1-10>,
+  "summary": "<one short sentence>",
+  "disqualify": <true|false>,
+  "breakdown": {
+    "intent": { "points": <0-10>, "detail": "<short>" },
+    "buying": { "points": <0-10>, "detail": "<short>" }
+  }
+}
+Rules:
+- Start from PREVIOUS_SCORE. Move at most 0–3 points unless the reply is a clear qualify (book/call/buy) or disqualify (hard no / not a fit).
+- score 1 = dead / hostile, 10 = hot buyer matching ICP.
+- Use portrait as ICP ground truth; the reply is extra evidence, not a replacement for profile fit.
+- disqualify=true only for clear refusal, wrong person, or explicit not-a-fit.`;
+
+/**
+ * Inspector rescore from an inbound reply. Complements enrich-time scoreLeadIcpFit.
+ */
+export async function scoreLeadFromReply({
+  inboundText = '',
+  thread = '',
+  previousScore = null,
+  previousBreakdown = null,
+  lead = {},
+  portrait = {},
+} = {}) {
+  const prev = Number(previousScore);
+  const user = [
+    'CLIENT PORTRAIT (ICP):',
+    JSON.stringify(portrait || {}, null, 0).slice(0, 3000),
+    '',
+    `PREVIOUS_SCORE: ${Number.isFinite(prev) ? prev : 'none (treat as 5)'}`,
+    previousBreakdown?.summary ? `PREVIOUS_SUMMARY: ${String(previousBreakdown.summary).slice(0, 240)}` : '',
+    `LEAD: ${lead.name || ''} | ${lead.url || ''} | status=${lead.status || ''}`,
+    '',
+    'LATEST INBOUND FROM LEAD:',
+    String(inboundText || '(empty)').slice(0, 4000),
+    '',
+    'RECENT THREAD (LEAD = them, ME = us):',
+    String(thread || '(none)').slice(0, 6000),
+    '',
+    'Revise score 1–10 from the inbound. JSON only.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const raw = await callRole('inspector', ICP_REPLY_SCORE_SYSTEM, user, { temperature: 0.15 });
+  if (!raw || raw.length < 8) return null;
+  const parsed = parseIcpScoreJson(raw);
+  let obj = {};
+  try {
+    let t = String(raw || '').trim();
+    t = t.replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+    obj = JSON.parse(t);
+  } catch {
+    obj = {};
+  }
+  const disqualify = obj.disqualify === true;
+  const buyingPts = Number(obj.breakdown?.buying?.points ?? obj.buying?.points);
+  const hardMove = disqualify || (Number.isFinite(buyingPts) && buyingPts >= 8);
+  let score = parsed.score;
+  if (Number.isFinite(prev) && !hardMove) {
+    score = Math.max(1, Math.min(10, Math.max(prev - 3, Math.min(prev + 3, score))));
+  }
+  const intent = obj.breakdown?.intent || obj.intent || {};
+  const buying = obj.breakdown?.buying || obj.buying || {};
+  return {
+    score,
+    summary: parsed.summary,
+    breakdown: {
+      ...(previousBreakdown && typeof previousBreakdown === 'object' ? previousBreakdown : {}),
+      ...parsed.breakdown,
+      intent: intent && typeof intent === 'object' ? intent : { detail: String(intent || '') },
+      buying: buying && typeof buying === 'object' ? buying : { detail: String(buying || '') },
+      previousScore: Number.isFinite(prev) ? prev : null,
+      total: score,
+      max: 10,
+      source: 'inspector_reply',
+      disqualify,
+    },
+  };
 }
 
 /**

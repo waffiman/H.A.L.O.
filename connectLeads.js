@@ -62,7 +62,8 @@ export async function findLeadSleepPagesByUrls(urls = []) {
 
 /**
  * Close Lead😴 that never accepted after CONNECT_ACCEPT_WAIT_DAYS.
- * Uses Processing at (invite/create clock). Only leads we already invited (ledger).
+ * Uses Processing at (invite/create clock). Invited = connect ledger **or** a
+ * processingAt stamp (invite clock) without an accept/ice-ready marker.
  * Moves to Lost❌ (not hard-delete) so CRM history + dedupe stay intact.
  * @returns {{ expired: number, skipped: number, waitDays: number }}
  */
@@ -94,7 +95,10 @@ export async function expireStaleLeadSleepPages({
       skipped++;
       continue;
     }
-    const invited = Boolean(slug && (ledger.has(slug) || wasConnectSentRecently(slug)));
+    const invited = Boolean(
+      (slug && (ledger.has(slug) || wasConnectSentRecently(slug))) ||
+        Boolean(lead.processingAt)
+    );
     if (!invited) {
       skipped++;
       continue;
@@ -104,7 +108,7 @@ export async function expireStaleLeadSleepPages({
       skipped++;
       continue;
     }
-    const clockMs = Date.parse(clockRaw);
+    const clockMs = clockRaw instanceof Date ? clockRaw.getTime() : Date.parse(clockRaw);
     if (!Number.isFinite(clockMs)) {
       skipped++;
       continue;

@@ -3,14 +3,19 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { dataRoot } from './dataRoot.js';
 
-const LEDGER_PATH = path.join(process.cwd(), 'connect_sent_slugs.json');
-const TTL_MS = Number(process.env.CONNECT_LEDGER_TTL_MS || 30 * 24 * 60 * 60 * 1000);
+function ledgerPath() {
+  return path.join(dataRoot(), 'connect_sent_slugs.json');
+}
+
+/** Keep slugs long enough for CONNECT_ACCEPT_WAIT_DAYS expire (default 21d). */
+const TTL_MS = Number(process.env.CONNECT_LEDGER_TTL_MS || 180 * 24 * 60 * 60 * 1000);
 
 function readRaw() {
   try {
-    if (fs.existsSync(LEDGER_PATH)) {
-      return JSON.parse(fs.readFileSync(LEDGER_PATH, 'utf8'));
+    if (fs.existsSync(ledgerPath())) {
+      return JSON.parse(fs.readFileSync(ledgerPath(), 'utf8'));
     }
   } catch {
     /* fall through */
@@ -19,7 +24,7 @@ function readRaw() {
 }
 
 function writeRaw(data) {
-  fs.writeFileSync(LEDGER_PATH, JSON.stringify(data, null, 2), 'utf8');
+  fs.writeFileSync(ledgerPath(), JSON.stringify(data, null, 2), 'utf8');
 }
 
 export function pruneConnectLedger() {

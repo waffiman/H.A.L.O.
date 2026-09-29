@@ -213,7 +213,7 @@ async function findCrmBySenderName(senderName) {
   }
 }
 
-/** Only LinkedIn unread badge counts — already-read inbound chats must not notify. */
+/** LinkedIn unread badge for notify / Lost revive. Conversation 💬 last-sender uses the full inbox list. */
 function inboxRowLooksInbound(row) {
   return Boolean(row?.unread);
 }
@@ -262,19 +262,8 @@ async function scrapeInboxConversations(page) {
         markSessionDead('auth_wall_on_inbox', { url: page.url() });
         return [];
       }
-      // Prefer Unread filter — then every visible row is unread
-      let unreadFilterOn = false;
-      const unreadBtn = page
-        .locator(
-          'button:has-text("Unread"), a:has-text("Unread"), [role="radio"]:has-text("Unread"), button[aria-label*="Unread"]'
-        )
-        .first();
-      if (await unreadBtn.isVisible().catch(() => false)) {
-        await unreadBtn.click().catch(() => {});
-        await humanRandomDelay(1500, 2500);
-        unreadFilterOn = true;
-      }
-      const rows = await page.evaluate((forceUnread) => {
+      // Do not click Unread — Conversation 💬 last-sender checks need already-read threads too.
+      const rows = await page.evaluate(() => {
         const out = [];
         const seen = new Set();
         const push = (name, href, unread, preview) => {
@@ -291,7 +280,7 @@ async function scrapeInboxConversations(page) {
           out.push({
             name: n,
             href: fullHref,
-            unread: forceUnread ? true : Boolean(unread),
+            unread: Boolean(unread),
             preview: (preview || '').replace(/\s+/g, ' ').trim().slice(0, 180),
           });
         };
@@ -364,19 +353,12 @@ async function scrapeInboxConversations(page) {
           push(name, href, unread, preview);
         }
         return out.slice(0, 40);
-      }, unreadFilterOn);
+      });
 
       const unreadCount = rows.filter((r) => r.unread).length;
-      console.log(
-        `Inbox scrape (${url}): ${rows.length} conversations, unread=${unreadCount}${unreadFilterOn ? ' [Unread filter]' : ''}`
-      );
+      console.log(`Inbox scrape (${url}): ${rows.length} conversations, unread=${unreadCount}`);
 
-      if (!rows.length) continue;
-
-      // If Unread filter is on, trust the list. If not and we found 0 unread, try next URL
-      // (mwlite often lists chats without unread badges → false 0/N).
-      if (unreadFilterOn || unreadCount > 0) return rows;
-      console.log('Inbox scrape unreliable (0 unread, no Unread filter) — trying next messaging URL');
+      if (rows.length) return rows;
     } catch (e) {
       console.error(`Inbox scrape failed ${url}:`, e.message);
     }
@@ -2315,11 +2297,8 @@ async function runStageA() {
       );
       if (smartTimingCfg?.enabled) {
         try {
-          const { isInPreferredWindow, isWithinSendWindow } = await import('./timezoneResolver.js');
+          const { isWithinSendWindow } = await import('./timezoneResolver.js');
           backlog.sort((a, b) => {
-            const ap = isInPreferredWindow(smartTimingCfg, a.timezone) ? 0 : 1;
-            const bp = isInPreferredWindow(smartTimingCfg, b.timezone) ? 0 : 1;
-            if (ap !== bp) return ap - bp;
             const aw = isWithinSendWindow(smartTimingCfg, a.timezone).ok ? 0 : 1;
             const bw = isWithinSendWindow(smartTimingCfg, b.timezone).ok ? 0 : 1;
             return aw - bw;
@@ -2790,6 +2769,9 @@ async function runStageB() {
     const unreadP2ThreadById = new Map();
     /** @type {Map<string, string>} lower name -> href */
     const unreadP2ThreadByName = new Map();
+    /** Already-read Conversation 💬 threads (last-sender check, no notify). */
+    const readP2ThreadById = new Map();
+    const readP2ThreadByName = new Map();
 
     function toDesktopMessagingHref(href) {
       const h = String(href || '').trim();
@@ -2843,6 +2825,7 @@ async function runStageB() {
           stageBAbort = true;
         }
         const inboundRows = inboxRows.filter((r) => r.name && r.unread && !isSponsoredInboxRow(r));
+        const conversationRows = inboxRows.filter((r) => r.name && !r.unread && !isSponsoredInboxRow(r));
         const sponsoredUnread = inboxRows.filter(
           (r) => r.name && r.unread && isSponsoredInboxRow(r)
         ).length;
@@ -2932,6 +2915,24 @@ async function runStageB() {
             console.error(`Inbox resolve error ${row.name}:`, e.message);
           }
         }
+
+        for (const row of conversationRows) {
+          if (stageBAbort) break;
+          try {
+            const crm = await findCrmBySenderName(row.name);
+            const status = crm?.status || '';
+            const isP2 = status === 'Conversation 💬' || (crm && pending.some((l) => l.id === crm.id));
+            if (!isP2) continue;
+            const href = toDesktopMessagingHref(row.href);
+            if (crm?.id) readP2ThreadById.set(crm.id, href);
+            readP2ThreadByName.set(String(row.name || '').toLowerCase(), href);
+            const match = pending.find((l) => namesMatch(l.name, row.name));
+            if (match) readP2ThreadById.set(match.id, href);
+            console.log(`  Conversation 💬 already-read — last-sender check (${row.name})`);
+          } catch (e) {
+            console.error(`Inbox read-row error ${row.name}:`, e.message);
+          }
+        }
       } catch (e) {
         console.error('Inbox Lost-revive scan error:', e.message);
       }
@@ -2945,17 +2946,34 @@ async function runStageB() {
     }
 
     function collectUnreadP2Leads(leadList) {
+      const readMax = Math.max(0, Number(process.env.STAGE_B_READ_INBOUND_MAX ?? 12));
       const out = [];
       const seen = new Set();
       for (const lead of leadList) {
-        const threadHref =
+        const unreadHref =
           unreadP2ThreadById.get(lead.id) ||
           unreadP2ThreadByName.get(String(lead.name || '').toLowerCase()) ||
           '';
-        if (!scanAllP2 && !threadHref) continue;
+        if (!unreadHref) continue;
         if (seen.has(lead.id)) continue;
         seen.add(lead.id);
-        out.push({ lead, threadHref });
+        out.push({ lead, threadHref: unreadHref });
+      }
+      let extra = 0;
+      for (const lead of leadList) {
+        if (seen.has(lead.id)) continue;
+        const readHref =
+          readP2ThreadById.get(lead.id) ||
+          readP2ThreadByName.get(String(lead.name || '').toLowerCase()) ||
+          '';
+        if (readHref) {
+          if (extra >= readMax) continue;
+          extra += 1;
+        } else if (!scanAllP2) {
+          continue;
+        }
+        seen.add(lead.id);
+        out.push({ lead, threadHref: readHref });
       }
       return out;
     }
@@ -2964,12 +2982,12 @@ async function runStageB() {
       inboxScanned || scanAllP2 ? collectUnreadP2Leads(pending) : [];
 
     console.log(
-      `--- Stage B Conversation inbox --- (${replyQueue.length} unread thread(s); all will be answered this run) ---`
+      `--- Stage B Conversation inbox --- (${replyQueue.length} thread(s); unread first, then already-read last-sender checks) ---`
     );
     if (!inboxScanned && !scanAllP2) {
       console.log('No inbox scrape this tick — skipping P2 reply loop (nothing unread known).');
     } else if (!replyQueue.length) {
-      console.log('Inbox scanned — no unread Conversation 💬 threads to answer.');
+      console.log('Inbox scanned — no Conversation 💬 threads to last-sender check.');
     } else {
       for (const { lead, threadHref } of replyQueue) {
         if (stageBAbort) {
@@ -3030,6 +3048,7 @@ async function runStageB() {
             typeof lastInbound === 'object' ? String(lastInbound.text || '') : '';
           const decision = await decideReplyForLead(lead, {
             thread: formatThreadForPrompt(messages.slice(-12)),
+            inboundText,
           });
           console.log(`  decision intent=${decision.intent} status=${decision.status}`);
 

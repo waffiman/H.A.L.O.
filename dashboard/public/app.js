@@ -437,7 +437,7 @@ let crmKanban = {};
 let crmKanbanTotals = {};
 let crmLoading = false;
 let crmDrawerLead = null;
-let crmDrawerTab = 'general';
+let crmDrawerTab = 'identity';
 let crmSelectedIds = new Set();
 let crmKanbanDragId = null;
 let crmCardProps = loadCrmCardProps();
@@ -1495,6 +1495,9 @@ function leadScoreTooltip(breakdown) {
     line('region', 'Region'),
     line('seniority', 'Seniority'),
     line('profile', 'Profile'),
+    line('intent', 'Reply intent'),
+    line('buying', 'Buying signal'),
+    breakdown.previousScore != null ? `Previous: ${breakdown.previousScore}/10` : '',
     `Total: ${breakdown.total ?? '—'}/10`,
   ]
     .filter(Boolean)
@@ -1507,7 +1510,9 @@ function leadScoreGaugeHtml(score, breakdown, { always = false, compact = true }
   if (!has && !always) return '';
   const n = has ? Math.max(1, Math.min(10, Math.round(raw))) : null;
   const pct = n == null ? 50 : ((n - 1) / 9) * 100;
-  const tip = has ? leadScoreTooltip(breakdown) : 'ICP score appears after Apify enrich';
+  const tip = has
+    ? leadScoreTooltip(breakdown)
+    : 'ICP score appears after Apify enrich (and is revised when the lead replies)';
   const color = has && typeof leadScoreColor === 'function' ? leadScoreColor(n) : null;
   const pointerStyle = color
     ? `left:${pct}%;--lead-score-pointer-bg:${color};--lead-score-pointer-fg:#0b1220`
@@ -2028,9 +2033,24 @@ function crmTableHtml() {
   </div>`;
 }
 
+const CRM_DRAWER_TABS = [
+  { id: 'identity', label: 'Identity' },
+  { id: 'contact', label: 'Contact' },
+  { id: 'outreach', label: 'Outreach' },
+  { id: 'fit', label: 'Fit' },
+  { id: 'conversation', label: 'Conversation' },
+];
+
+function crmDrawerMetric(label, value, extraStyle = '') {
+  const v = String(value || '').trim() || '—';
+  const style = extraStyle ? ` style="${escapeAttr(extraStyle)}"` : '';
+  return `<div class="crm-drawer-metric"><span class="crm-drawer-metric-label">${escapeHtml(label)}</span><span class="crm-drawer-metric-val" title="${escapeAttr(v)}"${style}>${escapeHtml(crmTextPreview(v, 28))}</span></div>`;
+}
+
 function crmDrawerHtml(lead) {
   if (!lead) return '';
-  const tab = crmDrawerTab === 'conversation' ? 'conversation' : 'general';
+  const allowedTabs = new Set(CRM_DRAWER_TABS.map((t) => t.id));
+  const tab = allowedTabs.has(crmDrawerTab) ? crmDrawerTab : 'identity';
   const statusOpts = CRM_STATUSES.map(
     (st) => `<option value="${escapeAttr(st)}"${st === lead.status ? ' selected' : ''}>${escapeHtml(st)}</option>`
   ).join('');
@@ -2052,43 +2072,87 @@ function crmDrawerHtml(lead) {
   const notesBody = bodyLen
     ? escapeHtml(lead.notes)
     : '<span class="muted">No messages yet — conversation will appear here after outreach.</span>';
+  const scoreN = Number(lead.leadScore);
+  const scoreVal = Number.isFinite(scoreN) ? `${Math.round(scoreN)}/10` : '—';
+  const scoreColor =
+    Number.isFinite(scoreN) && typeof leadScoreColor === 'function' ? leadScoreColor(Math.round(scoreN)) : '';
+  const locShort = crmTextPreview(lead.location, 24) || (String(lead.timezone || '').includes('/')
+    ? String(lead.timezone).split('/').pop().replace(/_/g, ' ')
+    : String(lead.timezone || '').trim());
+  const tabsHtml = CRM_DRAWER_TABS.map(
+    (t) =>
+      `<button type="button" class="crm-drawer-tab${tab === t.id ? ' active' : ''}" data-crm-tab="${t.id}" role="tab" aria-selected="${tab === t.id}">${escapeHtml(t.label)}</button>`
+  ).join('');
   return `<div id="crm-drawer-backdrop" class="crm-drawer-backdrop"></div>
     <aside id="crm-drawer" class="crm-drawer" role="dialog" aria-label="Lead details">
       <header class="crm-drawer-head">
         <div class="crm-drawer-head-main">
-          <p class="crm-drawer-kicker">${lead.__draft || !lead.id ? 'New lead' : 'Lead record'}</p>
-          <h3>${escapeHtml(lead.name || (lead.__draft ? 'Untitled' : 'Untitled'))}</h3>
-          <div class="crm-drawer-badges">${crmStatusBadge(lead.status)}${lead.processingAt ? `<span class="crm-drawer-meta muted">${escapeHtml(formatCrmDate(lead.processingAt))}</span>` : ''}</div>
+          <div class="crm-drawer-title-row">
+            <h3>${escapeHtml(lead.name || (lead.__draft ? 'Untitled' : 'Untitled'))}</h3>
+            <div class="crm-drawer-badges">${crmStatusBadge(lead.status)}</div>
+          </div>
+          <div class="crm-drawer-metrics" aria-label="Lead snapshot">
+            ${crmDrawerMetric('Score', scoreVal, scoreColor ? `color:${scoreColor}` : '')}
+            ${crmDrawerMetric('Last contact', lead.processingAt ? formatCrmDate(lead.processingAt) : '—')}
+            ${crmDrawerMetric('Place', locShort)}
+          </div>
         </div>
         <button type="button" class="ob-close" id="crm-drawer-close" aria-label="Close">×</button>
       </header>
-      <div class="crm-drawer-tabs" role="tablist">
-        <button type="button" class="crm-drawer-tab${tab === 'general' ? ' active' : ''}" data-crm-tab="general" role="tab" aria-selected="${tab === 'general'}">General</button>
-        <button type="button" class="crm-drawer-tab${tab === 'conversation' ? ' active' : ''}" data-crm-tab="conversation" role="tab" aria-selected="${tab === 'conversation'}">Conversation</button>
-      </div>
+      <div class="crm-drawer-tabs" role="tablist">${tabsHtml}</div>
       <div class="crm-drawer-body">
-        <div class="crm-drawer-pane${tab === 'general' ? '' : ' hidden'}" data-crm-pane="general">
+        <div class="crm-drawer-pane${tab === 'identity' ? '' : ' hidden'}" data-crm-pane="identity">
           <section class="crm-drawer-section">
-            <h4 class="crm-drawer-section-title">Properties</h4>
+            <h4 class="crm-drawer-section-title">Who</h4>
             <div class="crm-drawer-grid">
               <label class="field">Name<input type="text" id="crm-d-name" value="${escapeAttr(lead.name || '')}" placeholder="Optional — enrich fills later" /></label>
               <label class="field">Status<select id="crm-d-status">${statusOpts}</select></label>
               <label class="field crm-drawer-field-wide">Link ${lead.__draft || !lead.id ? '<span class="crm-req" title="Required">*</span>' : ''}<input type="url" id="crm-d-url" value="${escapeAttr(lead.url || '')}" placeholder="https://linkedin.com/in/…" required /></label>
+            </div>
+          </section>
+        </div>
+        <div class="crm-drawer-pane${tab === 'contact' ? '' : ' hidden'}" data-crm-pane="contact">
+          <section class="crm-drawer-section">
+            <h4 class="crm-drawer-section-title">Reach</h4>
+            <div class="crm-drawer-grid">
+              <label class="field">Email<input type="email" id="crm-d-email" value="${escapeAttr(lead.email || '')}" /></label>
               <label class="field">Location<input type="text" id="crm-d-location" value="${escapeAttr(lead.location || '')}" /></label>
               <label class="field">Timezone<input type="text" id="crm-d-timezone" value="${escapeAttr(lead.timezone || '')}" /></label>
-              <label class="field">Email<input type="email" id="crm-d-email" value="${escapeAttr(lead.email || '')}" /></label>
-              <label class="field">Lost reason<select id="crm-d-lost-reason">${lostOpts}</select></label>
               <label class="field">Messenger<select id="crm-d-messenger-app">${msgOpts}</select></label>
               <label class="field crm-drawer-field-wide">Phone / profile link<input type="text" id="crm-d-messenger-value" value="${escapeAttr(lead.messengerValue || '')}" /></label>
             </div>
           </section>
-          <section class="crm-drawer-section crm-drawer-section-score">
-            ${leadScoreGaugeHtml(lead.leadScore, lead.scoreBreakdown, { always: true, compact: false })}
-          </section>
+        </div>
+        <div class="crm-drawer-pane${tab === 'outreach' ? '' : ' hidden'}" data-crm-pane="outreach">
           <section class="crm-drawer-section">
             <h4 class="crm-drawer-section-title">Ice-breaker</h4>
             <p class="crm-drawer-hint muted">First outbound DM — Stage A writes here before send.</p>
-            <label class="field"><textarea id="crm-d-msg" rows="5" class="crm-field-text">${escapeHtml(lead.msg || '')}</textarea></label>
+            <label class="field"><textarea id="crm-d-msg" rows="6" class="crm-field-text">${escapeHtml(lead.msg || '')}</textarea></label>
+          </section>
+        </div>
+        <div class="crm-drawer-pane${tab === 'fit' ? '' : ' hidden'}" data-crm-pane="fit">
+          <section class="crm-drawer-section crm-drawer-section-score">
+            ${leadScoreGaugeHtml(lead.leadScore, lead.scoreBreakdown, { always: true, compact: false })}
+            ${
+              lead.scoreBreakdown?.source
+                ? `<p class="crm-drawer-hint muted">Source: ${escapeHtml(
+                    String(lead.scoreBreakdown.source).replace(/_/g, ' ')
+                  )}${
+                    lead.scoreBreakdown.previousScore != null
+                      ? ` · previous ${escapeHtml(String(lead.scoreBreakdown.previousScore))}/10`
+                      : ''
+                  }</p>`
+                : ''
+            }
+            ${
+              lead.scoreBreakdown?.summary
+                ? `<p class="crm-drawer-hint muted">${escapeHtml(String(lead.scoreBreakdown.summary).slice(0, 280))}</p>`
+                : ''
+            }
+          </section>
+          <section class="crm-drawer-section">
+            <h4 class="crm-drawer-section-title">Outcome</h4>
+            <label class="field">Lost reason<select id="crm-d-lost-reason">${lostOpts}</select></label>
           </section>
         </div>
         <div class="crm-drawer-pane${tab === 'conversation' ? '' : ' hidden'}" data-crm-pane="conversation">
@@ -2212,7 +2276,7 @@ function openCrmDrawer(leadOrId) {
   }
   if (!lead) return;
   crmDrawerLead = { ...lead };
-  crmDrawerTab = 'general';
+  crmDrawerTab = 'identity';
   const slot = document.getElementById('crm-drawer-slot');
   if (!slot) return;
   slot.innerHTML = crmDrawerHtml(crmDrawerLead);
@@ -2221,7 +2285,7 @@ function openCrmDrawer(leadOrId) {
 
 function closeCrmDrawer() {
   crmDrawerLead = null;
-  crmDrawerTab = 'general';
+  crmDrawerTab = 'identity';
   const slot = document.getElementById('crm-drawer-slot');
   if (slot) slot.innerHTML = '';
 }
@@ -2233,7 +2297,9 @@ function bindCrmDrawerEvents() {
   document.getElementById('crm-d-delete')?.addEventListener('click', deleteCrmDrawer);
   document.querySelectorAll('[data-crm-tab]').forEach((btn) => {
     btn.onclick = () => {
-      crmDrawerTab = btn.dataset.crmTab === 'conversation' ? 'conversation' : 'general';
+      const allowed = new Set(CRM_DRAWER_TABS.map((t) => t.id));
+      const next = String(btn.dataset.crmTab || '');
+      crmDrawerTab = allowed.has(next) ? next : 'identity';
       document.querySelectorAll('[data-crm-tab]').forEach((b) => {
         const on = b.dataset.crmTab === crmDrawerTab;
         b.classList.toggle('active', on);
@@ -3650,14 +3716,44 @@ const PORTRAIT_BUDGET = [
 ];
 const PORTRAIT_INDUSTRIES = [
   'SaaS',
+  'Software / IT',
   'Agency',
-  'Coaching',
-  'Real estate',
-  'E-commerce',
-  'Creator economy',
+  'Marketing / Advertising',
+  'Coaching / Consulting',
   'Professional services',
+  'Legal',
+  'Accounting / Bookkeeping',
+  'Finance / Fintech',
+  'Insurance',
+  'Real estate',
+  'Construction / Trades',
+  'Manufacturing',
+  'Logistics / Supply chain',
+  'E-commerce',
+  'Retail',
+  'Consumer goods',
   'Healthcare',
-  'Finance',
+  'Biotech / Pharma',
+  'Education / EdTech',
+  'HR / Recruiting',
+  'Media / Publishing',
+  'Creator economy',
+  'Entertainment',
+  'Travel / Hospitality',
+  'Food & beverage',
+  'Fitness / Wellness',
+  'Beauty / Fashion',
+  'Energy / Cleantech',
+  'Automotive',
+  'Telecom',
+  'Cybersecurity',
+  'Data / Analytics',
+  'AI / ML',
+  'Gaming',
+  'Nonprofit',
+  'Government / Public sector',
+  'Agriculture',
+  'Other',
 ];
 const PORTRAIT_COMPANY_SIZE = [
   { id: 'solo', label: 'Solo' },
@@ -4607,66 +4703,109 @@ function renderBrainSales() {
     enabled: false,
     windowStart: 9,
     windowEnd: 17,
-    preferredStart: 9,
-    preferredEnd: 11,
   };
 
-  setPageHeader('Sales settings', 'Client portrait · LinkedIn filters · outcome · timing');
+  setPageHeader('Sales settings', 'Goal · who you target · LinkedIn search');
   titleEl.title = 'Sales settings';
   view.innerHTML = `
     <div class="brain-sales-page">
       <div class="brain-sales-page-bar">
         <button type="button" class="btn ghost btn-sm" id="brain-sales-back" title="Back to Brain">← Brain</button>
-        <p class="muted brain-sales-page-hint">Same settings as before — laid out in columns for easier editing.</p>
+        <p class="muted brain-sales-page-hint">Same controls as before — grouped so Goal, ICP, and People search are easier to scan.</p>
       </div>
-      <div class="brain-sales-full-grid">
-        <section class="brain-panel brain-sales-col">
+      <div class="brain-sales-stack">
+        <section class="brain-panel brain-sales-section">
           <header class="brain-panel-head brain-panel-head-compact">
-            <h3 class="brain-panel-title">Client portrait</h3>
+            <p class="brain-sales-kicker">1 · Goal</p>
+            <h3 class="brain-panel-title">Outcome &amp; when to send</h3>
           </header>
-          ${portraitBlock(
-            'Who',
-            'Job titles, industries, and who signs off on a project.',
-            `
-            ${portraitField('Roles', 'Titles you target — pick all that apply.', portraitChipRow('roles', PORTRAIT_ROLES, portrait.roles, true))}
-            ${portraitField('Industries', null, portraitChipRow('industries', PORTRAIT_INDUSTRIES, portrait.industries, true))}
-            <div class="brain-portrait-field-row">
-              ${portraitField('Company size', null, portraitChipRow('companySize', PORTRAIT_COMPANY_SIZE, portrait.companySize, false))}
-              ${portraitField('Decision maker', null, portraitChipRow('decisionMaker', PORTRAIT_DECISION_MAKER, portrait.decisionMaker, true))}
+          <div class="brain-sales-goal-grid">
+            <div class="brain-outcome-block">
+              <div class="brain-portrait-field-label">Outcome</div>
+              <input type="hidden" id="brain-outcome" value="${escapeAttr(outcome)}" />
+              <div class="brain-outcome-grid brain-outcome-grid-compact" role="group" aria-label="Desired sales outcome">
+                ${brainOutcomeCardsHtml(outcome)}
+              </div>
+              ${
+                outcome === 'book_a_call' && !bookingCompleteFromDraft()
+                  ? '<p class="muted brain-book-hint">Complete weekly availability before Save — every day needs free, busy, or intervals.</p>'
+                  : ''
+              }
             </div>
-          `
-          )}
-          ${portraitBlock(
-            'Context',
-            'Stage, budget, geography, and timing.',
-            `
-            <div class="brain-portrait-field-row">
-              ${portraitField('Stage', null, portraitChipRow('stage', PORTRAIT_STAGES, portrait.stage, false))}
-              ${portraitField('Budget', null, portraitChipRow('budget', PORTRAIT_BUDGET, portrait.budget, false))}
+            <div class="brain-smart-timing card" title="Timezone-aware ice-breaker sending">
+              <div class="tile-head">
+                <h3>Smart Timing ${brainInfoIcon('Ice-breakers go out in the lead’s local hours. Stage B replies are never delayed.')}</h3>
+                ${switchEl('smartTimingEnabled', !!st.enabled, 'Send ice-breakers in the lead’s local hours')}
+              </div>
+              <p class="st-lede">First DM only, in the lead’s local hours. Stage B is never delayed.</p>
+              <div class="st-rows">
+                <div class="st-row">
+                  <span class="st-label">Hours</span>
+                  <div class="st-range">
+                    <input class="st-hour" type="number" id="smartTimingWindowStart" min="0" max="23" step="1" value="${Number(st.windowStart) || 9}" aria-label="From hour" />
+                    <span class="st-dash" aria-hidden="true">–</span>
+                    <input class="st-hour" type="number" id="smartTimingWindowEnd" min="0" max="23" step="1" value="${Number(st.windowEnd) || 17}" aria-label="To hour" />
+                  </div>
+                </div>
+              </div>
+              <p class="muted st-hint">Ice-breakers send only inside this window. No timezone on the lead → anytime.</p>
             </div>
-            ${portraitField('Regions', 'Pick countries/regions or type more below (comma-separated).', portraitRegionsPicker(portrait.regions))}
-            ${portraitField('Urgency', null, portraitChipRow('urgency', PORTRAIT_URGENCY, portrait.urgency, false))}
-          `
-          )}
-          ${portraitBlock(
-            'Fit signals',
-            'Why they need you — used on inbound replies only.',
-            `
-            ${portraitField('Pain points', null, portraitChipRow('painPoints', PORTRAIT_PAIN_POINTS, portrait.painPoints, true))}
-            ${portraitField('LinkedIn signals', 'Profile cues that suggest good fit.', portraitChipRow('linkedinSignals', PORTRAIT_LINKEDIN, portrait.linkedinSignals, true))}
-            ${portraitField('Need / offer fit', 'One short paragraph — what you deliver for this persona.', `<textarea id="brain-portrait-need" class="textarea-brain textarea-brain-xs" rows="2" title="Need / offer fit">${escapeHtml(portrait.need)}</textarea>`)}
-            ${portraitField('Green flags', null, `<input type="text" id="brain-portrait-green" class="input-compact" value="${escapeAttr(portrait.greenFlags)}" placeholder="e.g. asks pricing, mentions launch" />`)}
-          `
-          )}
-          ${portraitBlock(
-            'Disqualifiers',
-            'When to mark Lost instead of pushing.',
-            `${portraitField('Non-fit → Lost', null, `<textarea id="brain-portrait-nonfit" class="textarea-brain textarea-brain-xs" rows="2" title="Non-fit rules">${escapeHtml(portrait.nonFit)}</textarea>`)}`
-          )}
+          </div>
         </section>
 
-        <section class="brain-panel brain-sales-col">
+        <section class="brain-panel brain-sales-section">
           <header class="brain-panel-head brain-panel-head-compact">
+            <p class="brain-sales-kicker">2 · Who</p>
+            <h3 class="brain-panel-title">Client portrait</h3>
+          </header>
+          <div class="brain-sales-who-grid">
+            ${portraitBlock(
+              'Who',
+              'Job titles, industries, and who signs off on a project.',
+              `
+              ${portraitField('Roles', 'Titles you target — pick all that apply.', portraitChipRow('roles', PORTRAIT_ROLES, portrait.roles, true))}
+              ${portraitField('Industries', null, portraitChipRow('industries', PORTRAIT_INDUSTRIES, portrait.industries, true))}
+              <div class="brain-portrait-field-row">
+                ${portraitField('Company size', null, portraitChipRow('companySize', PORTRAIT_COMPANY_SIZE, portrait.companySize, false))}
+                ${portraitField('Decision maker', null, portraitChipRow('decisionMaker', PORTRAIT_DECISION_MAKER, portrait.decisionMaker, true))}
+              </div>
+            `
+            )}
+            ${portraitBlock(
+              'Context',
+              'Stage, budget, geography, and timing.',
+              `
+              <div class="brain-portrait-field-row">
+                ${portraitField('Stage', null, portraitChipRow('stage', PORTRAIT_STAGES, portrait.stage, false))}
+                ${portraitField('Budget', null, portraitChipRow('budget', PORTRAIT_BUDGET, portrait.budget, false))}
+              </div>
+              ${portraitField('Regions', 'Pick countries/regions or type more below (comma-separated).', portraitRegionsPicker(portrait.regions))}
+              ${portraitField('Urgency', null, portraitChipRow('urgency', PORTRAIT_URGENCY, portrait.urgency, false))}
+            `
+            )}
+          </div>
+          <div class="brain-sales-who-grid">
+            ${portraitBlock(
+              'Fit signals',
+              'Why they need you — used on inbound replies only.',
+              `
+              ${portraitField('Pain points', null, portraitChipRow('painPoints', PORTRAIT_PAIN_POINTS, portrait.painPoints, true))}
+              ${portraitField('LinkedIn signals', 'Profile cues that suggest good fit.', portraitChipRow('linkedinSignals', PORTRAIT_LINKEDIN, portrait.linkedinSignals, true))}
+              ${portraitField('Need / offer fit', 'One short paragraph — what you deliver for this persona.', `<textarea id="brain-portrait-need" class="textarea-brain textarea-brain-xs" rows="2" title="Need / offer fit">${escapeHtml(portrait.need)}</textarea>`)}
+              ${portraitField('Green flags', null, `<input type="text" id="brain-portrait-green" class="input-compact" value="${escapeAttr(portrait.greenFlags)}" placeholder="e.g. asks pricing, mentions launch" />`)}
+            `
+            )}
+            ${portraitBlock(
+              'Disqualifiers',
+              'When to mark Lost instead of pushing.',
+              `${portraitField('Non-fit → Lost', null, `<textarea id="brain-portrait-nonfit" class="textarea-brain textarea-brain-xs" rows="2" title="Non-fit rules">${escapeHtml(portrait.nonFit)}</textarea>`)}`
+            )}
+          </div>
+        </section>
+
+        <section class="brain-panel brain-sales-section">
+          <header class="brain-panel-head brain-panel-head-compact">
+            <p class="brain-sales-kicker">3 · Search</p>
             <h3 class="brain-panel-title">LinkedIn People search</h3>
           </header>
           <div class="brain-prospect-preview">
@@ -4697,45 +4836,6 @@ function renderBrainSales() {
               ${portraitField('Years of experience', null, liChipRow('yearsOfExperience', LI_YEARS_EXPERIENCE, liSearch.yearsOfExperience, true))}
               ${portraitField('Company headcount', null, liChipRow('companyHeadcount', LI_COMPANY_HEADCOUNT, liSearch.companyHeadcount, true))}
             </div>
-          </div>
-        </section>
-
-        <section class="brain-panel brain-sales-col brain-sales-col-side">
-          <header class="brain-panel-head brain-panel-head-compact">
-            <h3 class="brain-panel-title">Outcome &amp; timing</h3>
-          </header>
-          <div class="brain-outcome-block">
-            <div class="brain-portrait-field-label">Outcome</div>
-            <input type="hidden" id="brain-outcome" value="${escapeAttr(outcome)}" />
-            <div class="brain-outcome-grid brain-outcome-grid-compact" role="group" aria-label="Desired sales outcome">
-              ${brainOutcomeCardsHtml(outcome)}
-            </div>
-            ${
-              outcome === 'book_a_call' && !bookingCompleteFromDraft()
-                ? '<p class="muted brain-book-hint">Complete weekly availability before Save — every day needs free, busy, or intervals.</p>'
-                : ''
-            }
-          </div>
-          <div class="brain-smart-timing card" title="Timezone-aware ice-breaker sending">
-            <div class="tile-head">
-              <h3>Smart Timing ${brainInfoIcon('Send ice-breakers only during the lead’s local business hours. Stage B replies are never delayed.')}</h3>
-              ${switchEl('smartTimingEnabled', !!st.enabled, 'Send ice-breakers in lead local business hours')}
-            </div>
-            <div class="brain-smart-timing-grid">
-              <label class="field field-tight">Send window from
-                <input type="number" id="smartTimingWindowStart" min="0" max="23" step="1" value="${Number(st.windowStart) || 9}" />
-              </label>
-              <label class="field field-tight">to
-                <input type="number" id="smartTimingWindowEnd" min="0" max="23" step="1" value="${Number(st.windowEnd) || 17}" />
-              </label>
-              <label class="field field-tight">Preferred from
-                <input type="number" id="smartTimingPrefStart" min="0" max="23" step="1" value="${Number(st.preferredStart) || 9}" />
-              </label>
-              <label class="field field-tight">to
-                <input type="number" id="smartTimingPrefEnd" min="0" max="23" step="1" value="${Number(st.preferredEnd) || 11}" />
-              </label>
-            </div>
-            <p class="muted brain-smart-timing-hint">Ice-breakers only inside the send window. Leads without timezone send anytime.</p>
           </div>
         </section>
       </div>
@@ -4946,7 +5046,7 @@ function renderLinkedIn() {
               Days to wait for connect accept
               <input type="number" id="connectAcceptWaitDays" min="1" max="365" step="1" value="${Number(s.linkedin.connectAcceptWaitDays ?? 21) || 21}" ${(s.linkedin.portraitProspecting && s.linkedin.connectAcceptExpire !== false) ? '' : 'disabled'} />
             </label>
-            <p class="muted li-expire-hint">Default <strong>21</strong> days → <strong>Lost❌</strong> (not deleted). Switch off to keep Lead😴 forever. Never expires leads still waiting for our invite.</p>
+            <p class="muted li-expire-hint">After <strong>N</strong> days without accept, Lead😴 → <strong>Lost❌</strong> (not deleted). Ice-ready / leftover ice never expire. Switch off to keep Lead😴 forever.</p>
           </div>
         </div>
         <div class="tile li-side-tile" title="Test filter">
@@ -5177,10 +5277,35 @@ const X_CHALLENGE_COPY = {
 };
 
 let xActiveRepairToken = '';
+let xUsernameLocked = false;
+let xUsernameShown = false;
+let xChallengeDismissed = false;
+let xStopPoll = () => {};
+
+async function abortXChallengeFromUi() {
+  xChallengeDismissed = true;
+  xStopPoll();
+  closeXChallengeModal();
+  const had = xActiveRepairToken;
+  xActiveRepairToken = '';
+  const btn = document.getElementById('x-signin-btn');
+  const statusEl = document.getElementById('x-session-status');
+  if (btn) {
+    btn.disabled = false;
+    btn.classList.remove('is-loading');
+  }
+  if (statusEl) statusEl.textContent = 'Sign in cancelled.';
+  if (!had) return;
+  try {
+    await api('/api/x/session/login/cancel', { method: 'POST', body: JSON.stringify({}) });
+  } catch {
+    /* ignore */
+  }
+}
 
 function ensureXChallengeModal() {
   let modal = document.getElementById('x-challenge-modal');
-  if (modal && modal.dataset.haloXUi !== 'v6') {
+  if (modal && modal.dataset.haloXUi !== 'v7') {
     modal.remove();
     modal = null;
   }
@@ -5188,7 +5313,7 @@ function ensureXChallengeModal() {
     modal = document.createElement('div');
     modal.id = 'x-challenge-modal';
     modal.className = 'li-captcha-modal hidden';
-    modal.dataset.haloXUi = 'v6';
+    modal.dataset.haloXUi = 'v7';
     modal.setAttribute('aria-hidden', 'true');
     modal.innerHTML = `
       <div class="li-captcha-modal-backdrop" data-x-challenge-close></div>
@@ -5204,7 +5329,7 @@ function ensureXChallengeModal() {
           <button type="button" class="btn ghost" data-x-challenge-close aria-label="Close">Close</button>
         </header>
         <p class="muted" id="x-challenge-fill-error" role="status"></p>
-        <div class="x-challenge-extra" id="x-challenge-username-block">
+        <div class="x-challenge-extra hidden" id="x-challenge-username-block">
           <label class="field" for="x-modal-username">X username
             <input id="x-modal-username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" />
           </label>
@@ -5280,6 +5405,15 @@ function closeXChallengeModal() {
   modal.setAttribute('aria-hidden', 'true');
   modal.style.display = 'none';
   document.body.classList.remove('li-captcha-modal-open');
+  xUsernameLocked = false;
+  xUsernameShown = false;
+  const userEl = document.getElementById('x-modal-username');
+  const userBtn = document.getElementById('x-modal-submit-username');
+  if (userEl) userEl.disabled = false;
+  if (userBtn) {
+    userBtn.disabled = false;
+    userBtn.classList.remove('is-loading');
+  }
 }
 
 function xOtpValue() {
@@ -5300,21 +5434,16 @@ function bindXChallengeModalControls() {
   if (!modal || modal.dataset.bound === '1') return;
   modal.dataset.bound = '1';
   modal.querySelectorAll('[data-x-challenge-close]').forEach((el) => {
-    el.addEventListener('click', async () => {
-      closeXChallengeModal();
-      if (!xActiveRepairToken) return;
-      try {
-        await api('/api/x/session/login/cancel', { method: 'POST', body: JSON.stringify({}) });
-      } catch {
-        /* ignore */
-      }
+    el.addEventListener('click', () => {
+      void abortXChallengeFromUi();
     });
   });
   const userBtn = document.getElementById('x-modal-submit-username');
   const userEl = document.getElementById('x-modal-username');
   const sendUsername = async () => {
     const text = String(userEl?.value || '').trim();
-    if (!text || !xActiveRepairToken) return;
+    if (!text || !xActiveRepairToken || xUsernameLocked) return;
+    if (userEl) userEl.disabled = true;
     if (userBtn) {
       userBtn.disabled = true;
       userBtn.classList.add('is-loading');
@@ -5324,9 +5453,11 @@ function bindXChallengeModalControls() {
         method: 'POST',
         body: JSON.stringify({ token: xActiveRepairToken, type: 'submitUsername', text }),
       });
+      xUsernameLocked = true;
     } catch (err) {
       toast(err.message, true);
-    } finally {
+      xUsernameLocked = false;
+      if (userEl) userEl.disabled = false;
       if (userBtn) {
         userBtn.disabled = false;
         userBtn.classList.remove('is-loading');
@@ -5461,14 +5592,36 @@ function updateXChallengeModal(state) {
   const showPassword =
     !blocked && (kind === 'password' || kind === 'password_optional' || state.status === 'awaiting_password');
   const showPin = !blocked && !showPassword && (kind === 'pin' || state.status === 'awaiting_code');
-  const showUser = !blocked && !showPassword && !showPin;
-  if (showUser && (kind === 'username' || state.status === 'awaiting_username')) {
+  if (showPassword || showPin || blocked) {
+    xUsernameLocked = false;
+    xUsernameShown = false;
+  }
+  const askedUser =
+    state.status === 'awaiting_username' ||
+    /type it in the popup|confirm your account|asking for your username/i.test(String(state.lastFillError || ''));
+  if (askedUser) xUsernameShown = true;
+  const showUser =
+    !blocked && !showPassword && !showPin && (xUsernameShown || xUsernameLocked || askedUser);
+  if (showUser) {
     if (title) title.textContent = X_CHALLENGE_COPY.username.title;
     if (body) body.textContent = X_CHALLENGE_COPY.username.body;
   }
   if (userBlock) userBlock.classList.toggle('hidden', !showUser);
   if (passBlock) passBlock.classList.toggle('hidden', !showPassword);
   if (pinBlock) pinBlock.classList.toggle('hidden', !showPin);
+  const userEl = document.getElementById('x-modal-username');
+  const userBtn = document.getElementById('x-modal-submit-username');
+  if (userEl) userEl.disabled = Boolean(showUser && xUsernameLocked);
+  if (userBtn && showUser && xUsernameLocked) {
+    userBtn.disabled = true;
+    userBtn.classList.add('is-loading');
+  } else if (userBtn && showUser && !xUsernameLocked) {
+    userBtn.disabled = false;
+    userBtn.classList.remove('is-loading');
+  }
+  if (showUser && !xUsernameLocked) {
+    if (userEl && document.activeElement !== userEl) setTimeout(() => userEl.focus(), 200);
+  }
   if (showPassword) {
     const passEl = document.getElementById('x-modal-password');
     if (passEl && document.activeElement !== passEl) setTimeout(() => passEl.focus(), 200);
@@ -5510,6 +5663,7 @@ function bindXSessionForm() {
     if (pollTimer) clearTimeout(pollTimer);
     pollTimer = null;
   };
+  xStopPoll = stopPoll;
 
   const finishOk = async () => {
     stopPoll();
@@ -5537,24 +5691,40 @@ function bindXSessionForm() {
   };
 
   const poll = async (token) => {
+    if (xChallengeDismissed || token !== xActiveRepairToken) return;
     if (pollTimer) clearTimeout(pollTimer);
     try {
       const st = await api('/api/x/session/login/status?token=' + encodeURIComponent(token));
+      if (xChallengeDismissed || token !== xActiveRepairToken) return;
       const state = st.state || {};
       if (state.authTokenCaptured || state.status === 'success') {
         await finishOk();
         return;
       }
-      if (state.status === 'error' || state.status === 'cancelled') {
+      if (state.status === 'cancelled') {
+        stopPoll();
+        closeXChallengeModal();
+        xActiveRepairToken = '';
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('is-loading');
+        }
+        if (statusEl) statusEl.textContent = 'Sign in cancelled.';
+        return;
+      }
+      if (state.status === 'error') {
         finishErr(state.error || 'X Sign in failed');
         return;
       }
+      if (xChallengeDismissed || token !== xActiveRepairToken) return;
       openXChallengeModal();
       updateXChallengeModal(state);
       if (statusEl) statusEl.textContent = 'Complete the step in the popup…';
     } catch (err) {
+      if (xChallengeDismissed) return;
       if (statusEl) statusEl.textContent = err.message;
     }
+    if (xChallengeDismissed || token !== xActiveRepairToken) return;
     pollTimer = setTimeout(() => poll(token), 2000);
   };
 
@@ -5576,6 +5746,9 @@ function bindXSessionForm() {
         body: JSON.stringify({ username }),
       });
       xActiveRepairToken = res.token || '';
+      xUsernameLocked = false;
+      xUsernameShown = false;
+      xChallengeDismissed = false;
       openXChallengeModal();
       updateXChallengeModal({ challengeKind: 'generic', status: 'running' });
       if (statusEl) statusEl.textContent = 'Complete the step in the popup…';
@@ -8222,8 +8395,6 @@ function collectPatch() {
         enabled: document.getElementById('smartTimingEnabled')?.checked === true,
         windowStart: Number(document.getElementById('smartTimingWindowStart')?.value ?? 9),
         windowEnd: Number(document.getElementById('smartTimingWindowEnd')?.value ?? 17),
-        preferredStart: Number(document.getElementById('smartTimingPrefStart')?.value ?? 9),
-        preferredEnd: Number(document.getElementById('smartTimingPrefEnd')?.value ?? 11),
       },
     };
     document.querySelectorAll('[data-prompt-key]').forEach((ta) => {

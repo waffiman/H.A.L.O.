@@ -123,7 +123,7 @@ flowchart LR
 ### Stage B inbox rules (implemented)
 
 1. Primary inbox work = leads in `Proposal 2️⃣` (LLM reply).
-2. Scrape LinkedIn messaging list; **notify only on unread** (CRM or not). Already-read chats where the lead spoke last are ignored. Deduped per sender+preview. **Sponsored/ad unreads and Recruiter InMail request rows** (`Anfrage` / `Request` / `Recruiter InMail`) **are ignored** (never notified or replied). Inbox is still checked every Stage B tick; sponsored-only does not delay the next tick.
+2. Scrape LinkedIn messaging list (not Unread-only). **Notify only on unread** (CRM or not). For `Conversation 💬`, Stage B also opens already-read threads from that list and replies if the **lead sent the last message** (`threadHasInbound`). Lost revive and unknown notify stay unread-only. Deduped per sender+preview. **Sponsored/ad unreads and Recruiter InMail request rows** (`Anfrage` / `Request` / `Recruiter InMail`) **are ignored**. Inbox is still checked every Stage B tick; sponsored-only does not delay the next tick.
 3. Unknown / not in CRM → **never auto-reply**.
 4. `Lost❌` + unread → revive to `Proposal 2️⃣`; reply next cycle.
 
@@ -226,13 +226,13 @@ processLeads / tickStageA
 
 Stage B **auto-dialog is core automation** — not optional in the dashboard. Every save forces `ENABLE_INBOX_REPLIES=1` ([`dashboard/lib/ops.js`](dashboard/lib/ops.js)). LinkedIn page shows an **Auto-dialog** info tile (no toggles/caps).
 
-- **Inbox replies:** all **unread** `Proposal 2️⃣` threads detected in the messaging scrape are answered in the same browser run (no `CONV_MAX_PER_RUN` UI cap; env var legacy only).
+- **Inbox replies:** all **unread** `Conversation 💬` threads in the messaging scrape, plus already-read Conversation threads in that list whose **last message is from the lead** (capped by `STAGE_B_READ_INBOUND_MAX`, default 12). Env `CONV_MAX_PER_RUN` is legacy only.
 - **Lost revive:** **all** unread `Lost❌` senders in CRM are revived to `Proposal 2️⃣` and queued for reply (no `LOST_INBOX_MAX` UI cap).
 
 ### Order (strict)
 
 1. **Inbox name-revive** — scrape messaging list (`scrapeInboxConversations`); resolve non-P2 senders via Notion name search (`findLeadsByName` / `namesMatch`); **all** Lost + inbound → Proposal 2️⃣ + refresh `Processing at`; **no reply same cycle**. Unread unknown (not P2/Lost) → notify only. Skipped if `TARGET_LINKEDIN_URL` set.
-2. **Inbox replies** — **all unread** Proposal 2️⃣ in queue (`collectUnreadP2Leads`); LLM JSON from [`prompts/reply.md`](prompts/reply.md) via [`conversationAgent.js`](conversationAgent.js); may move to Active / Lost / stay P2. Opens desktop messaging threads only (unread-known); `STAGE_B_SCAN_ALL_P2=1` debug scans every P2 via composer.
+2. **Inbox replies** — unread `Conversation 💬` plus already-read Conversation threads in the scrape whose last message is from the lead (`collectUnreadP2Leads`). On inbound: Inspector **rescores** the lead from that message (`rescoreLeadOnReply`) **then** Copywriter writes the DM (LLM JSON from [`prompts/reply.md`](prompts/reply.md) via [`conversationAgent.js`](conversationAgent.js)); may move to Active / Lost / stay Conversation. Opens desktop messaging threads from the inbox list (not `/in/` profiles). `STAGE_B_SCAN_ALL_P2=1` debug still scans every Conversation via composer.
 3. **Silence closing** — business days since `Processing at` ≥ `SILENCE_BUSINESS_DAYS` (default 2); optional skip weekends (`SILENCE_SKIP_WEEKENDS`); send closing → Lost❌ (cap `STAGE_B_SILENCE_MAX`, default 2).
 
 Thread scrape prefers mwlite message DOM (`scrapeThreadMessages`). Inbound detection is conservative (`threadHasInbound`).
@@ -299,16 +299,20 @@ Dashboard: Brain popup for weekly availability + Meet URL. FAQ: **Book a call ou
 
 ### Smart Timing (ice-breakers)
 
-Stored in `sales_policy.json` → `smartTiming` (`enabled`, `windowStart`/`windowEnd`, `preferredStart`/`preferredEnd`). **Default OFF.**
+Stored in `sales_policy.json` → `smartTiming` (`enabled`, `windowStart`/`windowEnd`). **Default OFF.**
 
 - Enrich already writes lead `timezone` from location ([`locationTimezone.js`](locationTimezone.js) / [`timezoneResolver.js`](timezoneResolver.js)).
-- When enabled, Stage A **ice sends only** if the lead’s local hour is inside the send window; otherwise the lead stays Lead😴 for the next run. Preferred hours are sorted first.
+- When enabled, Stage A **ice sends only** if the lead’s local hour is inside that one window; otherwise the lead stays Lead😴 for the next run. There is no separate “preferred” band.
 - Stage B replies and silence closings are **not** delayed.
 - Dashboard: Brain → Sales → **Smart Timing** card. CRM location prop shows timezone + 🕐 next window when outside hours.
 
 ### Lead score (LinkedIn ICP)
 
-After Apify returns a profile, [`enrichAndWrite.js`](enrichAndWrite.js) **immediately** runs ICP scoring then ice-breaker in the same enrich call (score is never deferred to a later Stage). CRM **Name** is set to the official LinkedIn display name from Apify (a manual nickname like “Mihael” is overwritten to “Mykhailo Byshliaha”) so compose typeahead can open the thread; CRM is kept only when Apify is empty or returns an abbreviated last initial. [`leadScoring.js`](leadScoring.js) uses the normalized Apify profile vs Brain **Client portrait**. Normalization keeps Apify sections (experience, education, skills, certifications, languages, projects, honors, volunteer, …) plus `apifyRaw` for the Inspector. **Primary:** Brain **Inspector** LLM (`scoreLeadIcpFit` in [`salesBrain.js`](salesBrain.js)) with OpenRouter/shared fallback. **Fallback:** deterministic rubric (role / industry / size / region / seniority / completeness → **1–10**). Disable LLM with `LEAD_SCORE_LLM=0`. Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)). CRM **open lead drawer always shows** the red→green gauge with the numeric score on the pointer; kanban card preview is optional via Properties (**Lead score (kanban preview)**). Does **not** change send order. X / Email / Telegram scoring later.
+After Apify returns a profile, [`enrichAndWrite.js`](enrichAndWrite.js) **immediately** runs ICP scoring then ice-breaker in the same enrich call (score is never deferred to a later Stage). CRM **Name** is set to the official LinkedIn display name from Apify (a manual nickname like “Mihael” is overwritten to “Mykhailo Byshliaha”) so compose typeahead can open the thread; CRM is kept only when Apify is empty or returns an abbreviated last initial. [`leadScoring.js`](leadScoring.js) uses the normalized Apify profile vs Brain **Client portrait**. Normalization keeps Apify sections (experience, education, skills, certifications, languages, projects, honors, volunteer, …) plus `apifyRaw` for the Inspector. **Primary:** Brain **Inspector** LLM (`scoreLeadIcpFit` in [`salesBrain.js`](salesBrain.js)) with OpenRouter/shared fallback. **Fallback:** deterministic rubric (role / industry / size / region / seniority / completeness → **1–10**). Disable LLM with `LEAD_SCORE_LLM=0`. Stored as `lead_score` + `score_breakdown` (Supabase — run [`sql/migrate_lead_score.sql`](sql/migrate_lead_score.sql)).
+
+**Reply rescore:** when Stage B detects inbound, Inspector **revises** the score **before** Copywriter writes the reply (`scoreLeadFromReply` / `rescoreLeadOnReply` in [`conversationAgent.js`](conversationAgent.js) `decideReplyForLead`). Starts from the enrich-time score; moves **0–3** points unless a clear qualify (book/call/buy) or hard no. Persist via `crmStore.patchLead`. Fail-open: a scoring error never blocks the DM. `LEAD_SCORE_ON_REPLY=0` skips. `LEAD_SCORE_LLM=0` uses a small inbound heuristic instead of Inspector.
+
+CRM lead drawer: compact header (score / last contact / place) on every tab; panes **Identity · Contact · Outreach · Fit · Conversation**. Gauge lives on **Fit**. Kanban card preview is optional via Properties (**Lead score (kanban preview)**). Does **not** change send order. X / Email / Telegram scoring later.
 
 LinkedIn filter mapping (auto URL):
 
@@ -376,7 +380,7 @@ Confirmed in production runs — add new ones here when discovered:
 | Visiting `/in/` public profiles for DM | Guest auth wall / session challenge | Compose-by-name via `/messaging/compose` only |
 | Stage B opening **mwlite** profile/thread for every P2 | Auth wall mid-cycle; live context loses `li_at` | Desktop messaging Unread filter; P2 **unread-only**; abort on auth wall |
 | Persisting cookies from a dead context | Overwrites good jar with empty/`li_at`-less set | Skip persist when no live `li_at` |
-| Stage B scanning **all** P2 via profile composer every tick | Many profile navigations → auth wall | Unread-only P2 opens (`STAGE_B_SCAN_ALL_P2=1` only for debug) |
+| Stage B scanning **all** Conversation leads via profile composer every tick | Many profile navigations → auth wall | Inbox-list threads only (unread + last-sender on already-read); `STAGE_B_SCAN_ALL_P2=1` debug only |
 
 Dashboard paste: [`dashboard/lib/ops.js`](dashboard/lib/ops.js) `ingestCookiePaste` (EditThisCookie JSON or raw `li_at`). LinkedIn page UI: **Paste cookies** card → `POST /api/linkedin/cookies` (cabinet-scoped jar + Chromium cookie DB wipe). **Known empty-SERP cause (2026-09-14):** mobile Connect clicked English-only **People / Search**; on UA UI that misses **Люди / Пошук** and LinkedIn opens a universal-search cluster (`/groups/… Content Unavailable`). Fix: localized selectors + never treat Groups/cluster URLs as a People SERP — force `/search/results/people`. **Cabinet empty-SERP after Sign in (2026-09-23):** harvest used to **wipe** `session_data` while login lived in `session_data_repair`. Stage A then opened a cold Chromium + injected cookies → People search “10 results / No results found” / 0 `/in/` cards. Fix: after capture, **copy the live repair profile → `session_data`**. Connect keywords stay Latin-first (do not append UA/RU duplicates like `Засновник` next to `Founder`). People tab also matches **Personen / Personas**.
 
@@ -434,7 +438,7 @@ Analytics: [`dashboard/lib/analytics.js`](dashboard/lib/analytics.js) → `GET /
 ### Pages
 
 1. **Dashboard** — master pause, Stage A/B toggles + intervals (Stage B min **6 min**, jitter hint), silence, channels (LinkedIn: **Connection invites per Stage A**), **Lead Quality**, **analytics chart** (Pipeline / Rates / Lost reasons / Outreach / Session)  
-2. **CRM** — in-app kanban (Supabase) / Notion counts  
+2. **CRM** — in-app kanban (Supabase) / Notion counts. Lead drawer: header metrics + tabs Identity / Contact / Outreach / Fit / Conversation  
 3. **LinkedIn** — session + cookie paste, **Stage A prospecting** (one toggle + invite cap), **Auto-dialog** info (always on), test URL filter  
 4. Email / X / Telegram — coming soon (same placeholder banner)  
 5. **Integrations** (key icon) — API keys, Telegram  
@@ -587,7 +591,7 @@ Isolated from LinkedIn. Do not reuse `li_at` / `cookies.json` / `session_data/`.
 | Repair profile | `session_data_x_repair/` | Dashboard X Sign in |
 | Health | `x_session_status.json` | `{ ok, reason, needsCookieRepair }` |
 
-Dashboard: `/?page=x` — first field is **email or username** (`POST /api/x/session/login`). Popup steps match X: extra username (`Confirm your account`), **password** when the identifier was a username (`submitPassword`), then 6-digit email code. Worker **Accept all cookies** first so the username field and Continue are not covered by the X cookie bar. Worker starts its own Xvfb if `DISPLAY` is missing (headless Chromium makes X paint a white shell). Live frames are captured after the identifier is typed, not only after Continue. Popup always keeps the **X username** field visible during Sign in (except password / email-code / error). `/i/jf/onboarding` **Confirm your account** is `username_extra`. Other onboarding URLs stay an extra check, not `rate_limited`. If `/i/flow/login` has no identifier field, it waits and reloads `x.com` login. Live Chromium is a discreet footer link (`/x-repair.html?token=…`). If X shows **Something went wrong, please try again**, the worker clicks Try again when present, reloads `/i/flow/login`, and replays identifier → password → extra username (up to 3 times). **We've temporarily limited your logins** is `rate_limited` (stop, no username popup, no Continue retry) — typical on the IONOS datacenter IP vs a residential laptop. Cookie paste (`POST /api/x/cookies`) stays the fallback. Worker: [`xSessionRepairWorker.js`](xSessionRepairWorker.js) / container `x-repair` via `xvfb-run` (headed + stealth). Reuses `session_data_x_repair/`. Default Playwright Linux UA (no Windows spoof). Optional google/wikipedia warmup, 3–8s pause after identifier, writes `x_cookies.json` + `x_storage_state.json`. Cookie paste from a real Chrome is still the safer first login. `X_REPAIR_FRESH=1` / `X_REPAIR_SKIP_WARMUP=1`. LinkedIn Chromium is unchanged. `maybeResumeAgentAfterRepair` waits while `x-repair` is up.
+Dashboard: `/?page=x` — first field is **email or username** (`POST /api/x/session/login`). Popup extra-username appears when Chromium is on Confirm your account (`awaiting_username`) — not during warmup or the first email step — and **stays visible** after that first show. Next stays loading and the field is disabled after one submit until password / code / error. Early username from the popup is queued, not typed over the email field. Extra username is typed **once**; the worker does not clear/retype it every few seconds, and does not bounce back to the email step after extra. If the value is already in the field, Continue is clicked without wiping. Worker **Accept all cookies** on every frame (including TOS) so Continue is not covered; a TOS/legal page returns to `/i/flow/login`. The first email/username screen often uses URL `/i/jf/onboarding` — that is **not** treated as an extra check if the login field is visible. Continue is clicked via DOM events (Playwright click misses when the cookie sheet is up) and retried while the field is filled. Worker starts its own Xvfb if `DISPLAY` is missing (headless Chromium makes X paint a white shell). Live frames are captured after the identifier is typed, not only after Continue. Identifier typing prefers login fields in the **frontmost dialog** (not TOS search / not the background Email field behind Confirm your account) and Continue/Next prefers the enabled dialog button. `/i/jf/onboarding` **Confirm your account** is `username_extra`. Other onboarding URLs stay an extra check, not `rate_limited`. If `/i/flow/login` has no identifier field, it waits and reloads `x.com` login. Live Chromium is a discreet footer link (`/x-repair.html?token=…`). If X shows **Something went wrong. Please try again.** on Confirm your account, that is an inline hiccup — not a full-page reload. After the extra username is filled, Chromium clicks **Use password** (top-right of that dialog) instead of Continue. On Confirm your account the popup shows the username field only after that step (not on the first email screen); Chromium clears profile autofill before typing email/username; after the operator submits username it clicks **Use password** (DOM click) and falls back to Continue if needed. **We've temporarily limited your logins** is `rate_limited` (stop, no username popup, no Continue retry) — typical on the IONOS datacenter IP vs a residential laptop. Cookie paste (`POST /api/x/cookies`) stays the fallback. Worker: [`xSessionRepairWorker.js`](xSessionRepairWorker.js) / container `x-repair` via `xvfb-run` (headed + stealth). Reuses `session_data_x_repair/`. Default Playwright Linux UA (no Windows spoof). Optional google/wikipedia warmup, 3–8s pause after identifier, writes `x_cookies.json` + `x_storage_state.json`. Cookie paste from a real Chrome is still the safer first login. `X_REPAIR_FRESH=1` / `X_REPAIR_SKIP_WARMUP=1`. LinkedIn Chromium is unchanged. `maybeResumeAgentAfterRepair` waits while `x-repair` is up.
 
 ### Stage A / sync
 
@@ -608,10 +612,13 @@ Dashboard: `/?page=x` — first field is **email or username** (`POST /api/x/ses
 |------|---------|--------|
 | `STAGE_B_INTERVAL_MS` | 30m | Base tick; effective gap **±1–5 min jitter** ([`stageBState.js`](stageBState.js)) |
 | `ENABLE_INBOX_REPLIES` | on (forced `1` on dashboard save) | Inbox LLM replies — core, not toggled off in UI |
-| `CONV_MAX_PER_RUN` | 15 | Legacy env cap (code processes all unread P2 when unset high) |
+| `CONV_MAX_PER_RUN` | 15 | Legacy env cap (code processes all unread Conversation when unset high) |
+| `STAGE_B_READ_INBOUND_MAX` | 12 | Already-read Conversation 💬 threads to last-sender-check per Stage B |
 | `LOST_INBOX_MAX` | 15 | Legacy env cap (code revives all unread Lost) |
 | `STAGE_B_BROWSER_MIN_MS` | — | Optional floor on min gap between Chromium opens |
 | `STAGE_B_SILENCE_MAX` | 2 | Max silence closings per browser run |
+| `LEAD_SCORE_ON_REPLY` | on (`≠0`) | Inspector revises `lead_score` from inbound **before** the Stage B reply |
+| `LEAD_SCORE_LLM` | on (`≠0`) | `0` = rubric (enrich) / heuristic (reply) only |
 | `SILENCE_BUSINESS_DAYS` | 2 | Closing threshold |
 | `SILENCE_SKIP_WEEKENDS` | on | Skip Sat/Sun silence |
 | `TARGET_LINKEDIN_URL` | — | Single-lead filter; skips Lost scan |

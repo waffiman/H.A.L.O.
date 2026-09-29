@@ -99,16 +99,7 @@ export function isWithinSendWindow(smartTiming, timezone) {
 }
 
 export function isInPreferredWindow(smartTiming, timezone) {
-  if (!smartTiming?.enabled) return false;
-  const tz = String(timezone || '').trim();
-  if (!tz) return false;
-  const hour = getCurrentHourInTimezone(tz);
-  if (hour == null) return false;
-  const start = clampHour(smartTiming.preferredStart, 9);
-  const end = clampHour(smartTiming.preferredEnd, 11);
-  if (start === end) return true;
-  if (start < end) return hour >= start && hour < end;
-  return hour >= start || hour < end;
+  return isWithinSendWindow(smartTiming, timezone).ok;
 }
 
 export function nextWindowHint(smartTiming, timezone) {
@@ -136,12 +127,14 @@ export function normalizeSmartTiming(raw) {
     preferredEnd: 11,
   };
   if (!raw || typeof raw !== 'object') return { ...base };
+  const start = clampHour(raw.windowStart, base.windowStart);
+  const end = clampHour(raw.windowEnd, base.windowEnd);
   return {
     enabled: raw.enabled === true || raw.enabled === 1 || raw.enabled === '1',
-    windowStart: clampHour(raw.windowStart, base.windowStart),
-    windowEnd: clampHour(raw.windowEnd, base.windowEnd),
-    preferredStart: clampHour(raw.preferredStart, base.preferredStart),
-    preferredEnd: clampHour(raw.preferredEnd, base.preferredEnd),
+    windowStart: start,
+    windowEnd: end,
+    preferredStart: start,
+    preferredEnd: end,
   };
 }
 
