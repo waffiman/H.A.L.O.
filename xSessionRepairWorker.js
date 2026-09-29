@@ -236,11 +236,19 @@ async function classify(page) {
   const identVisibleEarly = await page.locator(IDENT_SELS.join(', ')).first().isVisible().catch(() => false);
   const loginCopy = /see what'?s happening|email or username|phone, email, or username|sign in to x/i.test(t);
   if (/\/i\/jf\/onboarding|knowledge_check|\/i\/flow\/consent/i.test(url)) {
-    if (/temporarily limited your logins|we've temporarily limited/i.test(t)) return 'rate_limited';
+    if (
+      /temporarily limited your logins|we've temporarily limited|not allowed to log in at this time/i.test(t)
+    ) {
+      return 'rate_limited';
+    }
     // First email/username screen often lives under /i/jf/onboarding — not an extra check.
     if (!identVisibleEarly && !passVisibleEarlyForm && !loginCopy) return 'onboarding';
   }
-  if (/temporarily limited your logins|limited your logins|we've temporarily limited/i.test(t)) {
+  if (
+    /temporarily limited your logins|limited your logins|we've temporarily limited|not allowed to log in at this time/i.test(
+      t
+    )
+  ) {
     return 'rate_limited';
   }
   // Inline red text on Confirm your account is not the full-page Try again screen.
@@ -297,44 +305,68 @@ async function waitVisible(page, selectors, timeoutMs = 12000) {
 
 function cookieAcceptClickInDocument() {
   const labels =
-    /^(accept all cookies|allow all cookies|accept all|alle cookies akzeptieren|alle akzeptieren|принять все)$/i;
+    /accept all cookies|allow all cookies|accept all|alle cookies akzeptieren|alle akzeptieren|принять все|refuse non-essential|reject non-essential|essential cookies only/i;
   const visit = (root) => {
-    const nodes = [...root.querySelectorAll('button, [role="button"]')];
+    const nodes = [...root.querySelectorAll('button, [role="button"], div[role="button"]')];
     for (const b of nodes) {
       const t = String(b.innerText || '').replace(/\s+/g, ' ').trim();
-      if (!labels.test(t)) continue;
+      if (!labels.test(t) || t.length > 80) continue;
+      // Prefer Accept all over reject
+      const prefer = /accept all|allow all|принять все|alle cookies akzeptieren/i.test(t);
+      if (!prefer && !/reject non-essential|refuse non-essential|essential cookies only/i.test(t)) continue;
+      b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, view: window, pointerId: 1 }));
+      b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, view: window, pointerId: 1 }));
       b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
       b.click();
-      return true;
+      return t;
     }
     for (const el of root.querySelectorAll('*')) {
-      if (el.shadowRoot && visit(el.shadowRoot)) return true;
+      if (el.shadowRoot) {
+        const hit = visit(el.shadowRoot);
+        if (hit) return hit;
+      }
     }
-    return false;
+    return null;
   };
+  // Prefer Accept-all first pass
+  const preferred = [...document.querySelectorAll('button, [role="button"], div[role="button"]')].find((b) =>
+    /accept all cookies|allow all cookies|alle cookies akzeptieren|принять все/i.test(
+      String(b.innerText || '').replace(/\s+/g, ' ').trim()
+    )
+  );
+  if (preferred) {
+    preferred.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    preferred.click();
+    return String(preferred.innerText || '').replace(/\s+/g, ' ').trim();
+  }
   return visit(document);
 }
 
 async function cookieBannerVisible(page) {
+  const t = (await pageText(page)).toLowerCase();
+  if (/did someone say[\s\S]{0,120}cookies|accept all cookies|allow all cookies|alle cookies akzeptieren/i.test(t)) {
+    return true;
+  }
   return page
-    .evaluate(() => {
-      const t = String(document.body?.innerText || '');
-      if (!/accept all cookies|allow all cookies|did someone say[\s\S]{0,80}cookies/i.test(t)) return false;
-      return [...document.querySelectorAll('button, [role="button"]')].some((el) =>
-        /accept all cookies|allow all cookies/i.test(String(el.innerText || ''))
-      );
-    })
+    .getByRole('button', { name: /accept all cookies|allow all cookies|alle cookies akzeptieren/i })
+    .first()
+    .isVisible()
     .catch(() => false);
 }
 
 async function dismissXCookieBanner(page) {
   // Cookie sheet is often a portal / iframe — Playwright click on the login form never lands.
   let clicked = false;
-  for (let round = 0; round < 4; round++) {
+  for (let round = 0; round < 5; round++) {
     for (const frame of page.frames()) {
-      const hit = await frame.evaluate(cookieAcceptClickInDocument).catch(() => false);
-      if (hit) clicked = true;
-      const btn = frame.getByRole('button', { name: /accept all cookies|allow all cookies/i }).first();
+      const hit = await frame.evaluate(cookieAcceptClickInDocument).catch(() => null);
+      if (hit) {
+        clicked = true;
+        console.log('X repair — cookie accept via DOM', hit);
+      }
+      const btn = frame
+        .getByRole('button', { name: /accept all cookies|allow all cookies|alle cookies akzeptieren|принять все/i })
+        .first();
       if (await btn.isVisible().catch(() => false)) {
         await btn.click({ force: true, timeout: 2500 }).catch(() => {});
         clicked = true;
@@ -563,50 +595,160 @@ async function clickUsePassword(page) {
   for (const frame of page.frames()) {
     const hit = await frame
       .evaluate(() => {
-        const exact = /^use password$/i;
-        const soft = /use password/i;
+        const exactRe = /^use password$/i;
+        const softRe = /use password/i;
         const nodes = [...document.querySelectorAll('a, button, span, div, [role="button"], [role="link"]')];
         const scored = [];
         for (const el of nodes) {
           const t = String(el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
-          if (!soft.test(t) || t.length > 40) continue;
+          if (!softRe.test(t) || t.length > 40) continue;
           const r = el.getBoundingClientRect();
           const st = getComputedStyle(el);
           if (r.width < 4 || r.height < 4) continue;
           if (st.visibility === 'hidden' || st.display === 'none' || Number(st.opacity) < 0.2) continue;
-          scored.push({ el, t, exact: exact.test(t), x: r.right });
+          const area = r.width * r.height;
+          // Header wrappers also contain the words "Use password" — skip giant containers.
+          if (area > 20000) continue;
+          const tag = el.tagName;
+          const clickable =
+            tag === 'BUTTON' || tag === 'A' || el.getAttribute('role') === 'button' || el.getAttribute('role') === 'link'
+              ? el
+              : el.closest('button, a, [role="button"], [role="link"]') || el;
+          const cr = clickable.getBoundingClientRect();
+          const cArea = cr.width * cr.height;
+          if (cArea > 20000) continue;
+          const exact = exactRe.test(t);
+          const isBtn = clickable.tagName === 'BUTTON' || clickable.getAttribute('role') === 'button';
+          scored.push({
+            el: clickable,
+            t,
+            exact,
+            isBtn,
+            area: cArea,
+            x: cr.x + cr.width / 2,
+            y: cr.y + cr.height / 2,
+          });
         }
-        scored.sort((a, b) => Number(b.exact) - Number(a.exact) || b.x - a.x);
+        scored.sort(
+          (a, b) =>
+            Number(b.exact) - Number(a.exact) ||
+            Number(b.isBtn) - Number(a.isBtn) ||
+            a.area - b.area ||
+            b.x - a.x
+        );
         const best = scored[0];
         if (!best) return null;
+        try {
+          best.el.focus();
+        } catch {
+          /* ignore */
+        }
+        for (const type of ['pointerdown', 'pointerup']) {
+          best.el.dispatchEvent(
+            new PointerEvent(type, { bubbles: true, cancelable: true, view: window, pointerId: 1, pointerType: 'mouse' })
+          );
+        }
         best.el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
         best.el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
         best.el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
         best.el.click();
-        return best.t;
+        return { t: best.t, x: best.x, y: best.y, area: Math.round(best.area), btn: best.isBtn };
       })
       .catch(() => null);
     if (hit) {
-      console.log('X repair — Use password DOM click', hit);
-      await page.waitForTimeout(1800);
+      console.log('X repair — Use password DOM click', JSON.stringify(hit));
+      // Real mouse on the small control — React sometimes ignores synthetic-only clicks.
+      if (Number.isFinite(hit.x) && Number.isFinite(hit.y)) {
+        await page.mouse.click(hit.x, hit.y).catch(() => {});
+      }
+      await page.waitForTimeout(2000);
       return true;
     }
   }
   const named = [
-    page.getByRole('link', { name: /^Use password$/i }),
     page.getByRole('button', { name: /^Use password$/i }),
+    page.getByRole('link', { name: /^Use password$/i }),
+    page.locator('button').filter({ hasText: /^Use password$/i }),
     page.getByText(/^Use password$/i),
   ];
   for (const loc of named) {
     const el = loc.first();
     if (!(await el.isVisible().catch(() => false))) continue;
+    const box = await el.boundingBox().catch(() => null);
     await el.click({ force: true, timeout: 4000 }).catch(() => {});
-    console.log('X repair — Use password locator');
-    await page.waitForTimeout(1800);
+    if (box) await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2).catch(() => {});
+    console.log('X repair — Use password locator', box);
+    await page.waitForTimeout(2000);
     return true;
   }
   console.log('X repair — Use password not found');
   return false;
+}
+
+/** Force Continue after username — Playwright role click first (fires jf finish_knowledge_check). */
+async function forceClickContinue(page) {
+  await dismissXCookieBanner(page);
+  // Pure locator click is what actually POSTs finish_knowledge_check. Coordinate
+  // mouse often hits a fixed bg-overlay (getBoundingClientRect can be 0,0).
+  const roleBtn = page.getByRole('button', { name: /^(Continue|Next|Продолжить|Далее)$/i }).last();
+  if (await roleBtn.isVisible().catch(() => false)) {
+    await roleBtn.click({ timeout: 5000 }).catch(() => {});
+    console.log('X repair — force Continue role click');
+    await page.waitForTimeout(1800);
+    return true;
+  }
+  const submitted = await page.evaluate(() => {
+    const labels = /^(continue|next|продолжить|далее)$/i;
+    const btn = [...document.querySelectorAll('button, [role="button"]')].find((el) => {
+      const t = String(el.innerText || '').replace(/\s+/g, ' ').trim();
+      const testid = String(el.getAttribute('data-testid') || '');
+      return testid === 'ocfEnterTextNextButton' || labels.test(t);
+    });
+    if (!btn) return false;
+    btn.removeAttribute('disabled');
+    btn.setAttribute('aria-disabled', 'false');
+    if (btn.form) {
+      try {
+        btn.form.requestSubmit(btn);
+        return 'submit';
+      } catch {
+        /* fall through */
+      }
+    }
+    btn.click();
+    return 'click';
+  });
+  if (submitted) {
+    console.log('X repair — force Continue', submitted);
+    await page.waitForTimeout(1800);
+    return true;
+  }
+  const loc = page.locator('[data-testid="ocfEnterTextNextButton"], button:has-text("Continue")').last();
+  if (await loc.isVisible().catch(() => false)) {
+    await loc.click({ force: true, timeout: 4000 }).catch(() => {});
+    console.log('X repair — force Continue locator');
+    await page.waitForTimeout(1800);
+    return true;
+  }
+  return false;
+}
+
+/** Watch jf.x.com finish_knowledge_check — 200 can still mean blocked. */
+function attachXLoginNetGuards(page, bag) {
+  page.on('response', async (res) => {
+    try {
+      const u = res.url();
+      if (!/finish_knowledge_check|begin_login/i.test(u)) return;
+      const body = await res.text().catch(() => '');
+      if (/not allowed to log in at this time|temporarily limited your login/i.test(body)) {
+        bag.loginBlocked = true;
+        bag.loginBlockReason = 'not_allowed';
+        console.log('X repair — login blocked by X API', u.slice(0, 80), res.status());
+      }
+    } catch {
+      /* ignore */
+    }
+  });
 }
 
 async function pageHasInlineHiccup(page) {
@@ -681,23 +823,32 @@ async function applyIdentifier(page, identifier, { extra = false } = {}) {
   }
   await dismissXCookieBanner(page);
   if (extra) {
-    writeState({ lastFillError: 'Username is in — opening password…' });
-    let used = await clickUsePassword(page);
+    writeState({ lastFillError: 'Username is in — clicking Continue…' });
+    await page.waitForTimeout(600);
+    // Confirm-your-account expects Continue after username. Use password is secondary
+    // (and its huge header wrappers previously stole the click).
+    let used = await forceClickContinue(page);
+    if (!used) used = await clickContinueOrNext(page, 4000, { allowSignIn: false });
     if (!used) {
-      console.log('X repair — Use password miss, try Continue');
-      used = await clickContinueOrNext(page, 4000, { allowSignIn: false });
+      console.log('X repair — Continue miss after username, try Use password button');
+      used = await clickUsePassword(page);
     }
     if (!used) {
       await page.keyboard.press('Enter').catch(() => {});
       await page.waitForTimeout(600);
-      used = (await clickUsePassword(page)) || (await clickContinueOrNext(page, 3000, { allowSignIn: false }));
+      used =
+        (await forceClickContinue(page)) ||
+        (await clickUsePassword(page)) ||
+        (await clickContinueOrNext(page, 3000, { allowSignIn: false }));
     }
     if (!used) {
       console.log('X repair — could not advance after extra username', JSON.stringify(await loginDiagnostics(page)));
       await captureFrame(page);
       return false;
     }
+    await dismissXCookieBanner(page);
     await page.waitForTimeout(humanPause(1200, 2200));
+    await dismissXCookieBanner(page);
     await waitForPainted(page, 8000);
     await captureFrame(page);
     console.log('X repair — identifier submitted extra');
@@ -922,6 +1073,8 @@ async function main() {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
   });
+  const netBag = { loginBlocked: false, loginBlockReason: null };
+  attachXLoginNetGuards(page, netBag);
   console.log('X repair — browser', { headless, display: display || process.env.DISPLAY || '', fresh: FRESH });
 
   try {
@@ -959,6 +1112,16 @@ async function main() {
     let tryAgainCount = 0;
     const deadline = Date.now() + 12 * 60 * 1000;
     while (Date.now() < deadline && !signed) {
+      if (netBag.loginBlocked) {
+        writeState({
+          challengeKind: 'rate_limited',
+          status: 'error',
+          error:
+            'X refused this login ("not allowed to log in at this time"). Wait 30–60 minutes, do not retry from the VPS, or paste cookies from a normal Chrome session. Rotate the X password if it was shared in chat.',
+        });
+        await captureFrame(page);
+        break;
+      }
       await dismissXCookieBanner(page);
       for (const ev of drainInput()) {
         try {
@@ -1095,7 +1258,7 @@ async function main() {
           challengeKind: 'rate_limited',
           status: 'error',
           error:
-            'X temporarily limited logins from this server IP. Do not Sign in again for 30–60 minutes. Stay logged out of that account in your own browser, or paste cookies from a normal Chrome session.',
+            'X blocked or rate-limited this server IP ("temporarily limited" / "not allowed to log in"). Do not Sign in again for 30–60 minutes. Stay logged out of that account in your own browser, or paste cookies from a normal Chrome session.',
         });
         await captureFrame(page);
         break;
@@ -1142,9 +1305,10 @@ async function main() {
               console.log('X repair — extra username apply:', e.message);
             }
           } else if (lastExtraUsername && extraUsernameApplied) {
-            writeState({ lastFillError: 'Opening password via Use password…' });
-            let advanced = await clickUsePassword(page);
+            writeState({ lastFillError: 'Username is in — clicking Continue…' });
+            let advanced = await forceClickContinue(page);
             if (!advanced) advanced = await clickContinueOrNext(page, 3000, { allowSignIn: false });
+            if (!advanced) advanced = await clickUsePassword(page);
             usedPasswordLink = advanced || usedPasswordLink;
             lastAdvanceAt = Date.now();
             await captureFrame(page);

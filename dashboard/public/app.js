@@ -3900,24 +3900,99 @@ function parseCustomRegions(raw) {
   return [...new Set(String(raw || '').split(/[,;|]/).map((x) => normalizeRegionLabel(x.trim())).filter(Boolean))];
 }
 
+/** Flat option list: strings | {id,label} | region groups. */
+function normalizeSearchOptions(options) {
+  if (!Array.isArray(options)) return [];
+  const out = [];
+  for (const opt of options) {
+    if (typeof opt === 'string') {
+      out.push({ id: opt, label: opt, group: '' });
+      continue;
+    }
+    if (opt && Array.isArray(opt.items)) {
+      for (const item of opt.items || []) {
+        out.push({
+          id: item.id,
+          label: item.label || item.id,
+          group: opt.label || '',
+        });
+      }
+      continue;
+    }
+    if (opt && opt.id != null) {
+      out.push({ id: String(opt.id), label: String(opt.label || opt.id), group: opt.group || '' });
+    }
+  }
+  return out;
+}
+
+/**
+ * Compact multi-select: one search line holds selected values (comma-separated);
+ * dropdown opens on focus and filters as you type the next token.
+ */
+function portraitSearchMulti(field, options, selected, {
+  placeholder = 'Search…',
+  allowCustom = false,
+  fieldAttr = 'data-portrait-field',
+} = {}) {
+  const items = normalizeSearchOptions(options);
+  const sel = [...new Set((Array.isArray(selected) ? selected : []).map(String).filter(Boolean))];
+  const display = sel
+    .map((id) => items.find((x) => x.id === id)?.label || id)
+    .join(', ');
+  const catalog = escapeAttr(JSON.stringify(items.map((x) => ({ id: x.id, label: x.label, group: x.group || '' }))));
+  let lastGroup = null;
+  const menuItems = items
+    .map((opt) => {
+      const on = sel.includes(opt.id);
+      let groupHtml = '';
+      if (opt.group && opt.group !== lastGroup) {
+        lastGroup = opt.group;
+        groupHtml = `<div class="brain-search-multi-group" data-group="${escapeAttr(opt.group)}">${escapeHtml(opt.group)}</div>`;
+      }
+      return `${groupHtml}<button type="button" class="brain-search-multi-option${on ? ' is-active' : ''}" role="option" data-value="${escapeAttr(opt.id)}" data-label="${escapeAttr(opt.label)}" aria-selected="${on ? 'true' : 'false'}">${escapeHtml(opt.label)}</button>`;
+    })
+    .join('');
+  return `<div class="brain-search-multi" ${fieldAttr}="${escapeAttr(field)}" data-multi="1" data-allow-custom="${allowCustom ? '1' : '0'}" data-selected="${escapeAttr(JSON.stringify(sel))}" data-catalog="${catalog}">
+    <div class="brain-search-multi-box">
+      <input type="text" class="brain-search-multi-input" value="${escapeAttr(display)}" placeholder="${escapeAttr(placeholder)}" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" />
+      <button type="button" class="brain-search-multi-caret" tabindex="-1" aria-label="Open list" title="Open list">
+        <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path fill="currentColor" d="M6 8L1 3h10z"/></svg>
+      </button>
+    </div>
+    <div class="brain-search-multi-menu" hidden role="listbox">${menuItems || '<div class="brain-search-multi-empty">No options</div>'}</div>
+  </div>`;
+}
+
 function portraitRegionsPicker(selected) {
   const sel = Array.isArray(selected) ? selected.map(normalizeRegionLabel) : [];
   const known = knownRegionChipIds();
   const customVals = sel.filter((r) => !known.has(r));
-  let html = '<div class="brain-regions-picker"><div class="brain-chip-row brain-regions-chips" data-portrait-field="regions" data-multi="1">';
-  for (const group of getRegionGroups()) {
-    html += `<div class="brain-region-group-label">${escapeHtml(group.label)}</div>`;
-    for (const opt of group.items || []) {
-      const on = sel.includes(opt.id);
-      html += `<button type="button" class="brain-chip${on ? ' is-active' : ''}" data-value="${escapeAttr(opt.id)}" aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(opt.label)}</button>`;
-    }
-  }
-  html += '</div></div>';
-  html += `<label class="field brain-regions-custom-field" title="Extra locations — comma-separated">
-    <span class="brain-portrait-field-label">Additional regions</span>
-    <input type="text" id="brain-regions-custom" class="input-compact" value="${escapeAttr(customVals.join(', '))}" placeholder="e.g. Baltic states, Dubai, Baltic EU" />
-  </label>`;
-  return html;
+  const selectedAll = [...sel.filter((r) => known.has(r)), ...customVals];
+  return portraitSearchMulti('regions', getRegionGroups(), selectedAll, {
+    placeholder: 'Search countries & regions…',
+    allowCustom: true,
+  });
+}
+
+function haloSelect(id, options, selected, { placeholder = 'Select…' } = {}) {
+  const items = normalizeSearchOptions(options);
+  const cur = items.find((x) => x.id === String(selected ?? '')) || items[0] || { id: '', label: placeholder };
+  return `<div class="halo-select" data-halo-select="${escapeAttr(id)}">
+    <input type="hidden" id="${escapeAttr(id)}" value="${escapeAttr(cur.id)}" />
+    <button type="button" class="halo-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+      <span class="halo-select-label">${escapeHtml(cur.label)}</span>
+      <svg class="halo-select-chevron" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path fill="currentColor" d="M6 8L1 3h10z"/></svg>
+    </button>
+    <div class="halo-select-menu" hidden role="listbox">
+      ${items
+        .map(
+          (opt) =>
+            `<button type="button" class="halo-select-option${opt.id === cur.id ? ' is-active' : ''}" role="option" data-value="${escapeAttr(opt.id)}" aria-selected="${opt.id === cur.id ? 'true' : 'false'}">${escapeHtml(opt.label)}</button>`
+        )
+        .join('')}
+    </div>
+  </div>`;
 }
 
 function portraitChipRow(field, options, selected, multi = true) {
@@ -4013,7 +4088,25 @@ function liChipRow(field, options, selected, multi = true) {
   </div>`;
 }
 
+function readSearchMultiSelected(root) {
+  if (!root) return null;
+  try {
+    const parsed = JSON.parse(root.getAttribute('data-selected') || '[]');
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch {
+    /* fall through */
+  }
+  const input = root.querySelector('.brain-search-multi-input');
+  if (!input) return [];
+  return String(input.value || '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
 function collectLiChipField(field) {
+  const search = document.querySelector(`.brain-search-multi[data-li-field="${field}"]`);
+  if (search) return readSearchMultiSelected(search) || [];
   const row = document.querySelector(`[data-li-field="${field}"]`);
   if (!row) return null;
   if (row.dataset.multi === '1') {
@@ -4024,6 +4117,12 @@ function collectLiChipField(field) {
 }
 
 function collectPortraitChipField(field) {
+  const search = document.querySelector(`.brain-search-multi[data-portrait-field="${field}"]`);
+  if (search) {
+    const vals = readSearchMultiSelected(search) || [];
+    if (search.dataset.multi === '1') return vals;
+    return vals[0] || '';
+  }
   const row = document.querySelector(`[data-portrait-field="${field}"]`);
   if (!row) return null;
   if (row.dataset.multi === '1') {
@@ -4069,8 +4168,7 @@ function collectPortraitFromDom() {
   const base = normalizePortraitFromSettings(settings?.brain?.portrait || {});
   const hasAny =
     document.querySelector('[data-portrait-field]') ||
-    document.getElementById('brain-portrait-need') ||
-    document.getElementById('brain-regions-custom');
+    document.getElementById('brain-portrait-need');
   if (!hasAny) return base;
   const pick = (field, fallback) => {
     const v = collectPortraitChipField(field);
@@ -4082,11 +4180,10 @@ function collectPortraitFromDom() {
   portrait.companySize = pick('companySize', base.companySize);
   portrait.decisionMaker = pick('decisionMaker', base.decisionMaker);
   portrait.stage = pick('stage', base.stage);
-  const regionChips = collectPortraitChipField('regions');
-  const customEl = document.getElementById('brain-regions-custom');
-  if (regionChips != null || customEl) {
+  const regionVals = collectPortraitChipField('regions');
+  if (regionVals != null) {
     portrait.regions = [
-      ...new Set([...(regionChips || []), ...parseCustomRegions(customEl?.value)]),
+      ...new Set((Array.isArray(regionVals) ? regionVals : [regionVals]).map(normalizeRegionLabel).filter(Boolean)),
     ];
   }
   portrait.budget = pick('budget', base.budget);
@@ -4103,6 +4200,290 @@ function collectPortraitFromDom() {
     portrait.nonFit = document.getElementById('brain-portrait-nonfit').value.trim() || '';
   }
   return portrait;
+}
+
+function closeAllSearchMenus(except = null) {
+  view.querySelectorAll('.brain-search-multi.is-open').forEach((el) => {
+    if (el === except) return;
+    el.classList.remove('is-open');
+    const menu = el.querySelector('.brain-search-multi-menu');
+    const input = el.querySelector('.brain-search-multi-input');
+    if (menu) menu.hidden = true;
+    if (input) input.setAttribute('aria-expanded', 'false');
+  });
+  view.querySelectorAll('.halo-select.is-open').forEach((el) => {
+    if (el === except) return;
+    el.classList.remove('is-open');
+    const menu = el.querySelector('.halo-select-menu');
+    const trigger = el.querySelector('.halo-select-trigger');
+    if (menu) menu.hidden = true;
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function initHaloSelects() {
+  view.querySelectorAll('.halo-select').forEach((root) => {
+    const trigger = root.querySelector('.halo-select-trigger');
+    const menu = root.querySelector('.halo-select-menu');
+    const hidden = root.querySelector('input[type="hidden"]');
+    const labelEl = root.querySelector('.halo-select-label');
+    if (!trigger || !menu || !hidden) return;
+
+    const setValue = (value, label) => {
+      hidden.value = value;
+      if (labelEl) labelEl.textContent = label;
+      menu.querySelectorAll('.halo-select-option').forEach((opt) => {
+        const on = opt.dataset.value === value;
+        opt.classList.toggle('is-active', on);
+        opt.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    };
+
+    trigger.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const open = !root.classList.contains('is-open');
+      closeAllSearchMenus(open ? root : null);
+      root.classList.toggle('is-open', open);
+      menu.hidden = !open;
+      trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    menu.querySelectorAll('.halo-select-option').forEach((opt) => {
+      opt.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setValue(opt.dataset.value || '', opt.textContent.trim());
+        closeAllSearchMenus();
+      };
+    });
+  });
+}
+
+function initSearchMultis() {
+  view.querySelectorAll('.brain-search-multi').forEach((root) => {
+    const input = root.querySelector('.brain-search-multi-input');
+    const menu = root.querySelector('.brain-search-multi-menu');
+    const caret = root.querySelector('.brain-search-multi-caret');
+    if (!input || !menu) return;
+
+    let catalog = [];
+    try {
+      catalog = JSON.parse(root.getAttribute('data-catalog') || '[]');
+    } catch {
+      catalog = [];
+    }
+    if (!catalog.length) {
+      catalog = [...menu.querySelectorAll('.brain-search-multi-option')].map((btn) => ({
+        id: btn.dataset.value,
+        label: btn.dataset.label || btn.textContent.trim(),
+        group: '',
+      }));
+    }
+    const allowCustom = root.dataset.allowCustom === '1';
+    const byId = new Map(catalog.map((x) => [x.id, x]));
+    const byLabel = new Map(catalog.map((x) => [String(x.label).toLowerCase(), x]));
+
+    const getSelected = () => {
+      try {
+        const parsed = JSON.parse(root.getAttribute('data-selected') || '[]');
+        return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const labelOf = (id) => byId.get(id)?.label || id;
+
+    const setSelected = (next, query = '') => {
+      const uniq = [...new Set(next.map(String).filter(Boolean))];
+      root.setAttribute('data-selected', JSON.stringify(uniq));
+      const base = uniq.map(labelOf).join(', ');
+      input.value = query ? (base ? `${base}, ${query}` : query) : base;
+      menu.querySelectorAll('.brain-search-multi-option').forEach((btn) => {
+        const on = uniq.includes(btn.dataset.value);
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      filterMenu(query);
+    };
+
+    const openMenu = () => {
+      closeAllSearchMenus(root);
+      root.classList.add('is-open');
+      menu.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    };
+
+    const closeMenu = () => {
+      root.classList.remove('is-open');
+      menu.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+    };
+
+    const currentQuery = () => {
+      const selected = getSelected();
+      const base = selected.map(labelOf).join(', ');
+      const raw = String(input.value || '');
+      if (!base) return raw.trim();
+      if (raw === base) return '';
+      if (raw.startsWith(base)) {
+        return raw.slice(base.length).replace(/^,\s*/, '').trim();
+      }
+      // User edited earlier tokens — treat trailing fragment after last comma as query.
+      const parts = raw.split(',');
+      return String(parts[parts.length - 1] || '').trim();
+    };
+
+    const filterMenu = (query) => {
+      const q = String(query || '').trim().toLowerCase();
+      let visible = 0;
+      let lastGroup = null;
+      menu.querySelectorAll('.brain-search-multi-group').forEach((g) => {
+        g.hidden = true;
+      });
+      menu.querySelectorAll('.brain-search-multi-option').forEach((btn) => {
+        const label = (btn.dataset.label || btn.textContent || '').toLowerCase();
+        const id = (btn.dataset.value || '').toLowerCase();
+        const show = !q || label.includes(q) || id.includes(q);
+        btn.hidden = !show;
+        if (show) {
+          visible += 1;
+          const group = btn.previousElementSibling?.classList?.contains('brain-search-multi-group')
+            ? btn.previousElementSibling
+            : null;
+          // Reveal the nearest preceding group label for this option.
+          let prev = btn.previousElementSibling;
+          while (prev) {
+            if (prev.classList?.contains('brain-search-multi-group')) {
+              prev.hidden = false;
+              break;
+            }
+            if (prev.classList?.contains('brain-search-multi-option') && !prev.hidden) break;
+            prev = prev.previousElementSibling;
+          }
+        }
+      });
+      let empty = menu.querySelector('.brain-search-multi-empty');
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.className = 'brain-search-multi-empty';
+        menu.appendChild(empty);
+      }
+      if (!visible) {
+        empty.hidden = false;
+        empty.textContent = allowCustom && q ? `Press Enter to add “${query.trim()}”` : 'No matches';
+      } else {
+        empty.hidden = true;
+      }
+    };
+
+    const commitFromInput = () => {
+      const raw = String(input.value || '');
+      const parts = raw
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const next = [];
+      for (const part of parts) {
+        const hit = byId.get(part) || byLabel.get(part.toLowerCase());
+        if (hit) next.push(hit.id);
+        else if (allowCustom) next.push(normalizeRegionLabel(part) || part);
+      }
+      setSelected(next, '');
+    };
+
+    const toggleValue = (id) => {
+      const selected = getSelected();
+      const idx = selected.indexOf(id);
+      if (idx >= 0) selected.splice(idx, 1);
+      else selected.push(id);
+      setSelected(selected, '');
+      openMenu();
+      input.focus();
+    };
+
+    input.onfocus = () => {
+      openMenu();
+      filterMenu(currentQuery());
+    };
+    input.oninput = () => {
+      openMenu();
+      filterMenu(currentQuery());
+    };
+    input.onkeydown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelected(getSelected(), '');
+        closeMenu();
+        input.blur();
+        return;
+      }
+      if (e.key === 'Backspace' && !currentQuery() && getSelected().length) {
+        e.preventDefault();
+        const selected = getSelected();
+        selected.pop();
+        setSelected(selected, '');
+        openMenu();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const q = currentQuery();
+        const visible = [...menu.querySelectorAll('.brain-search-multi-option')].filter((b) => !b.hidden);
+        if (visible[0]) {
+          toggleValue(visible[0].dataset.value);
+          return;
+        }
+        if (allowCustom && q) {
+          const selected = getSelected();
+          selected.push(normalizeRegionLabel(q) || q);
+          setSelected(selected, '');
+        }
+      }
+    };
+    input.onblur = () => {
+      // Delay so option click can register first.
+      setTimeout(() => {
+        if (!root.contains(document.activeElement)) {
+          commitFromInput();
+          closeMenu();
+        }
+      }, 140);
+    };
+
+    caret &&
+      (caret.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (root.classList.contains('is-open')) closeMenu();
+        else {
+          openMenu();
+          filterMenu(currentQuery());
+          input.focus();
+        }
+      });
+
+    menu.querySelectorAll('.brain-search-multi-option').forEach((btn) => {
+      btn.onmousedown = (e) => e.preventDefault(); // keep focus on input
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleValue(btn.dataset.value);
+      };
+    });
+
+    setSelected(getSelected(), '');
+  });
+
+  if (!view._haloSearchOutsideBound) {
+    view._haloSearchOutsideBound = true;
+    document.addEventListener('click', (e) => {
+      if (!view.contains(e.target)) return;
+      if (e.target.closest('.brain-search-multi, .halo-select')) return;
+      closeAllSearchMenus();
+    });
+  }
 }
 
 function initPortraitForm() {
@@ -4123,6 +4504,8 @@ function initPortraitForm() {
       };
     });
   });
+  initSearchMultis();
+  initHaloSelects();
 }
 
 function initBrainPromptCarousel() {
@@ -4764,7 +5147,7 @@ function renderBrainSales() {
               'Job titles, industries, and who signs off on a project.',
               `
               ${portraitField('Roles', 'Titles you target — pick all that apply.', portraitChipRow('roles', PORTRAIT_ROLES, portrait.roles, true))}
-              ${portraitField('Industries', null, portraitChipRow('industries', PORTRAIT_INDUSTRIES, portrait.industries, true))}
+              ${portraitField('Industries', 'Type to filter, click to add — values stay in the search line.', portraitSearchMulti('industries', PORTRAIT_INDUSTRIES, portrait.industries, { placeholder: 'Search industries…' }))}
               <div class="brain-portrait-field-row">
                 ${portraitField('Company size', null, portraitChipRow('companySize', PORTRAIT_COMPANY_SIZE, portrait.companySize, false))}
                 ${portraitField('Decision maker', null, portraitChipRow('decisionMaker', PORTRAIT_DECISION_MAKER, portrait.decisionMaker, true))}
@@ -4779,7 +5162,7 @@ function renderBrainSales() {
                 ${portraitField('Stage', null, portraitChipRow('stage', PORTRAIT_STAGES, portrait.stage, false))}
                 ${portraitField('Budget', null, portraitChipRow('budget', PORTRAIT_BUDGET, portrait.budget, false))}
               </div>
-              ${portraitField('Regions', 'Pick countries/regions or type more below (comma-separated).', portraitRegionsPicker(portrait.regions))}
+              ${portraitField('Regions', 'Search countries/regions. Custom locations: type and press Enter.', portraitRegionsPicker(portrait.regions))}
               ${portraitField('Urgency', null, portraitChipRow('urgency', PORTRAIT_URGENCY, portrait.urgency, false))}
             `
             )}
@@ -4812,29 +5195,33 @@ function renderBrainSales() {
             <label class="field-label-inline" for="brain-search-url-override">URL override (optional) ${brainInfoIcon('Paste a LinkedIn People URL for exact facets. Leave empty to auto-build from portrait + filters.')}</label>
             <input type="url" id="brain-search-url-override" class="input-compact" value="${escapeAttr(searchOverride)}" placeholder="${escapeAttr(ps.searchUrl || 'https://www.linkedin.com/search/results/people/…')}" title="Leave empty to auto-build from portrait" />
           </div>
-          <div class="brain-li-filters">
-            ${portraitField('Connections', 'Who you can invite from search.', `<div class="brain-chip-row" data-li-field="connectionDegree" data-multi="0">${LI_CONNECTION_DEGREE.map((opt) => {
-              const on = liSearch.connectionDegree === opt.id;
-              return `<button type="button" class="brain-chip${on ? ' is-active' : ''}" data-value="${escapeAttr(opt.id)}" aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(opt.label)}</button>`;
-            }).join('')}</div>`)}
+          <div class="brain-li-filters brain-li-filters-compact">
+            <div class="brain-portrait-field-row">
+              ${portraitField('Connections', 'Who you can invite from search.', `<div class="brain-chip-row brain-chip-row-tight" data-li-field="connectionDegree" data-multi="0">${LI_CONNECTION_DEGREE.map((opt) => {
+                const on = liSearch.connectionDegree === opt.id;
+                return `<button type="button" class="brain-chip${on ? ' is-active' : ''}" data-value="${escapeAttr(opt.id)}" aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(opt.label)}</button>`;
+              }).join('')}</div>`)}
+              ${portraitField('Profile language', null, haloSelect('brain-li-language', LI_PROFILE_LANGUAGES, liSearch.profileLanguage))}
+            </div>
             <div class="brain-portrait-field-row">
               ${portraitField('Extra keywords', null, `<input type="text" id="brain-li-keywords-extra" class="input-compact" value="${escapeAttr(liSearch.keywordsExtra)}" placeholder="e.g. B2B SaaS, launch" />`)}
-              ${portraitField('Profile language', null, `<select id="brain-li-language" class="input-compact">${LI_PROFILE_LANGUAGES.map((l) => `<option value="${escapeAttr(l.id)}"${liSearch.profileLanguage === l.id ? ' selected' : ''}>${escapeHtml(l.label)}</option>`).join('')}</select>`)}
+              ${portraitField('Current title', 'LinkedIn title facet.', `<input type="text" id="brain-li-current-title" class="input-compact" value="${escapeAttr(liSearch.currentTitle)}" placeholder="e.g. Founder, CEO" />`)}
             </div>
             <div class="brain-portrait-field-row">
               ${portraitField('Current company', 'Name as on LinkedIn — added to keywords.', `<input type="text" id="brain-li-current-company" class="input-compact" value="${escapeAttr(liSearch.currentCompany)}" placeholder="Company name" />`)}
               ${portraitField('Past company', null, `<input type="text" id="brain-li-past-company" class="input-compact" value="${escapeAttr(liSearch.pastCompany)}" placeholder="Past employer" />`)}
             </div>
             <div class="brain-portrait-field-row">
-              ${portraitField('Current title', 'LinkedIn title facet.', `<input type="text" id="brain-li-current-title" class="input-compact" value="${escapeAttr(liSearch.currentTitle)}" placeholder="e.g. Founder, CEO" />`)}
               ${portraitField('Industry', 'Keywords only — strict URN via URL override.', `<input type="text" id="brain-li-industry" class="input-compact" value="${escapeAttr(liSearch.industryKeywords)}" placeholder="e.g. Software, Marketing" />`)}
+              ${portraitField('School', null, `<input type="text" id="brain-li-school" class="input-compact" value="${escapeAttr(liSearch.school)}" placeholder="University / school" />`)}
             </div>
-            ${portraitField('School', null, `<input type="text" id="brain-li-school" class="input-compact" value="${escapeAttr(liSearch.school)}" placeholder="University / school" />`)}
-            ${portraitField('Seniority', null, liChipRow('seniority', LI_SENIORITY, liSearch.seniority, true))}
-            ${portraitField('Function', null, liChipRow('functionArea', LI_FUNCTION, liSearch.functionArea, true))}
             <div class="brain-portrait-field-row">
-              ${portraitField('Years of experience', null, liChipRow('yearsOfExperience', LI_YEARS_EXPERIENCE, liSearch.yearsOfExperience, true))}
-              ${portraitField('Company headcount', null, liChipRow('companyHeadcount', LI_COMPANY_HEADCOUNT, liSearch.companyHeadcount, true))}
+              ${portraitField('Seniority', null, portraitSearchMulti('seniority', LI_SENIORITY, liSearch.seniority, { placeholder: 'Search seniority…', fieldAttr: 'data-li-field' }))}
+              ${portraitField('Function', null, portraitSearchMulti('functionArea', LI_FUNCTION, liSearch.functionArea, { placeholder: 'Search function…', fieldAttr: 'data-li-field' }))}
+            </div>
+            <div class="brain-portrait-field-row">
+              ${portraitField('Years of experience', null, portraitSearchMulti('yearsOfExperience', LI_YEARS_EXPERIENCE, liSearch.yearsOfExperience, { placeholder: 'Search years…', fieldAttr: 'data-li-field' }))}
+              ${portraitField('Company headcount', null, portraitSearchMulti('companyHeadcount', LI_COMPANY_HEADCOUNT, liSearch.companyHeadcount, { placeholder: 'Search headcount…', fieldAttr: 'data-li-field' }))}
             </div>
           </div>
         </section>
