@@ -209,6 +209,7 @@ function isPublicPath(req) {
   if (
     p === '/login.html' ||
     p === '/landing.html' ||
+    p === '/extension-privacy.html' ||
     p === '/waffi-telegram-bot.png' ||
     p === '/waffi-logo.png' ||
     p === '/logo.svg'

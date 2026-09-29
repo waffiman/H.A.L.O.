@@ -7,39 +7,30 @@ let state = {
   sessionToken: '',
   email: '',
   platform: null,
-  canSync: false,
 };
 
-init().catch((e) => {
-  setStatus('login-status', e.message || String(e), 'err');
-});
+init().catch((e) => setStatus('login-status', e.message || String(e), 'err'));
 
 async function init() {
   const stored = await chrome.storage.local.get([
     STORAGE_KEYS.apiBase,
     STORAGE_KEYS.sessionToken,
-    STORAGE_KEYS.lastSynced,
     STORAGE_KEYS.lastEmail,
   ]);
   state.apiBase = String(stored[STORAGE_KEYS.apiBase] || DEFAULT_API_BASE).replace(/\/$/, '');
   state.sessionToken = String(stored[STORAGE_KEYS.sessionToken] || '');
   state.email = String(stored[STORAGE_KEYS.lastEmail] || '');
-  $('api-base').value = state.apiBase;
-  $('api-base-login').value = state.apiBase;
-  if (state.email) $('email').value = state.email;
-  renderLastSynced(stored[STORAGE_KEYS.lastSynced]);
+  if ($('api-base')) $('api-base').value = state.apiBase;
+  if ($('api-base-login')) $('api-base-login').value = state.apiBase;
+  if (state.email && $('email')) $('email').value = state.email;
 
   $('btn-login').onclick = onLogin;
   $('btn-logout').onclick = onLogout;
   $('btn-sync').onclick = onSync;
-  $('btn-save-api').onclick = saveApiBase;
 
   const me = await probeMe();
-  if (me?.ok) {
-    showMain(me);
-  } else {
-    showLogin();
-  }
+  if (me?.ok) showMain(me);
+  else showLogin();
   await refreshPlatform();
 }
 
@@ -51,14 +42,14 @@ function showLogin() {
 function showMain(me) {
   $('screen-login').classList.add('hidden');
   $('screen-main').classList.remove('hidden');
-  const email = me?.tenant?.email || state.email || 'Connected';
-  $('account-email').textContent = email;
-  state.email = email;
+  state.email = me?.tenant?.email || state.email || '';
+  if ($('account-email')) $('account-email').value = state.email;
 }
 
 async function apiBase() {
   const fromUi = ($('api-base')?.value || $('api-base-login')?.value || state.apiBase || '').trim();
   state.apiBase = fromUi.replace(/\/$/, '') || DEFAULT_API_BASE;
+  if ($('api-base')) $('api-base').value = state.apiBase;
   return state.apiBase;
 }
 
@@ -84,7 +75,7 @@ async function probeMe() {
 }
 
 async function onLogin() {
-  setStatus('login-status', 'Signing in…');
+  setStatus('login-status', '…');
   try {
     const email = $('email').value.trim();
     const password = $('password').value;
@@ -102,7 +93,7 @@ async function onLogin() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) throw new Error(data.error || data.message || 'Login failed');
     const token = data.sessionToken || '';
-    if (!token) throw new Error('Login ok but no sessionToken — update the HALO dashboard');
+    if (!token) throw new Error('No sessionToken — update HALO dashboard');
     state.sessionToken = token;
     state.email = data.tenant?.email || email;
     await chrome.storage.local.set({
@@ -112,7 +103,7 @@ async function onLogin() {
     $('password').value = '';
     showMain(data);
     await refreshPlatform();
-    setStatus('sync-status', 'Signed in to HALO.', 'ok');
+    setStatus('sync-status', 'Ready', 'ok');
   } catch (e) {
     setStatus('login-status', e.message || String(e), 'err');
   }
@@ -122,70 +113,44 @@ async function onLogout() {
   state.sessionToken = '';
   await chrome.storage.local.remove([STORAGE_KEYS.sessionToken]);
   showLogin();
-  setStatus('login-status', 'Logged out of the extension.');
-}
-
-async function saveApiBase() {
-  const base = ($('api-base').value || '').trim().replace(/\/$/, '');
-  if (!base) return;
-  state.apiBase = base;
-  await chrome.storage.local.set({ [STORAGE_KEYS.apiBase]: base });
-  setStatus('sync-status', 'API URL saved. Re-check account…');
-  const me = await probeMe();
-  if (me?.ok) showMain(me);
-  else {
-    showLogin();
-    $('api-base-login').value = base;
-  }
+  setStatus('login-status', '');
 }
 
 async function refreshPlatform() {
+  const syncBtn = $('btn-sync');
+  const hint = $('platform-hint');
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url || '';
-  const card = $('platform-card');
-  const label = $('platform-label');
-  const hint = $('platform-hint');
-  const syncBtn = $('btn-sync');
 
   let platform = null;
   if (/linkedin\.com/i.test(url)) platform = 'linkedin';
   else if (/(^|\.)x\.com/i.test(url) || /twitter\.com/i.test(url)) platform = 'x';
-
   state.platform = platform;
-  card.classList.remove('is-ready', 'is-warn');
 
   if (!platform) {
-    label.textContent = 'Not LinkedIn / X';
-    hint.textContent = 'Open linkedin.com or x.com while signed in, then open this popup again.';
-    card.classList.add('is-warn');
+    syncBtn.textContent = 'Sync session';
     syncBtn.disabled = true;
-    state.canSync = false;
+    hint.textContent = 'Open LinkedIn or X';
     return;
   }
 
-  label.textContent = platform === 'linkedin' ? 'LinkedIn' : 'X (Twitter)';
-  hint.textContent = 'Checking session cookie…';
+  const label = platform === 'linkedin' ? 'Sync LinkedIn' : 'Sync X';
+  syncBtn.textContent = label;
+  hint.textContent = platform === 'linkedin' ? 'LinkedIn tab' : 'X tab';
 
   const extracted = await chrome.runtime.sendMessage({ type: 'extractCookies', platform });
+  const authed = Boolean(state.sessionToken) || (await probeMe())?.ok;
   if (!extracted?.ok) {
-    hint.textContent = extracted?.error || 'Session cookie missing — sign in on this site first.';
-    card.classList.add('is-warn');
     syncBtn.disabled = true;
-    state.canSync = false;
+    hint.textContent = 'Sign in on this site first';
     return;
   }
-
-  hint.textContent =
-    platform === 'linkedin'
-      ? 'li_at found. Sync will send LinkedIn cookies to your HALO cabinet.'
-      : 'auth_token found. Sync will send X cookies to your HALO cabinet.';
-  card.classList.add('is-ready');
-  const authed = Boolean(state.sessionToken) || (await probeMe())?.ok;
-  syncBtn.disabled = !authed;
-  state.canSync = Boolean(authed);
   if (!authed) {
-    hint.textContent += ' Sign in to HALO above first.';
+    syncBtn.disabled = true;
+    hint.textContent = 'Sign in to HALO first';
+    return;
   }
+  syncBtn.disabled = false;
 }
 
 async function onSync() {
@@ -197,7 +162,7 @@ async function onSync() {
       type: 'extractCookies',
       platform: state.platform,
     });
-    if (!extracted?.ok) throw new Error(extracted?.error || 'Could not read cookies');
+    if (!extracted?.ok) throw new Error(extracted?.error || 'No cookies');
 
     const base = await apiBase();
     const res = await fetch(`${base}/api/extension/sync-session`, {
@@ -212,35 +177,18 @@ async function onSync() {
     const data = await res.json().catch(() => ({}));
     if (res.status === 401) {
       await onLogout();
-      throw new Error('HALO session expired — sign in again');
+      throw new Error('Session expired — sign in again');
     }
     if (!res.ok || !data.ok) throw new Error(data.error || 'Sync failed');
 
     const stamp = data.lastSyncedAt || new Date().toISOString();
     await chrome.storage.local.set({ [STORAGE_KEYS.lastSynced]: stamp });
-    renderLastSynced(stamp);
-    setStatus(
-      'sync-status',
-      `Synced ${data.platform || state.platform} · ${data.count || extracted.cookies.length} cookies`,
-      'ok'
-    );
+    setStatus('sync-status', 'Synced', 'ok');
   } catch (e) {
     setStatus('sync-status', e.message || String(e), 'err');
   } finally {
     await refreshPlatform();
   }
-}
-
-function renderLastSynced(iso) {
-  const el = $('last-synced');
-  if (!iso) {
-    el.textContent = '';
-    return;
-  }
-  const d = new Date(iso);
-  el.textContent = Number.isNaN(d.getTime())
-    ? `Last synced: ${iso}`
-    : `Last synced: ${d.toLocaleString()}`;
 }
 
 function setStatus(id, text, kind = '') {
