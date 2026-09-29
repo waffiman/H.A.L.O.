@@ -3927,8 +3927,7 @@ function normalizeSearchOptions(options) {
 }
 
 /**
- * Compact multi-select: one search line holds selected values (comma-separated);
- * dropdown opens on focus and filters as you type the next token.
+ * Compact multi-select: selected values are green tiles; the input is only the live filter query.
  */
 function portraitSearchMulti(field, options, selected, {
   placeholder = 'Search…',
@@ -3937,10 +3936,13 @@ function portraitSearchMulti(field, options, selected, {
 } = {}) {
   const items = normalizeSearchOptions(options);
   const sel = [...new Set((Array.isArray(selected) ? selected : []).map(String).filter(Boolean))];
-  const display = sel
-    .map((id) => items.find((x) => x.id === id)?.label || id)
-    .join(', ');
   const catalog = escapeAttr(JSON.stringify(items.map((x) => ({ id: x.id, label: x.label, group: x.group || '' }))));
+  const tagsHtml = sel
+    .map((id) => {
+      const label = items.find((x) => x.id === id)?.label || id;
+      return `<button type="button" class="brain-search-multi-tag" data-value="${escapeAttr(id)}" title="Remove ${escapeAttr(label)}"><span class="brain-search-multi-tag-label">${escapeHtml(label)}</span><span class="brain-search-multi-tag-x" aria-hidden="true">×</span></button>`;
+    })
+    .join('');
   let lastGroup = null;
   const menuItems = items
     .map((opt) => {
@@ -3955,7 +3957,8 @@ function portraitSearchMulti(field, options, selected, {
     .join('');
   return `<div class="brain-search-multi" ${fieldAttr}="${escapeAttr(field)}" data-multi="1" data-allow-custom="${allowCustom ? '1' : '0'}" data-selected="${escapeAttr(JSON.stringify(sel))}" data-catalog="${catalog}">
     <div class="brain-search-multi-box">
-      <input type="text" class="brain-search-multi-input" value="${escapeAttr(display)}" placeholder="${escapeAttr(placeholder)}" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" />
+      <div class="brain-search-multi-tags">${tagsHtml}</div>
+      <input type="text" class="brain-search-multi-input" value="" placeholder="${escapeAttr(placeholder)}" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" />
       <button type="button" class="brain-search-multi-caret" tabindex="-1" aria-label="Open list" title="Open list">
         <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path fill="currentColor" d="M6 8L1 3h10z"/></svg>
       </button>
@@ -4096,12 +4099,7 @@ function readSearchMultiSelected(root) {
   } catch {
     /* fall through */
   }
-  const input = root.querySelector('.brain-search-multi-input');
-  if (!input) return [];
-  return String(input.value || '')
-    .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean);
+  return [...root.querySelectorAll('.brain-search-multi-tag')].map((t) => t.dataset.value).filter(Boolean);
 }
 
 function collectLiChipField(field) {
@@ -4265,7 +4263,9 @@ function initSearchMultis() {
     const input = root.querySelector('.brain-search-multi-input');
     const menu = root.querySelector('.brain-search-multi-menu');
     const caret = root.querySelector('.brain-search-multi-caret');
-    if (!input || !menu) return;
+    const tagsEl = root.querySelector('.brain-search-multi-tags');
+    const box = root.querySelector('.brain-search-multi-box');
+    if (!input || !menu || !tagsEl) return;
 
     let catalog = [];
     try {
@@ -4283,6 +4283,7 @@ function initSearchMultis() {
     const allowCustom = root.dataset.allowCustom === '1';
     const byId = new Map(catalog.map((x) => [x.id, x]));
     const byLabel = new Map(catalog.map((x) => [String(x.label).toLowerCase(), x]));
+    const placeholderDefault = input.getAttribute('placeholder') || 'Search…';
 
     const getSelected = () => {
       try {
@@ -4295,17 +4296,40 @@ function initSearchMultis() {
 
     const labelOf = (id) => byId.get(id)?.label || id;
 
-    const setSelected = (next, query = '') => {
+    const queryOf = () => String(input.value || '');
+
+    const syncPlaceholder = () => {
+      input.placeholder = getSelected().length ? 'Add more…' : placeholderDefault;
+    };
+
+    const renderTags = (selected) => {
+      tagsEl.innerHTML = selected
+        .map((id) => {
+          const label = labelOf(id);
+          return `<button type="button" class="brain-search-multi-tag" data-value="${escapeAttr(id)}" title="Remove ${escapeAttr(label)}"><span class="brain-search-multi-tag-label">${escapeHtml(label)}</span><span class="brain-search-multi-tag-x" aria-hidden="true">×</span></button>`;
+        })
+        .join('');
+      tagsEl.querySelectorAll('.brain-search-multi-tag').forEach((tag) => {
+        tag.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          removeValue(tag.dataset.value);
+        };
+      });
+    };
+
+    const setSelected = (next, { keepQuery = false } = {}) => {
       const uniq = [...new Set(next.map(String).filter(Boolean))];
       root.setAttribute('data-selected', JSON.stringify(uniq));
-      const base = uniq.map(labelOf).join(', ');
-      input.value = query ? (base ? `${base}, ${query}` : query) : base;
+      renderTags(uniq);
+      if (!keepQuery) input.value = '';
+      syncPlaceholder();
       menu.querySelectorAll('.brain-search-multi-option').forEach((btn) => {
         const on = uniq.includes(btn.dataset.value);
         btn.classList.toggle('is-active', on);
         btn.setAttribute('aria-selected', on ? 'true' : 'false');
       });
-      filterMenu(query);
+      filterMenu(queryOf());
     };
 
     const openMenu = () => {
@@ -4321,38 +4345,28 @@ function initSearchMultis() {
       input.setAttribute('aria-expanded', 'false');
     };
 
-    const currentQuery = () => {
-      const selected = getSelected();
-      const base = selected.map(labelOf).join(', ');
-      const raw = String(input.value || '');
-      if (!base) return raw.trim();
-      if (raw === base) return '';
-      if (raw.startsWith(base)) {
-        return raw.slice(base.length).replace(/^,\s*/, '').trim();
-      }
-      // User edited earlier tokens — treat trailing fragment after last comma as query.
-      const parts = raw.split(',');
-      return String(parts[parts.length - 1] || '').trim();
-    };
+    const norm = (s) =>
+      String(s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\u0400-\u04ff\s/+&.-]/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
     const filterMenu = (query) => {
-      const q = String(query || '').trim().toLowerCase();
+      const q = norm(query);
       let visible = 0;
-      let lastGroup = null;
       menu.querySelectorAll('.brain-search-multi-group').forEach((g) => {
         g.hidden = true;
       });
       menu.querySelectorAll('.brain-search-multi-option').forEach((btn) => {
-        const label = (btn.dataset.label || btn.textContent || '').toLowerCase();
-        const id = (btn.dataset.value || '').toLowerCase();
+        const label = norm(btn.dataset.label || btn.textContent || '');
+        const id = norm(btn.dataset.value || '');
         const show = !q || label.includes(q) || id.includes(q);
         btn.hidden = !show;
         if (show) {
           visible += 1;
-          const group = btn.previousElementSibling?.classList?.contains('brain-search-multi-group')
-            ? btn.previousElementSibling
-            : null;
-          // Reveal the nearest preceding group label for this option.
           let prev = btn.previousElementSibling;
           while (prev) {
             if (prev.classList?.contains('brain-search-multi-group')) {
@@ -4370,83 +4384,86 @@ function initSearchMultis() {
         empty.className = 'brain-search-multi-empty';
         menu.appendChild(empty);
       }
+      const rawQ = String(query || '').trim();
       if (!visible) {
         empty.hidden = false;
-        empty.textContent = allowCustom && q ? `Press Enter to add “${query.trim()}”` : 'No matches';
+        empty.textContent = allowCustom && rawQ ? `Press Enter to add “${rawQ}”` : 'No matches';
       } else {
         empty.hidden = true;
       }
     };
 
-    const commitFromInput = () => {
-      const raw = String(input.value || '');
-      const parts = raw
-        .split(',')
-        .map((x) => x.trim())
-        .filter(Boolean);
-      const next = [];
-      for (const part of parts) {
-        const hit = byId.get(part) || byLabel.get(part.toLowerCase());
-        if (hit) next.push(hit.id);
-        else if (allowCustom) next.push(normalizeRegionLabel(part) || part);
-      }
-      setSelected(next, '');
+    const addValue = (id) => {
+      if (!id) return;
+      const selected = getSelected();
+      if (!selected.includes(id)) selected.push(id);
+      setSelected(selected);
+      openMenu();
+      input.focus();
+    };
+
+    const removeValue = (id) => {
+      setSelected(getSelected().filter((x) => x !== id), { keepQuery: true });
+      openMenu();
+      input.focus();
     };
 
     const toggleValue = (id) => {
       const selected = getSelected();
-      const idx = selected.indexOf(id);
-      if (idx >= 0) selected.splice(idx, 1);
-      else selected.push(id);
-      setSelected(selected, '');
-      openMenu();
+      if (selected.includes(id)) removeValue(id);
+      else addValue(id);
+    };
+
+    box.onclick = (e) => {
+      if (e.target.closest('.brain-search-multi-tag, .brain-search-multi-caret')) return;
       input.focus();
     };
 
     input.onfocus = () => {
       openMenu();
-      filterMenu(currentQuery());
+      filterMenu(queryOf());
     };
     input.oninput = () => {
       openMenu();
-      filterMenu(currentQuery());
+      filterMenu(queryOf());
     };
     input.onkeydown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        setSelected(getSelected(), '');
+        input.value = '';
+        filterMenu('');
         closeMenu();
         input.blur();
         return;
       }
-      if (e.key === 'Backspace' && !currentQuery() && getSelected().length) {
+      if (e.key === 'Backspace' && !queryOf() && getSelected().length) {
         e.preventDefault();
         const selected = getSelected();
         selected.pop();
-        setSelected(selected, '');
+        setSelected(selected);
         openMenu();
         return;
       }
       if (e.key === 'Enter') {
         e.preventDefault();
-        const q = currentQuery();
+        const q = queryOf().trim();
         const visible = [...menu.querySelectorAll('.brain-search-multi-option')].filter((b) => !b.hidden);
         if (visible[0]) {
-          toggleValue(visible[0].dataset.value);
+          addValue(visible[0].dataset.value);
           return;
         }
         if (allowCustom && q) {
-          const selected = getSelected();
-          selected.push(normalizeRegionLabel(q) || q);
-          setSelected(selected, '');
+          const hit = byId.get(q) || byLabel.get(q.toLowerCase());
+          addValue(hit ? hit.id : normalizeRegionLabel(q) || q);
         }
       }
     };
     input.onblur = () => {
-      // Delay so option click can register first.
       setTimeout(() => {
         if (!root.contains(document.activeElement)) {
-          commitFromInput();
+          // Drop unfinished filter text; selected tiles already hold the value.
+          input.value = '';
+          filterMenu('');
           closeMenu();
         }
       }, 140);
@@ -4459,13 +4476,13 @@ function initSearchMultis() {
         if (root.classList.contains('is-open')) closeMenu();
         else {
           openMenu();
-          filterMenu(currentQuery());
+          filterMenu(queryOf());
           input.focus();
         }
       });
 
     menu.querySelectorAll('.brain-search-multi-option').forEach((btn) => {
-      btn.onmousedown = (e) => e.preventDefault(); // keep focus on input
+      btn.onmousedown = (e) => e.preventDefault();
       btn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -4473,7 +4490,7 @@ function initSearchMultis() {
       };
     });
 
-    setSelected(getSelected(), '');
+    setSelected(getSelected());
   });
 
   if (!view._haloSearchOutsideBound) {

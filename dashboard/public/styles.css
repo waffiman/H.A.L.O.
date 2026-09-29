@@ -883,28 +883,71 @@ button.profile-tile-link:hover {
 }
 .brain-search-multi-box {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  min-height: 34px;
-  padding: 2px 6px 2px 8px;
+  gap: 6px;
+  min-height: 36px;
+  padding: 5px 6px 5px 8px;
   border: 1px solid var(--line-subtle);
   border-radius: 6px;
   background: rgba(6, 8, 11, 0.65);
   transition: border-color var(--transition), box-shadow var(--transition);
+  cursor: text;
 }
 .brain-search-multi.is-open .brain-search-multi-box,
 .brain-search-multi-box:focus-within {
   border-color: rgba(34, 197, 94, 0.45);
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
 }
+.brain-search-multi-tags {
+  display: contents;
+}
+.brain-search-multi-tag {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  background: rgba(34, 197, 94, 0.14);
+  color: #ecfdf3;
+  border-radius: 6px;
+  padding: 3px 7px 3px 9px;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.12);
+  transition: border-color var(--transition), background var(--transition);
+}
+.brain-search-multi-tag:hover {
+  border-color: rgba(34, 197, 94, 0.75);
+  background: rgba(34, 197, 94, 0.22);
+}
+.brain-search-multi-tag-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brain-search-multi-tag-x {
+  flex: 0 0 auto;
+  opacity: 0.75;
+  font-size: 0.95rem;
+  line-height: 1;
+  font-weight: 500;
+}
+.brain-search-multi-tag:hover .brain-search-multi-tag-x {
+  opacity: 1;
+}
 .brain-search-multi-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: 100%;
+  flex: 1 1 7rem;
+  min-width: 5.5rem;
+  width: auto;
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
-  padding: 6px 2px !important;
+  padding: 4px 2px !important;
   font: inherit;
   font-size: 0.82rem;
   color: var(--ink);
@@ -922,6 +965,7 @@ button.profile-tile-link:hover {
   color: var(--muted);
   width: 24px;
   height: 24px;
+  margin-left: auto;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
