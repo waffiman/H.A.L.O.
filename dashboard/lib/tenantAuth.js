@@ -142,34 +142,20 @@ export function createSessionToken(tenant, env = readEnvFile()) {
 
 /**
  * Resolve cabinet for request:
- * 1) halo_session cookie
- * 2) Basic auth matching DASHBOARD_USER/PASSWORD → WAFFi workspace `default`
+ * 1) Authorization: Bearer <halo_session token> (Chrome extension)
+ * 2) halo_session cookie
+ * 3) Basic auth matching DASHBOARD_USER/PASSWORD → WAFFi workspace `default`
  */
 export async function resolveRequestTenant(req, env = readEnvFile()) {
-  const cookies = parseCookies(req);
-  const payload = verifySessionToken(cookies[COOKIE], env);
-  if (payload) {
-    // Prefer live DB workspace_id so CRM stays correct after tenant repairs / re-seeds.
-    try {
-      const live = await getTenantByEmail(payload.email, env);
-      if (live?.workspaceId) {
-        return {
-          email: live.email,
-          workspaceId: live.workspaceId,
-          role: live.role || payload.role || 'user',
-          via: 'session',
-        };
-      }
-    } catch {
-      /* fall through to cookie payload */
-    }
-    return {
-      email: payload.email,
-      workspaceId: payload.workspaceId,
-      role: payload.role || 'user',
-      via: 'session',
-    };
+  const bearer = extractBearerToken(req);
+  if (bearer) {
+    const fromBearer = await tenantFromSessionToken(bearer, env);
+    if (fromBearer) return { ...fromBearer, via: 'bearer' };
   }
+
+  const cookies = parseCookies(req);
+  const fromCookie = await tenantFromSessionToken(cookies[COOKIE], env);
+  if (fromCookie) return { ...fromCookie, via: 'session' };
 
   const pass = (env.DASHBOARD_PASSWORD || process.env.DASHBOARD_PASSWORD || '').trim();
   const user = (env.DASHBOARD_USER || process.env.DASHBOARD_USER || 'admin').trim();
@@ -189,6 +175,34 @@ export async function resolveRequestTenant(req, env = readEnvFile()) {
     workspaceId: (env.WORKSPACE_ID || '').trim() || waffiWorkspaceId(),
     role: 'owner',
     via: 'basic',
+  };
+}
+
+function extractBearerToken(req) {
+  const header = String(req.headers?.authorization || '');
+  if (!header.toLowerCase().startsWith('bearer ')) return '';
+  return header.slice(7).trim();
+}
+
+async function tenantFromSessionToken(token, env = readEnvFile()) {
+  const payload = verifySessionToken(token, env);
+  if (!payload) return null;
+  try {
+    const live = await getTenantByEmail(payload.email, env);
+    if (live?.workspaceId) {
+      return {
+        email: live.email,
+        workspaceId: live.workspaceId,
+        role: live.role || payload.role || 'user',
+      };
+    }
+  } catch {
+    /* fall through to cookie payload */
+  }
+  return {
+    email: payload.email,
+    workspaceId: payload.workspaceId,
+    role: payload.role || 'user',
   };
 }
 

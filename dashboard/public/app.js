@@ -5421,9 +5421,21 @@ function renderLinkedIn() {
         <p class="muted" id="li-cookie-status" role="status"></p>
       </div>`;
 
+  const extensionCard = `<div class="card li-ext-card" title="HALO Session Sync Chrome extension">
+        <h3>Chrome extension (recommended)</h3>
+        <p class="muted card-lead">Install <strong>HALO Session Sync</strong>, open LinkedIn while signed in, click <strong>Sync session</strong> — no DevTools, no paste. Password Sign in below stays available.</p>
+        <ol class="li-cookie-steps muted">
+          <li>Load the unpacked extension from <code>extensions/halo-session-sync</code> (Chrome Web Store link after publish).</li>
+          <li>Sign in to HALO in the popup (same cabinet email/password).</li>
+          <li>Open linkedin.com → Sync session → stay out of that LinkedIn account until the agent finishes.</li>
+        </ol>
+        <p class="muted" style="font-size:0.78rem;margin:0">Privacy draft: <code>extensions/halo-session-sync/docs/PRIVACY_POLICY_DRAFT.md</code> → publish on waffiweb.com before Store submit.</p>
+      </div>`;
+
   view.innerHTML = `
     <div class="li-page">
       ${sessionCard}
+      ${extensionCard}
       ${cookiePasteCard}
       <div class="li-main-grid">
         <div class="tile tile-stage-a" title="Stage A prospecting">
@@ -5582,9 +5594,20 @@ function renderX() {
         <p class="muted" id="x-cookie-status" role="status"></p>
       </details>`;
 
+  const extensionCard = `<div class="card li-ext-card" title="HALO Session Sync Chrome extension">
+        <h3>Chrome extension (recommended)</h3>
+        <p class="muted card-lead">Install <strong>HALO Session Sync</strong>, open X while signed in, click <strong>Sync session</strong>. Avoids VPS password-login blocks. Sign in above stays available.</p>
+        <ol class="li-cookie-steps muted">
+          <li>Load unpacked from <code>extensions/halo-session-sync</code> (Store link after publish).</li>
+          <li>Sign in to HALO in the popup.</li>
+          <li>Open x.com → Sync session.</li>
+        </ol>
+      </div>`;
+
   view.innerHTML = `
     <div class="li-page">
       ${sessionCard}
+      ${extensionCard}
       ${cookiePasteCard}
     </div>
   `;

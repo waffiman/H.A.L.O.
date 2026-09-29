@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HALO Session Sync</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="head">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">H</span>
+        <div>
+          <strong>HALO Session Sync</strong>
+          <p class="sub">One-click LinkedIn / X session → your cabinet</p>
+        </div>
+      </div>
+    </header>
+
+    <section id="screen-login" class="screen hidden">
+      <p class="hint">Sign in with the same email and password as your HALO dashboard.</p>
+      <label class="field">Email
+        <input type="email" id="email" autocomplete="username" />
+      </label>
+      <label class="field">Password
+        <input type="password" id="password" autocomplete="current-password" />
+      </label>
+      <label class="field">HALO API URL
+        <input type="url" id="api-base-login" placeholder="https://your-halo-host" />
+      </label>
+      <button type="button" class="btn primary" id="btn-login">Sign in to HALO</button>
+      <p class="status" id="login-status" role="status"></p>
+    </section>
+
+    <section id="screen-main" class="screen hidden">
+      <div class="account">
+        <div>
+          <span class="label">HALO account</span>
+          <strong id="account-email">—</strong>
+        </div>
+        <button type="button" class="btn ghost" id="btn-logout">Log out</button>
+      </div>
+
+      <div class="card" id="platform-card">
+        <span class="label">Active tab</span>
+        <strong id="platform-label">Checking…</strong>
+        <p class="hint" id="platform-hint"></p>
+      </div>
+
+      <button type="button" class="btn primary" id="btn-sync" disabled>Sync session</button>
+      <p class="status" id="sync-status" role="status"></p>
+      <p class="meta" id="last-synced"></p>
+
+      <details class="advanced">
+        <summary>API URL</summary>
+        <label class="field">HALO dashboard origin
+          <input type="url" id="api-base" />
+        </label>
+        <button type="button" class="btn ghost" id="btn-save-api">Save</button>
+      </details>
+    </section>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

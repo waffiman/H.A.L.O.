@@ -276,6 +276,7 @@ setInterval(() => {
 
 const loginLimiter = rateLimit({ bucket: 'login', limit: 10, windowMs: 15 * 60 * 1000 });
 const registerLimiter = rateLimit({ bucket: 'register', limit: 5, windowMs: 60 * 60 * 1000 });
+const extensionSyncLimiter = rateLimit({ bucket: 'ext-sync', limit: 30, windowMs: 15 * 60 * 1000 });
 
 /**
  * @param {object} req
@@ -398,7 +399,15 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const token = createSessionToken(tenant);
     setSessionCookie(res, token);
     const leads = await countLeadsForWorkspace(tenant.workspaceId).catch(() => 0);
-    res.json({ ok: true, success: true, tenant: tenantPublic(tenant), leadCount: leads, dashboard_url: '/' });
+    res.json({
+      ok: true,
+      success: true,
+      tenant: tenantPublic(tenant),
+      leadCount: leads,
+      dashboard_url: '/',
+      // Returned for Chrome extension / non-cookie clients (never log this).
+      sessionToken: token,
+    });
   } catch (e) {
     res.status(401).json({ ok: false, success: false, error: e.message || 'Login failed', message: e.message || 'Login failed' });
   }
@@ -436,6 +445,7 @@ async function handleRegister(req, res) {
           success: true,
           tenant: tenantPublic(tenant),
           dashboard_url: '/',
+          sessionToken: token,
           message: 'Account created',
         });
       } catch (e) {
@@ -1224,6 +1234,86 @@ app.post('/api/x/cookies', (req, res) => {
     const raw = req.body?.cookiePaste || req.body?.authToken || req.body?.text || '';
     const result = ingestXCookiePaste(raw, req.tenant.workspaceId);
     res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * Chrome extension: one-click LinkedIn / X session sync.
+ * Auth: halo_session cookie or Authorization: Bearer <sessionToken>.
+ * Body: { platform: 'linkedin'|'x', cookies: EditThisCookie-like array }
+ *   or { platform, authToken?, ct0?, liAt? } for raw tokens.
+ */
+app.post('/api/extension/sync-session', extensionSyncLimiter, (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const ws = req.tenant.workspaceId;
+    const platform = String(req.body?.platform || '').trim().toLowerCase();
+    const cookies = Array.isArray(req.body?.cookies) ? req.body.cookies : null;
+    const lastSyncedAt = new Date().toISOString();
+
+    if (platform === 'linkedin' || platform === 'li') {
+      const raw =
+        cookies && cookies.length
+          ? JSON.stringify(cookies)
+          : String(req.body?.liAt || req.body?.li_at || req.body?.cookiePaste || '').trim();
+      if (!raw) throw new Error('LinkedIn cookies or li_at required');
+      const result = ingestCookiePaste(raw, ws);
+      return res.json({
+        ok: true,
+        platform: 'linkedin',
+        lastSyncedAt,
+        ...result,
+      });
+    }
+
+    if (platform === 'x' || platform === 'twitter' || platform === 'twitter/x') {
+      let raw = '';
+      if (cookies && cookies.length) {
+        raw = JSON.stringify(cookies);
+      } else {
+        const auth = String(req.body?.authToken || req.body?.auth_token || '').trim();
+        const ct0 = String(req.body?.ct0 || '').trim();
+        if (auth && ct0) {
+          raw = JSON.stringify([
+            {
+              domain: '.x.com',
+              name: 'auth_token',
+              value: auth,
+              path: '/',
+              secure: true,
+              httpOnly: true,
+              expirationDate: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 180,
+            },
+            {
+              domain: '.x.com',
+              name: 'ct0',
+              value: ct0,
+              path: '/',
+              secure: true,
+              httpOnly: false,
+              expirationDate: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 180,
+            },
+          ]);
+        } else {
+          raw = String(req.body?.cookiePaste || auth || '').trim();
+        }
+      }
+      if (!raw) throw new Error('X cookies or auth_token required');
+      const result = ingestXCookiePaste(raw, ws);
+      return res.json({
+        ok: true,
+        platform: 'x',
+        lastSyncedAt,
+        ...result,
+      });
+    }
+
+    return res.status(400).json({
+      ok: false,
+      error: 'platform must be linkedin or x',
+    });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
