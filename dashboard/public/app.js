@@ -5429,7 +5429,7 @@ function renderLinkedIn() {
           <li>Sign in to HALO in the popup (same cabinet email/password).</li>
           <li>Open linkedin.com → Sync session → stay out of that LinkedIn account until the agent finishes.</li>
         </ol>
-        <p class="muted" style="font-size:0.78rem;margin:0">Privacy draft: <code>extensions/halo-session-sync/docs/PRIVACY_POLICY_DRAFT.md</code> → publish on waffiweb.com before Store submit.</p>
+        <p class="muted" style="font-size:0.78rem;margin:0">Privacy: <a href="/extension-privacy.html" target="_blank" rel="noopener noreferrer">/extension-privacy.html</a> (also linked in the site footer).</p>
       </div>`;
 
   view.innerHTML = `
@@ -5602,6 +5602,7 @@ function renderX() {
           <li>Sign in to HALO in the popup.</li>
           <li>Open x.com → Sync session.</li>
         </ol>
+        <p class="muted" style="font-size:0.78rem;margin:0">Privacy: <a href="/extension-privacy.html" target="_blank" rel="noopener noreferrer">/extension-privacy.html</a></p>
       </div>`;
 
   view.innerHTML = `

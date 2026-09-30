@@ -24,7 +24,8 @@ Edit [`config.js`](config.js) `DEFAULT_API_BASE` to your **stable HTTPS** `HALO_
 
 ## Privacy
 
-Ship a public Privacy Policy (see `docs/PRIVACY_POLICY_DRAFT.md` and publish on waffiweb.com). Store listing must link it.
+Public policy (no login): `https://<halo-host>/extension-privacy.html`  
+Draft source: `docs/PRIVACY_POLICY_DRAFT.md`. Store listing must link the public HTTPS URL. Fallback host: waffiweb.com if needed.
 
 ## Packaging for Chrome Web Store
 
@@ -33,7 +34,7 @@ Ship a public Privacy Policy (see `docs/PRIVACY_POLICY_DRAFT.md` and publish on 
 zip -r ../halo-session-sync-1.0.0.zip . -x "*.md" -x "scripts/*" -x "docs/*" -x ".* "
 ```
 
-Include: `manifest.json`, `*.js`, `popup.html`, `popup.css`, `icons/*`.
+Include: `manifest.json`, `*.js`, `popup.html`, `popup.css`, `icons/*` (logo.svg + PNGs).
 
 ## Non-goals
 

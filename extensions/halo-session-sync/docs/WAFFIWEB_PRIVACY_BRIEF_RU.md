@@ -1,50 +1,110 @@
-# Инструкция для команды waffiweb.com — Privacy Policy для Chrome-расширения HALO
+# Задача для команды waffiweb.com — Privacy Policy для Chrome-расширения HALO
 
-## Зачем
+**Приоритет:** высокий (блокер для публикации в Chrome Web Store)  
+**Продукт:** Chrome-расширение **HALO Session Sync** (WAFFi / H.A.L.O.)  
+**Язык страницы:** English (основной текст для Google; RU-перевод опционально)  
+**Срок:** как можно скорее; после деплоя прислать финальный URL в HALO-чат
 
-Google Chrome Web Store требует **публичный HTTPS URL** Privacy Policy для расширения с правом `cookies` (**HALO Session Sync**). Страница должна открываться **без логина**.
+---
 
-## Можно ли не на waffiweb.com?
+## Цель
 
-**Да.** Подойдёт любой стабильный публичный URL, например:
+Опубликовать **публичную** страницу Privacy Policy на `waffiweb.com`, чтобы указать её URL в поле **Privacy Policy** листинга Chrome Web Store. Google требует стабильный HTTPS URL без логина для расширений с правом `cookies`.
 
-- лендинг / статика HALO: `https://<ваш-halo-host>/extension-privacy.html` (уже есть в репо HALO)
-- или страница на `https://waffiweb.com/...`
+Эфемерный Cloudflare-туннель HALO для Store **не подходит** (URL меняется после reboot). Нужен постоянный URL на waffiweb.
 
-Нельзя: страница только за логином дашборда, PDF в Google Drive «по запросу», localhost.
+---
 
-## Если публикуете на waffiweb.com (предпочтительно для бренда)
+## Что сделать
 
-Сделайте **одну** публичную страницу, например:
+1. Создать отдельную публичную страницу (не за логином, не за Basic Auth).
+2. Предпочтительные URL (любой один — главное зафиксировать и не менять без уведомления):
 
-`https://waffiweb.com/privacy-halo-extension`
+   - `https://waffiweb.com/privacy-halo-extension`  
+   - или `https://waffiweb.com/halo/extension-privacy`  
+   - или `https://waffiweb.com/legal/halo-session-sync-privacy`
 
-или
+3. Контент — готовый EN-текст ниже (можно сверстать в стиле сайта; смысл не менять).
+4. Опционально: ссылка «Privacy — HALO Session Sync» в футере waffiweb.com.
+5. После деплоя: прислать **точный финальный URL** + скрин/подтверждение, что открывается в инкогнито без логина.
 
-`https://waffiweb.com/halo/extension-privacy`
+---
 
-### Обязательное содержание (коротко)
+## Acceptance criteria
 
-1. **Какие данные:** session cookies LinkedIn (`li_at` и связанные) и X (`auth_token`, `ct0` и связанные) — **только по клику Sync**.
-2. **Зачем:** перенос сессии в личный кабинет HALO для автоматизации outreach.
-3. **Третьим лицам:** не продаём / не передаём; только на бэкенд HALO (WAFFi).
-4. **Хранение:** JWT HALO может лежать в `chrome.storage.local`; пароли не храним; cookies соцсетей в расширении после Sync не копим.
-5. **Безопасность:** HTTPS / TLS.
-6. **Удаление:** Log out в расширении / удаление расширения.
-7. **Контакт:** waffiweb.com (или support email).
+- [ ] `GET` → **HTTP 200** (или один 301 на канонический HTTPS, без цепочки на логин)
+- [ ] **HTTPS**, валидный сертификат
+- [ ] Открывается в **Incognito** без cookies / без аккаунта
+- [ ] Нет формы логина, нет paywall, нет «request access»
+- [ ] На странице явно названо расширение **HALO Session Sync** и компания **WAFFi**
+- [ ] Есть дата **Last updated** (можно `2026-09-29` или дата публикации)
+- [ ] Финальный URL передан команде HALO
 
-Готовый текст (EN): в репо HALO  
-`extensions/halo-session-sync/docs/PRIVACY_POLICY_DRAFT.md`  
-и HTML-версия на HALO: `dashboard/public/extension-privacy.html`.
+Индексация в Google Search **не обязательна**.
 
-### Техтребования
+---
 
-- [ ] HTTP **200**, без редиректа на логин
-- [ ] HTTPS (валидный сертификат)
-- [ ] Индексация не обязательна; URL должен открываться в инкогнито
-- [ ] После публикации прислать **финальный URL** команде HALO для поля Privacy Policy в Chrome Web Store
+## Готовый текст страницы (EN) — вставить как есть
 
-### Чего не нужно
+**Title:** Privacy Policy — HALO Session Sync  
 
-- Не нужна отдельная политика для всего сайта, если уже есть — достаточно **dedicated** страницы про расширение (или явная секция с якорем, если Google примет; надёжнее отдельный URL).
-- Не встраивать форму логина на эту страницу.
+**Last updated:** 2026-09-29 · Product of WAFFi / H.A.L.O.
+
+HALO Session Sync is a Chrome extension for H.A.L.O. users. Its single purpose is to let you transfer **your own** LinkedIn or X (Twitter) session cookies to **your own** HALO cabinet when you click Sync.
+
+### Data we access
+
+Only after an explicit Sync click, the extension may read:
+
+- LinkedIn: `li_at` and related `linkedin.com` cookies needed to restore the session
+- X / Twitter: `auth_token`, `ct0`, and related `x.com` / `twitter.com` cookies
+
+It does not read browsing history, does not scrape pages for ads, and does not collect cookies in the background.
+
+### How data is used
+
+Cookies are sent to the HALO dashboard API so H.A.L.O. can run outreach automation on your behalf. They are not used for advertising or sold.
+
+### Third parties
+
+Session cookies are not shared with third parties. They are sent only to the HALO backend operated by WAFFi for your account.
+
+### Storage
+
+- A HALO login session token may be stored in `chrome.storage.local` on your device.
+- Passwords are never stored in the extension.
+- Social session cookies are not kept in the extension after Sync; they are transmitted once per Sync.
+
+### Security
+
+Transfers use HTTPS/TLS when the HALO API origin is HTTPS. Treat session cookies as full account credentials.
+
+### Deletion
+
+Use **Log out** in the extension to remove the stored HALO token, or uninstall the extension. You can also replace the cabinet session from the HALO dashboard.
+
+### Contact
+
+https://waffiweb.com
+
+---
+
+## Чего не нужно
+
+- Не копировать весь сайт Privacy Policy WAFFi целиком, если он про другое — нужна **dedicated** страница про расширение (или явный якорь; надёжнее отдельный URL).
+- Не встраивать логин / кабинет HALO на эту страницу.
+- Не ставить noindex ради «скрытности» так, чтобы страница отдавала ошибку ботам Google (обычный публичный HTML ок).
+
+---
+
+## После публикации (для HALO-команды, не для waffiweb)
+
+1. URL → поле Privacy Policy в Chrome Web Store.  
+2. При желании обновить футеры HALO, чтобы Privacy вел на waffiweb URL.  
+3. `DEFAULT_API_BASE` расширения — отдельно; это **не** обязанность waffiweb (только Privacy page).
+
+---
+
+## Контакт / вопросы
+
+Писать в HALO / WAFFi ops-чат. Референс HTML уже есть в репо HALO: `dashboard/public/extension-privacy.html`.

@@ -10,6 +10,10 @@ import {
   markNotificationRead,
   notionConfigured,
   notionCrmUrl,
+  readLiAtPresent,
+  readSessionStatus,
+  readXAuthPresent,
+  readXSessionStatus,
   restartAgent,
   revealSecret,
 } from './lib/ops.js';
@@ -1317,6 +1321,29 @@ app.post('/api/extension/sync-session', extensionSyncLimiter, (req, res) => {
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+/** Chrome extension: whether LinkedIn / X sessions are already live for this cabinet. */
+app.get('/api/extension/session-status', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const ws = req.tenant.workspaceId;
+    const session = readSessionStatus(ws);
+    const cookies = readLiAtPresent(ws);
+    const xSession = readXSessionStatus(ws);
+    const xCookies = readXAuthPresent(ws);
+    const linkedinActive =
+      session?.ok === true && !session?.needsCookieRepair && Boolean(cookies?.present);
+    const xActive =
+      xSession?.ok === true && !xSession?.needsCookieRepair && Boolean(xCookies?.present);
+    return res.json({
+      ok: true,
+      linkedin: { active: linkedinActive, cookiesPresent: Boolean(cookies?.present) },
+      x: { active: xActive, cookiesPresent: Boolean(xCookies?.present) },
+    });
+  } catch (e) {
+    return res.status(400).json({ ok: false, error: e.message });
   }
 });
 

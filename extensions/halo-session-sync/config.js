@@ -1,9 +1,9 @@
 /**
- * Build-time / operator config for HALO Session Sync.
- * Set HALO_API_BASE to your stable HTTPS dashboard origin before Store publish.
- * Local / VPS defaults work for Load unpacked testing.
+ * Build-time HALO API origin for the extension.
+ * Cabinets share one dashboard host today — login is email+password only.
+ * When you have a stable production domain, set it here before Store publish.
  */
-export const DEFAULT_API_BASE = 'http://31.70.101.111:3080';
+export const DEFAULT_API_BASE = 'https://small-glenn-field-portal.trycloudflare.com';
 
 export const STORAGE_KEYS = {
   apiBase: 'halo_api_base',

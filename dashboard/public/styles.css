@@ -4144,6 +4144,24 @@ html[data-theme="light"] .analytics-date-field input {
   border-bottom-color: color-mix(in srgb, var(--accent) 45%, transparent);
   outline: none;
 }
+.footer-legal-link {
+  font-size: 0.72rem;
+  font-weight: 550;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-decoration: none;
+  opacity: 0.55;
+  padding: 2px 4px;
+  border-bottom: 1px solid transparent;
+  transition: color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+}
+.footer-legal-link:hover,
+.footer-legal-link:focus-visible {
+  color: var(--accent);
+  opacity: 0.95;
+  border-bottom-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  outline: none;
+}
 @media (max-width: 900px) {
   .site-footer {
     padding-left: 16px;

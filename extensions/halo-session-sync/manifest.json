@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "HALO Session Sync",
-  "version": "1.0.0",
+  "version": "1.2.4",
   "description": "Sync your LinkedIn and X session with your HALO dashboard in one click.",
-  "permissions": ["cookies", "storage", "activeTab"],
+  "permissions": ["cookies", "storage", "activeTab", "tabs"],
   "host_permissions": [
     "https://*.linkedin.com/*",
     "https://www.linkedin.com/*",
@@ -15,6 +15,7 @@
     "http://localhost:3080/*",
     "http://31.70.101.111:3080/*",
     "http://31.70.101.111/*",
+    "https://small-glenn-field-portal.trycloudflare.com/*",
     "https://*.trycloudflare.com/*",
     "https://waffiweb.com/*",
     "https://*.waffiweb.com/*"
