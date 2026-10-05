@@ -546,7 +546,7 @@ Auth: Basic `DASHBOARD_USER` / `DASHBOARD_PASSWORD`.
 
 **Access:** dashboard binds `127.0.0.1:3080` (loopback) **and** public `80:3080`.
 
-- **Landing (share this):** `http://31.70.101.111/landing.html` — works from any browser/device that can reach a normal HTTP site. UFW already allows 80. Hero line is two centered rows; `that …` typewriter holds ~4.5s. Second-row height is fixed so blocks below do not jump.
+- **Landing (share this):** `http://31.70.101.111/landing.html` — works from any browser/device that can reach a normal HTTP site. UFW already allows 80. Hero line is two centered rows; the icon reel cycles LinkedIn, X, Telegram, and Gmail. `that …` typewriter holds ~4.5s. Second-row height is fixed so blocks below do not jump.
 - **Do not share `*.trycloudflare.com` as the marketing URL.** `dash-cf-tunnel` is a Cloudflare *quick* tunnel (`cloudflared tunnel --url http://127.0.0.1:3080`). Quick hostnames are blocked by OpenDNS, EasyList, many AV/EDR products, and some ISP DNS (typical Ukraine/corporate “не удаётся получить доступ”). The hostname also changes if that container is recreated.
 - `halo.waffiweb.com` is **not** in DNS (as of 2026-09-23). `waffiweb.com` points at IONOS web hosting `217.160.250.66`, not this VPS. To use the branded hostname: add an A record `halo` → `31.70.101.111`, then add HTTPS (named Cloudflare tunnel or Caddy).
 - HTTPS dashboard (operator): current `https://….trycloudflare.com` still works from networks that do not filter it. Local SSH: [`scripts/keep-dashboard-tunnel.py`](scripts/keep-dashboard-tunnel.py) → **http://127.0.0.1:3080/**.
