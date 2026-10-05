@@ -13,14 +13,18 @@
 
 * { box-sizing: border-box; }
 
-body {
+html, body {
   margin: 0;
+  background: var(--bg);
+}
+
+body {
   width: 320px;
   min-height: 360px;
-  background: var(--bg);
   color: var(--ink);
-  overflow: hidden;
   position: relative;
+  overflow: hidden;
+  border-radius: 18px;
 }
 
 .scene {
@@ -35,21 +39,38 @@ body {
   position: absolute;
   border-radius: 50%;
   filter: blur(28px);
-  opacity: 0.55;
+  opacity: 0.42;
+  animation: orb-drift-a 8s ease-in-out infinite alternate;
 }
 .orb-a {
   width: 160px;
   height: 160px;
   top: -40px;
   right: -30px;
-  background: radial-gradient(circle, rgba(34, 197, 94, 0.55), transparent 70%);
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.42), transparent 70%);
 }
 .orb-b {
   width: 140px;
   height: 140px;
   bottom: -50px;
   left: -40px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.28), transparent 70%);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22), transparent 70%);
+  animation-name: orb-drift-b;
+  animation-duration: 10s;
+  animation-delay: -3s;
+}
+
+@keyframes orb-drift-a {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-56px, 42px, 0); }
+}
+@keyframes orb-drift-b {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(52px, -38px, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb { animation: none; }
 }
 
 .grid-fade {
@@ -69,7 +90,8 @@ body {
   padding: 16px 16px 14px;
 }
 
-.screen.hidden { display: none; }
+.screen.hidden,
+.lead.hidden { display: none; }
 
 .brand-bar {
   display: flex;
@@ -227,6 +249,24 @@ body {
   opacity: 0.38;
   cursor: not-allowed;
   box-shadow: none;
+}
+.btn.is-loading {
+  opacity: 1;
+  cursor: wait;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(4, 20, 10, 0.25);
+  border-top-color: #04140a;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
 }
 
 .pick-row {

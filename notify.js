@@ -77,27 +77,31 @@ export async function notify(note) {
   const data = load(workspaceId);
   const key = note.key || null;
   if (key) {
+    const windowMs = note.once ? NOTIFICATION_RETENTION_MS : TELEGRAM_DEDUP_MS;
     const recent = data.items.find(
       (i) =>
         i.key === key &&
-        Date.now() - Date.parse(i.createdAt || i.updatedAt || 0) < TELEGRAM_DEDUP_MS
+        Date.now() - Date.parse(i.createdAt || i.updatedAt || 0) < windowMs
     );
     if (recent) {
       recent.message = note.message;
       recent.title = note.title;
       recent.workspaceId = workspaceId;
       recent.updatedAt = new Date().toISOString();
-      // Never re-send Telegram for the same key inside the dedup window
+      // once: one alert per key for the retention window (same unread message).
+      // Otherwise never re-send Telegram for the same key inside the dedup window
       // (forceTelegram must not bypass this — it caused 3× session_dead spam).
-      const lastTg = data.items
-        .filter((i) => i.key === key)
-        .map((i) => Date.parse(i.lastTelegramAt || 0))
-        .filter((t) => Number.isFinite(t) && t > 0);
-      const tgRecently = lastTg.some((t) => Date.now() - t < TELEGRAM_DEDUP_MS);
-      const skipTg = note.skipTelegram || (workspaceId !== waffiWorkspaceId() && note.type === 'session');
-      if (!tgRecently && telegramDue(recent) && !skipTg) {
-        await maybeTelegram(recent);
-        recent.lastTelegramAt = new Date().toISOString();
+      if (!note.once) {
+        const lastTg = data.items
+          .filter((i) => i.key === key)
+          .map((i) => Date.parse(i.lastTelegramAt || 0))
+          .filter((t) => Number.isFinite(t) && t > 0);
+        const tgRecently = lastTg.some((t) => Date.now() - t < TELEGRAM_DEDUP_MS);
+        const skipTg = note.skipTelegram || (workspaceId !== waffiWorkspaceId() && note.type === 'session');
+        if (!tgRecently && telegramDue(recent) && !skipTg) {
+          await maybeTelegram(recent);
+          recent.lastTelegramAt = new Date().toISOString();
+        }
       }
       save(workspaceId, data);
       return recent;

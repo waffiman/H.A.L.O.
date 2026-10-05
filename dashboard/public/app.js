@@ -1,10 +1,12 @@
 const ICONS = {
   dashboard: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 12 L17.2 8.2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round"/><circle cx="12" cy="12" r="1.55" fill="currentColor"/><path d="M6.2 15.8 A7.2 7.2 0 0 1 17.8 15.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/><path d="M7.1 14.6 A5.8 5.8 0 0 1 12 7.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
   crm: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
-  linkedin: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 8.5A2 2 0 1 1 6.5 4.5a2 2 0 0 1 0 4zM4.75 10h3.5V20h-3.5V10zM13 10.2c1.4-1.5 3.7-1.6 5.2-.3.8.7 1.3 1.8 1.3 3V20h-3.5v-5.5c0-1-.4-1.7-1.3-1.7-.9 0-1.4.6-1.4 1.7V20H9.8V10h3.4v.2z"/></svg>',
-  email: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>',
-  x: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.9 2H22l-6.8 7.8L23 22h-6.5l-5.1-6.7L5.7 22H2.6l7.3-8.4L1 2h6.7l4.6 6.1L18.9 2zm-1.1 18h1.8L7.3 3.9H5.4L17.8 20z"/></svg>',
-  telegram: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M21.8 4.2 2.9 11.5c-1.3.5-1.3 1.2-.2 1.5l4.8 1.5 1.9 5.7c.2.7.4 1 .9 1 .6 0 .8-.2 1.1-.5l2.6-2.5 5.4 4c1 .5 1.7.3 2-.9L23.9 5.5c.4-1.5-.5-2.2-1.6-1.7l-.5.4zM9.4 14.7l-.2 3.3 1.1-2 8.2-7.4c.3-.2-.1-.4-.4-.2L9.4 14.7z"/></svg>',
+  linkedin: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="2.5" fill="#0A66C2"/><path fill="#fff" d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/></svg>',
+  email: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4caf50" d="M45 16.2 35 23.7V40h7c1.7 0 3-1.3 3-3V16.2z"/><path fill="#1e88e5" d="M3 16.2 13 23.7V40H6c-1.7 0-3-1.3-3-3V16.2z"/><path fill="#e53935" d="m35 11.2-11 8.25-11-8.25L12 17l1 6.7L24 32l11-8.3 1-6.5z"/><path fill="#c62828" d="M3 12.3V16.2l10 7.5V11.2L9.9 8.9C9.1 8.3 8.2 8 7.3 8 4.9 8 3 9.9 3 12.3z"/><path fill="#fbc02d" d="M45 12.3V16.2l-10 7.5V11.2l3.1-2.3c.8-.6 1.7-.9 2.6-.9 2.4 0 4.3 1.9 4.3 4.3z"/></svg>',
+  x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#E7E9EA" d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64z"/></svg>',
+  telegram: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#26A5E4" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>',
+  google: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.3 4.2-4.1 5.6l6.2 5.2C40.2 35.8 44 30.4 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>',
+  chrome: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="#fff"/><path fill="#DB4437" d="M24 8a16 16 0 0 1 13.9 8.1H24.2l-4.7-8A16 16 0 0 1 24 8z"/><path fill="#0F9D58" d="M37.9 16.1A16 16 0 0 1 20.2 39.3l6.8-11.8a6.2 6.2 0 0 0 2.2-8.3l8.7-3.1z"/><path fill="#F4B400" d="M20.2 39.3A16 16 0 0 1 8.4 18.6l9.4 5.4a6.2 6.2 0 0 0 6.2 3.5l-3.8 11.8z"/><path fill="#4285F4" d="M8.4 18.6A16 16 0 0 1 19.5 8.1l4.7 8a6.2 6.2 0 0 0-6.4 7.9l-9.4-5.4z"/><circle cx="24" cy="24" r="6.2" fill="#fff"/><circle cx="24" cy="24" r="4.6" fill="#1A73E8"/></svg>',
   integrations: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>',
   profile: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.24l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.25.1.54 0 .68-.24l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>',
   billing: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>',
@@ -17,6 +19,34 @@ const ICONS = {
   faq: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg>',
 };
 const LEADS_PER_CYCLE_LABEL = 'Connection invites per Stage A';
+/** Listing URL from the Chrome Web Store developer console (unlisted items are not searchable). */
+const HALO_CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/halo-session-sync/cgbjcifpmebahlljeahogglleianiemh';
+
+function haloExtensionInstalled() {
+  return document.documentElement.dataset.haloSessionSync === '1';
+}
+
+function extensionPromoCard() {
+  const installed = haloExtensionInstalled();
+  const store = String(HALO_CHROME_STORE_URL || '').trim();
+  const cta = installed
+    ? '<p class="li-ext-thanks">Thanks for installing HALO Session Sync.</p>'
+    : store
+      ? `<a class="g-store-btn" href="${escapeAttr(store)}" target="_blank" rel="noopener noreferrer">${ICONS.chrome}<span>Add to Chrome</span></a>`
+      : `<a class="g-store-btn" href="https://chromewebstore.google.com/search/HALO%20Session%20Sync" target="_blank" rel="noopener noreferrer">${ICONS.chrome}<span>Add to Chrome</span></a>`;
+  return `<div class="card li-ext-card" id="halo-ext-card">
+    <div class="li-ext-row">
+      <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.google}</span>
+      <div>
+        <h3>HALO Session Sync</h3>
+        <p class="muted card-lead">${installed
+          ? 'This browser already has the extension. Open it, sign in, and sync this channel.'
+          : 'Sync this channel from Chrome in one click. Password sign-in stays available.'}</p>
+      </div>
+    </div>
+    ${cta}
+  </div>`;
+}
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', title: 'Overview, stages, channels' },
@@ -5345,7 +5375,7 @@ function renderLinkedIn() {
   const sessionCard = ok
     ? `<div class="card li-session-card li-session-active" title="LinkedIn session is active">
         <div class="li-session-head">
-          <span class="li-brand-icon" aria-hidden="true">${ICONS.linkedin}</span>
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.linkedin}</span>
           <div class="li-session-head-text">
             <h3>LinkedIn session <span class="badge">Active</span></h3>
             <p class="muted card-lead">Server Chromium signed in · ${s.cookies.count} cookies${sess.updatedAt ? ` · verified ${escapeHtml(sess.updatedAt)}` : ''}</p>
@@ -5355,7 +5385,7 @@ function renderLinkedIn() {
       </div>`
     : `<div class="card li-session-card li-session-inactive" title="Sign in to LinkedIn for H.A.L.O.">
         <div class="li-session-head">
-          <span class="li-brand-icon" aria-hidden="true">${ICONS.linkedin}</span>
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.linkedin}</span>
           <div class="li-session-head-text">
             <h3>LinkedIn session <span class="badge bad">Inactive</span></h3>
             <p class="muted card-lead">Sign in below. Approve the request in your LinkedIn app if asked.</p>
@@ -5405,38 +5435,12 @@ function renderLinkedIn() {
         ${channelStrip}
       </div>`;
 
-  const cookiePasteCard = `<div class="card li-cookie-paste-card" title="Paste LinkedIn cookies from EditThisCookie">
-        <h3>Paste cookies (EditThisCookie / li_at)</h3>
-        <p class="muted card-lead">Best path when Sign in hits recovery/captcha loops. In Chrome: open linkedin.com while signed in → EditThisCookie → Export → paste below. Or paste only the <code>li_at</code> value.</p>
-        <ol class="li-cookie-steps muted">
-          <li>Export cookies, then <strong>close the LinkedIn tab immediately</strong>.</li>
-          <li>Do not open that LinkedIn account again until H.A.L.O. finishes using the session.</li>
-        </ol>
-        <label class="field" for="li-cookie-paste">Cookie JSON or li_at
-          <textarea id="li-cookie-paste" rows="5" spellcheck="false" autocomplete="off" placeholder='[{"domain":".www.linkedin.com","name":"li_at","value":"…"}, …]&#10;or paste raw li_at only'></textarea>
-        </label>
-        <div class="row section-actions">
-          <button type="button" class="btn primary" id="li-cookie-apply"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Apply cookies</span></button>
-        </div>
-        <p class="muted" id="li-cookie-status" role="status"></p>
-      </div>`;
-
-  const extensionCard = `<div class="card li-ext-card" title="HALO Session Sync Chrome extension">
-        <h3>Chrome extension (recommended)</h3>
-        <p class="muted card-lead">Install <strong>HALO Session Sync</strong>, open LinkedIn while signed in, click <strong>Sync session</strong> — no DevTools, no paste. Password Sign in below stays available.</p>
-        <ol class="li-cookie-steps muted">
-          <li>Load the unpacked extension from <code>extensions/halo-session-sync</code> (Chrome Web Store link after publish).</li>
-          <li>Sign in to HALO in the popup (same cabinet email/password).</li>
-          <li>Open linkedin.com → Sync session → stay out of that LinkedIn account until the agent finishes.</li>
-        </ol>
-        <p class="muted" style="font-size:0.78rem;margin:0">Privacy: <a href="/extension-privacy.html" target="_blank" rel="noopener noreferrer">/extension-privacy.html</a> (also linked in the site footer).</p>
-      </div>`;
+  const extensionCard = extensionPromoCard();
 
   view.innerHTML = `
     <div class="li-page">
       ${sessionCard}
       ${extensionCard}
-      ${cookiePasteCard}
       <div class="li-main-grid">
         <div class="tile tile-stage-a" title="Stage A prospecting">
           <h3>Stage A prospecting</h3>
@@ -5479,54 +5483,6 @@ function renderLinkedIn() {
   bindConnectAcceptExpireControls();
   bindPortraitProspectingToggle();
   bindLinkedInSessionForm();
-  bindLinkedInCookiePaste();
-}
-
-function bindLinkedInCookiePaste() {
-  const ta = document.getElementById('li-cookie-paste');
-  const btn = document.getElementById('li-cookie-apply');
-  const statusEl = document.getElementById('li-cookie-status');
-  if (!ta || !btn) return;
-
-  btn.onclick = async () => {
-    const text = String(ta.value || '').trim();
-    if (!text) {
-      if (statusEl) statusEl.textContent = 'Paste EditThisCookie JSON or a raw li_at value.';
-      return;
-    }
-    btn.disabled = true;
-    btn.classList.add('is-loading');
-    if (statusEl) statusEl.textContent = 'Saving cookies for this cabinet…';
-    try {
-      const res = await api('/api/linkedin/cookies', {
-        method: 'POST',
-        body: JSON.stringify({ cookiePaste: text }),
-      });
-      const mode = res.mode === 'editthiscookie' ? 'EditThisCookie export' : 'li_at only';
-      const preview = res.liAtPreview ? ` (${res.liAtPreview})` : '';
-      const msg = `Saved ${mode}${preview} · ${res.count || 0} cookie(s). Close LinkedIn in your browser if it is still open.`;
-      if (statusEl) statusEl.textContent = msg;
-      toast(msg);
-      ta.value = '';
-      // Refresh LinkedIn page so session badge updates.
-      if (typeof renderLinkedIn === 'function') {
-        try {
-          const data = await api('/api/settings');
-          settings = data.settings || settings;
-          if (settings.notifications) notifications = settings.notifications;
-          renderLinkedIn();
-        } catch {
-          /* ignore */
-        }
-      }
-    } catch (err) {
-      if (statusEl) statusEl.textContent = err.message;
-      toast(err.message, true);
-    } finally {
-      btn.disabled = false;
-      btn.classList.remove('is-loading');
-    }
-  };
 }
 
 function xSessionOkFromSettings(s) {
@@ -5565,7 +5521,7 @@ function renderX() {
 
   const sessionCard = `<div class="card li-session-card ${ok ? 'li-session-active' : 'li-session-inactive'}" title="${ok ? 'X session is active' : 'Sign in to X for H.A.L.O.'}">
         <div class="li-session-head">
-          <span class="li-brand-icon" aria-hidden="true">${ICONS.x}</span>
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.x}</span>
           <div class="li-session-head-text">
             <h3>X session ${ok ? '<span class="badge">Active</span>' : '<span class="badge bad">Inactive</span>'}</h3>
             <p class="muted card-lead">${ok
@@ -5594,16 +5550,7 @@ function renderX() {
         <p class="muted" id="x-cookie-status" role="status"></p>
       </details>`;
 
-  const extensionCard = `<div class="card li-ext-card" title="HALO Session Sync Chrome extension">
-        <h3>Chrome extension (recommended)</h3>
-        <p class="muted card-lead">Install <strong>HALO Session Sync</strong>, open X while signed in, click <strong>Sync session</strong>. Avoids VPS password-login blocks. Sign in above stays available.</p>
-        <ol class="li-cookie-steps muted">
-          <li>Load unpacked from <code>extensions/halo-session-sync</code> (Store link after publish).</li>
-          <li>Sign in to HALO in the popup.</li>
-          <li>Open x.com → Sync session.</li>
-        </ol>
-        <p class="muted" style="font-size:0.78rem;margin:0">Privacy: <a href="/extension-privacy.html" target="_blank" rel="noopener noreferrer">/extension-privacy.html</a></p>
-      </div>`;
+  const extensionCard = extensionPromoCard();
 
   view.innerHTML = `
     <div class="li-page">
@@ -6957,7 +6904,7 @@ function renderFaq() {
           <li>Accounts that are already <strong>identity-verified in LinkedIn</strong> and signed into the mobile app more often continue with an app <strong>Sign-in request</strong>.</li>
           <li>Accounts that are <em>not</em> verified yet (or logged out of the app) often continue with <strong>new LinkedIn email</strong> → <strong>Select an identification document</strong>. H.A.L.O. cannot finish that ID step on the VPS.</li>
         </ul>
-        <p>If you hit the ID-document screen: cancel Sign in here, log into the LinkedIn app for that account (wait out any temporary lock), complete identity verification if asked, then retry Sign in — or paste fresh cookies (EditThisCookie) after a verified personal login.</p>
+        <p>If you hit the ID-document screen: cancel Sign in here, log into the LinkedIn app for that account (wait out any temporary lock), complete identity verification if asked, then retry Sign in — or sync the session with HALO Session Sync after a verified personal login.</p>
         <p>Still stuck: cancel Sign in, close personal LinkedIn tabs for that account, wait a minute, then retry once.</p>`,
     },
     {
@@ -6971,7 +6918,7 @@ function renderFaq() {
         <ul>
           <li>H.A.L.O. <strong>cannot</strong> upload government IDs from the dashboard / VPS.</li>
           <li><strong>Preferred:</strong> cancel Sign in, complete LinkedIn’s identity verification once in the official LinkedIn app (or personal browser on a normal network), then Sign in again in H.A.L.O.</li>
-          <li><strong>Alternative:</strong> sign in successfully in your personal browser after verification, copy cookies with an extension such as <strong>EditThisCookie</strong>, and paste them into H.A.L.O. (same LinkedIn / captcha popup area that accepts cookie paste). Close the personal LinkedIn tab right after copying.</li>
+          <li><strong>Alternative:</strong> sign in successfully in your personal browser after verification, then sync that session with <strong>HALO Session Sync</strong>. Close the personal LinkedIn tab right after syncing.</li>
         </ul>`,
     },
     {
@@ -6984,7 +6931,7 @@ function renderFaq() {
         <li>Do not use the same LinkedIn account personally while the VPS agent is running.</li>
         <li>Do not keep Playwright open during Apify enrich (the agent already closes the browser).</li>
         <li>Do not open public <code>/in/</code> profiles or mwlite for DM — desktop messaging only.</li>
-        <li>After pasting EditThisCookie JSON, close the LinkedIn tab immediately.</li>
+        <li>After syncing the session, close the LinkedIn tab immediately.</li>
       </ul>`,
     },
     {
@@ -7515,8 +7462,11 @@ async function sendSupportChatMessage(e) {
 function renderComing(name) {
   setPageHeader(name, `${name} channel — coming soon`);
   titleEl.title = `${name} coming soon`;
+  const brand = name === 'Email' ? ICONS.email : name === 'Telegram' ? ICONS.telegram : '';
   view.innerHTML = `<div class="coming" title="${escapeAttr(name)} not connected yet">
-    <svg class="coming-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    ${brand
+      ? `<span class="coming-brand" aria-hidden="true">${brand}</span>`
+      : '<svg class="coming-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'}
     <strong>${name}</strong><br/>Coming soon
     <span class="coming-sub">This channel is being developed and will be available in a future update.</span>
   </div>`;
@@ -9071,5 +9021,9 @@ async function boot() {
     view.innerHTML = `<div class="coming">Failed to load: ${escapeHtml(e.message)}</div>`;
   }
 }
+
+document.addEventListener('halo-session-sync-ready', () => {
+  if (page === 'linkedin' || page === 'x') render();
+});
 
 boot();

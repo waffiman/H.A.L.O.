@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "HALO Session Sync",
-  "version": "1.2.4",
+  "version": "1.2.8",
   "description": "Sync your LinkedIn and X session with your HALO dashboard in one click.",
   "permissions": ["cookies", "storage", "activeTab", "tabs"],
   "host_permissions": [
@@ -29,6 +29,20 @@
       "128": "icons/icon128.png"
     }
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.trycloudflare.com/*",
+        "https://waffiweb.com/*",
+        "https://*.waffiweb.com/*",
+        "http://127.0.0.1:3080/*",
+        "http://localhost:3080/*",
+        "http://31.70.101.111/*"
+      ],
+      "js": ["dashboard-bridge.js"],
+      "run_at": "document_start"
+    }
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"

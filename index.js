@@ -2864,6 +2864,7 @@ async function runStageB() {
               type: inCrm ? 'inbox_inbound' : 'inbox_unknown',
               severity: inCrm ? 'info' : 'warn',
               key: inboxNotifyKey(row),
+              once: true,
               title: `LinkedIn unread — ${row.name}`,
               message: [
                 `Unread message from "${row.name}".`,

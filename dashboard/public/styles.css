@@ -2374,6 +2374,35 @@ select {
   color: #0a66c2;
 }
 .li-brand-icon svg { width: 22px; height: 22px; }
+.li-brand-icon.brand-mark {
+  background: transparent;
+  color: inherit;
+}
+.li-brand-icon.brand-mark svg { width: 36px; height: 36px; }
+.li-ext-row { display: flex; gap: 12px; align-items: flex-start; }
+.li-ext-row h3 { margin: 0 0 4px; }
+.li-ext-row .card-lead { margin: 0; }
+.li-ext-thanks { margin: 14px 0 0; color: var(--ink); font-size: 0.92rem; }
+.g-store-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 4px;
+  background: #fff;
+  color: #3c4043;
+  font-weight: 500;
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  border: 1px solid #dadce0;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.2);
+}
+.g-store-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.g-store-btn:hover { background: #f8f9fa; box-shadow: 0 1px 3px rgba(60, 64, 67, 0.28); }
+.coming-brand { display: block; margin: 0 auto 16px; width: 48px; height: 48px; }
+.coming-brand svg { width: 48px; height: 48px; display: block; }
 .li-session-active { border-color: rgba(34, 197, 94, 0.28); }
 .li-session-inactive { border-color: rgba(239, 68, 68, 0.3); }
 .li-session-form { display: flex; flex-direction: column; gap: 4px; max-width: 420px; }

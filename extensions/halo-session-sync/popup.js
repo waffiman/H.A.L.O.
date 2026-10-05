@@ -234,10 +234,7 @@ function setSyncMode(mode) {
     syncBtn.disabled = true;
     active.classList.remove('hidden');
     resync.classList.remove('hidden');
-    if (lead) {
-      const name = state.platform === 'linkedin' ? 'LinkedIn' : 'X';
-      lead.textContent = `${name} is already connected to your HALO cabinet.`;
-    }
+    if (lead) lead.classList.add('hidden');
     setStatus('sync-status', '');
     return;
   }
@@ -245,10 +242,23 @@ function setSyncMode(mode) {
   active.classList.add('hidden');
   resync.classList.add('hidden');
   syncBtn.classList.remove('hidden');
+  if (lead) lead.classList.remove('hidden');
+}
+
+function setLoginBusy(busy) {
+  const btn = $('btn-login');
+  if (!btn) return;
+  const label = btn.querySelector('.btn-label');
+  const spin = btn.querySelector('.btn-spin');
+  btn.disabled = busy;
+  btn.classList.toggle('is-loading', busy);
+  if (label) label.hidden = busy;
+  if (spin) spin.hidden = !busy;
 }
 
 async function onLogin() {
-  setStatus('login-status', '…');
+  setLoginBusy(true);
+  setStatus('login-status', '');
   try {
     const email = $('email').value.trim();
     const password = $('password').value;
@@ -279,6 +289,8 @@ async function onLogin() {
   } catch (e) {
     const msg = e.name === 'AbortError' ? 'HALO API timeout' : (e.message || String(e));
     setStatus('login-status', msg, 'err');
+  } finally {
+    setLoginBusy(false);
   }
 }
 
