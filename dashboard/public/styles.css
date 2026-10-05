@@ -7700,3 +7700,100 @@ html[data-theme="light"] .support-fab-dot {
 html[data-theme="light"] .support-send {
   color: #fff;
 }
+
+/* Day palette: night-only light text and dark chrome. */
+html[data-theme="light"] .sidebar-brain-btn {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+html[data-theme="light"] .sidebar-brain-btn:hover {
+  background: var(--panel-hover);
+  color: var(--ink);
+}
+html[data-theme="light"] .nav-item[data-page="x"] .nav-ico path,
+html[data-theme="light"] .brand-mark path[fill="#E7E9EA"] {
+  fill: #0f1419;
+}
+html[data-theme="light"] .brain-search-multi-menu { background: #fff; }
+html[data-theme="light"] .brain-search-multi-option:hover { background: var(--bg-secondary); }
+html[data-theme="light"] .brain-search-multi-tag,
+html[data-theme="light"] .brain-search-multi-option.is-active { color: #067647; }
+html[data-theme="light"] .brain-live-live { color: #067647; }
+html[data-theme="light"] .brain-live-issue { color: #b42318; }
+html[data-theme="light"] .field-warn { color: #92400e; }
+html[data-theme="light"] .field-warn--high { color: #b42318; }
+html[data-theme="light"] .crm-chip.metric-lost .crm-chip-val { color: #b42318; }
+html[data-theme="light"] .li-challenge-title,
+html[data-theme="light"] .li-challenge-foot a { color: #b54708; }
+html[data-theme="light"] .gcal-bot-tile .tg-bot-name { color: var(--ink); }
+html[data-theme="light"] .gcal-bot-tile .tg-bot-handle { color: #1a56db; }
+html[data-theme="light"] .crm-search-field input,
+html[data-theme="light"] .crm-settings-select,
+html[data-theme="light"] .crm-settings-input,
+html[data-theme="light"] .crm-props-dropdown,
+html[data-theme="light"] .crm-settings-head,
+html[data-theme="light"] .crm-kanban-card-top,
+html[data-theme="light"] .crm-kanban-card-props,
+html[data-theme="light"] .crm-card-menu-drop,
+html[data-theme="light"] .crm-drawer,
+html[data-theme="light"] .crm-drawer-head,
+html[data-theme="light"] .crm-props-gear,
+html[data-theme="light"] .crm-kanban-count,
+html[data-theme="light"] .crm-settings-back {
+  background: var(--panel);
+  color: var(--ink);
+  border-color: var(--line);
+}
+html[data-theme="light"] .crm-kanban-col.metric-lead .crm-kanban-head,
+html[data-theme="light"] .crm-kanban-col.metric-p1 .crm-kanban-head,
+html[data-theme="light"] .crm-kanban-col.metric-p2 .crm-kanban-head,
+html[data-theme="light"] .crm-kanban-col.metric-active .crm-kanban-head,
+html[data-theme="light"] .crm-kanban-col.metric-lost .crm-kanban-head {
+  background: var(--panel);
+  box-shadow: none;
+}
+html[data-theme="light"] .crm-kanban-head h4,
+html[data-theme="light"] .crm-kanban-card-name,
+html[data-theme="light"] .crm-settings-nav-title,
+html[data-theme="light"] .crm-settings-label,
+html[data-theme="light"] .crm-card-menu-drop button,
+html[data-theme="light"] .crm-drawer-head h3,
+html[data-theme="light"] .crm-drawer-head .ob-close {
+  color: var(--ink);
+}
+html[data-theme="light"] .crm-settings-nav-item:hover,
+html[data-theme="light"] .crm-card-menu-drop button:hover,
+html[data-theme="light"] .crm-props-gear:hover,
+html[data-theme="light"] .crm-card-menu-btn:hover,
+html[data-theme="light"] .crm-card-menu-btn[aria-expanded="true"],
+html[data-theme="light"] .crm-settings-back:hover,
+html[data-theme="light"] .crm-drawer-head .ob-close:hover {
+  background: var(--bg-secondary);
+  color: var(--ink);
+}
+html[data-theme="light"] .crm-search-field input:-webkit-autofill,
+html[data-theme="light"] .crm-search-field input:-webkit-autofill:hover,
+html[data-theme="light"] .crm-search-field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+}
+html[data-theme="light"] .crm-card-menu-drop .crm-card-menu-danger { color: #b42318; }
+html[data-theme="light"] .halo-select-option.is-active,
+html[data-theme="light"] .brain-chip.is-active,
+html[data-theme="light"] .brain-search-multi-tag { color: #067647; }
+html[data-theme="light"] .brain-chip:hover {
+  background: var(--bg-secondary);
+  border-color: var(--line);
+}
+html[data-theme="light"] .brain-live-waiting { color: #92400e; }
+html[data-theme="light"] .crm-filter-rule {
+  background: var(--panel);
+  border-color: var(--line);
+}
+html[data-theme="light"] .crm-filter-remove:hover { color: #b42318; }
+html[data-theme="light"] .crm-pin-mark { color: #b54708; }
+html[data-theme="light"] .book-tz-select option {
+  background: #fff;
+  color: #12161c;
+}
