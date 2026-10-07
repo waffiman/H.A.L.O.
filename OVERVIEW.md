@@ -312,7 +312,7 @@ After Apify returns a profile, [`enrichAndWrite.js`](enrichAndWrite.js) **immedi
 
 **Reply rescore:** when Stage B detects inbound, Inspector **revises** the score **before** Copywriter writes the reply (`scoreLeadFromReply` / `rescoreLeadOnReply` in [`conversationAgent.js`](conversationAgent.js) `decideReplyForLead`). Starts from the enrich-time score; moves **0–3** points unless a clear qualify (book/call/buy) or hard no. Persist via `crmStore.patchLead`. Fail-open: a scoring error never blocks the DM. `LEAD_SCORE_ON_REPLY=0` skips. `LEAD_SCORE_LLM=0` uses a small inbound heuristic instead of Inspector.
 
-CRM lead drawer: compact header (score / last contact / place) on every tab; panes **Identity · Contact · Outreach · Fit · Conversation**. Gauge lives on **Fit**. Kanban card preview is optional via Properties (**Lead score (kanban preview)**). Does **not** change send order. X / Email / Telegram scoring later.
+CRM lead drawer: compact header (score / last contact / place) on every tab; panes **Identity · Contact · Fit · Conversation**. Gauge lives on **Fit**. The ice-breaker is not a field on the card: after Stage A sends it, the text is appended to notes and Conversation renders that log as a H.A.L.O. chat (outbound on the right, the lead on the left). Extra links use a quiet “Add more” text link under Link. Kanban card preview is optional via Properties (**Lead score (kanban preview)**). Does **not** change send order. X / Email / Telegram scoring later.
 
 LinkedIn filter mapping (auto URL):
 
@@ -438,7 +438,7 @@ Analytics: [`dashboard/lib/analytics.js`](dashboard/lib/analytics.js) → `GET /
 ### Pages
 
 1. **Dashboard** — master pause, Stage A/B toggles + intervals (Stage B min **6 min**, jitter hint), silence, channels (LinkedIn: **Connection invites per Stage A**), **Lead Quality**, **analytics chart** (Pipeline / Rates / Lost reasons / Outreach / Session)  
-2. **CRM** — in-app kanban (Supabase) / Notion counts. Lead drawer: header metrics + tabs Identity / Contact / Outreach / Fit / Conversation  
+2. **CRM** — in-app kanban (Supabase) / Notion counts. Lead drawer: header metrics + tabs Identity / Contact / Fit / Conversation  
 3. **LinkedIn** — session + cookie paste, **Stage A prospecting** (one toggle + invite cap), **Auto-dialog** info (always on), test URL filter  
 4. Email / X / Telegram — coming soon (same placeholder banner)  
 5. **Integrations** (key icon) — API keys, Telegram  

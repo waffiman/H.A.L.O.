@@ -92,6 +92,28 @@ async function noteUi(page, reason) {
   return { url, text, testids };
 }
 
+async function unlockChatPasscode(page) {
+  const code = String(process.env.X_CHAT_PASSCODE || '').replace(/\D/g, '').slice(0, 4);
+  if (code.length !== 4 || !/pin\/recovery/i.test(page.url())) return false;
+  await acceptCookies(page);
+  const digits = page.locator('input[inputmode="numeric"], input[maxlength="1"]');
+  const count = await digits.count().catch(() => 0);
+  if (count >= 4) {
+    for (let i = 0; i < 4; i++) {
+      await digits.nth(i).click({ timeout: 2000 }).catch(() => {});
+      await digits.nth(i).fill(code[i]).catch(() => {});
+    }
+  } else {
+    const column = page.locator('[data-testid="primaryColumn"]').first();
+    const box = await column.boundingBox().catch(() => null);
+    if (box) await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.46);
+    await page.keyboard.type(code, { delay: 90 });
+  }
+  await page.waitForURL((url) => !/pin\/recovery/i.test(String(url)), { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+  return !/pin\/recovery/i.test(page.url());
+}
+
 async function openComposer(page, handle) {
   await page.goto(`https://x.com/${handle}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForTimeout(1500);
@@ -116,6 +138,15 @@ async function openComposer(page, handle) {
   await target.waitForTimeout(2500);
   await acceptCookies(target);
   if (/\/i\/chat\/pin\/recovery/i.test(target.url())) {
+    const unlocked = await unlockChatPasscode(target);
+    if (unlocked) {
+      let input = await composerInput(target);
+      if (!input) {
+        await target.waitForTimeout(1500);
+        input = await composerInput(target);
+      }
+      if (input) return { open: true, input, page: target };
+    }
     const from = new URL(target.url()).searchParams.get('from') || '';
     const peer = (from.match(/\/i\/chat\/g?(\d+)/) || [])[1];
     if (peer) {
@@ -147,6 +178,11 @@ async function openComposer(page, handle) {
     input = await composerInput(target);
   }
   if (!input) {
+    const wall = await target.locator('body').innerText().catch(() => '');
+    if (/get premium to message|only premium users can send/i.test(wall)) {
+      console.log(`X DM not sent — Premium required for this recipient.`);
+      return { open: false, reason: 'x_premium_required' };
+    }
     if (/pin\/recovery|passcode/i.test(target.url())) {
       const ui = await noteUi(target, 'x chat passcode');
       return { open: false, reason: 'x_chat_passcode', ui };

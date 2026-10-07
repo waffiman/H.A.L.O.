@@ -2066,7 +2066,6 @@ function crmTableHtml() {
 const CRM_DRAWER_TABS = [
   { id: 'identity', label: 'Identity' },
   { id: 'contact', label: 'Contact' },
-  { id: 'outreach', label: 'Outreach' },
   { id: 'fit', label: 'Fit' },
   { id: 'conversation', label: 'Conversation' },
 ];
@@ -2127,6 +2126,62 @@ function bindExtraLinkIcons(row) {
   });
 }
 
+function parseConversationNotes(notes) {
+  const raw = String(notes || '').replace(/\r\n/g, '\n').trim();
+  if (!raw) return [];
+  const chunks = raw.split(/\n(?=\[\d{4}-\d{2}-\d{2}T[^\]]+\])/);
+  const messages = [];
+  for (const chunk of chunks) {
+    const header = chunk.match(/^\[([^\]]+)\]\s*([\s\S]*)$/);
+    if (!header) continue;
+    const at = header[1];
+    const body = header[2];
+    const hits = [];
+    const re = /inbound full:|outbound full:|full message:/gi;
+    let match;
+    while ((match = re.exec(body))) hits.push({ kind: match[0].toLowerCase(), index: match.index, len: match[0].length });
+    for (let i = 0; i < hits.length; i++) {
+      const start = hits[i].index + hits[i].len;
+      const end = i + 1 < hits.length ? hits[i + 1].index : body.length;
+      const text = body.slice(start, end).replace(/\s*\|\s*$/, '').trim();
+      if (!text) continue;
+      messages.push({ side: hits[i].kind.startsWith('inbound') ? 'in' : 'out', at, text });
+    }
+  }
+  return messages;
+}
+
+function chatTimeLabel(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function conversationChatHtml(lead) {
+  const messages = parseConversationNotes(lead?.notes);
+  const name = String(lead?.name || 'Lead').trim() || 'Lead';
+  if (!messages.length) {
+    return `<div class="halo-chat halo-chat-empty">
+      <strong>${escapeHtml(name)}</strong>
+      <p>No messages yet. The ice-breaker appears here after it is sent.</p>
+    </div>`;
+  }
+  const bubbles = messages
+    .map((msg) => {
+      const who = msg.side === 'in' ? name : 'H.A.L.O.';
+      return `<div class="halo-msg halo-msg-${msg.side}">
+        <span class="halo-msg-who">${escapeHtml(who)}</span>
+        <div class="halo-msg-bubble">${escapeHtml(msg.text)}</div>
+        <time>${escapeHtml(chatTimeLabel(msg.at))}</time>
+      </div>`;
+    })
+    .join('');
+  return `<div class="halo-chat">
+    <div class="halo-chat-head">${escapeHtml(name)}<span>Conversation</span></div>
+    <div class="halo-chat-thread">${bubbles}</div>
+  </div>`;
+}
+
 function extraLinkRowHtml(url) {
   return `<div class="crm-extra-link">
     <input type="url" class="crm-extra-url" value="${escapeAttr(url || '')}" placeholder="https://…" />
@@ -2155,10 +2210,6 @@ function crmDrawerHtml(lead) {
         `<option value="${escapeAttr(a.id)}"${lead.messengerApp === a.id ? ' selected' : ''}>${escapeHtml(a.label)}</option>`
     ),
   ].join('');
-  const bodyLen = String(lead.notes || '').trim().length;
-  const notesBody = bodyLen
-    ? escapeHtml(lead.notes)
-    : '<span class="muted">No messages yet — conversation will appear here after outreach.</span>';
   const scoreN = Number(lead.leadScore);
   const scoreVal = Number.isFinite(scoreN) ? `${Math.round(scoreN)}/10` : '—';
   const scoreColor =
@@ -2203,7 +2254,7 @@ function crmDrawerHtml(lead) {
               <div class="field crm-drawer-field-wide" id="crm-extra-links">
                 ${(Array.isArray(lead.extraLinks) ? lead.extraLinks : []).map((item) => extraLinkRowHtml(item.url)).join('')}
               </div>
-              <button type="button" class="btn ghost" id="crm-add-link">Add more</button>
+              <button type="button" class="crm-add-link" id="crm-add-link">Add more</button>
               <label class="field">Headline<input type="text" id="crm-d-headline" value="${escapeAttr(lead.headline || '')}" /></label>
               <label class="field">Company<input type="text" id="crm-d-company" value="${escapeAttr(lead.company || '')}" /></label>
               <label class="field crm-drawer-field-wide crm-about-field${lead.deepResearchedAt ? ' crm-about--deep' : ''}">
@@ -2223,13 +2274,6 @@ function crmDrawerHtml(lead) {
               <label class="field">Messenger<select id="crm-d-messenger-app">${msgOpts}</select></label>
               <label class="field crm-drawer-field-wide">Phone / profile link<input type="text" id="crm-d-messenger-value" value="${escapeAttr(lead.messengerValue || '')}" /></label>
             </div>
-          </section>
-        </div>
-        <div class="crm-drawer-pane${tab === 'outreach' ? '' : ' hidden'}" data-crm-pane="outreach">
-          <section class="crm-drawer-section">
-            <h4 class="crm-drawer-section-title">Ice-breaker</h4>
-            <p class="crm-drawer-hint muted">First outbound DM — Stage A writes here before send.</p>
-            <label class="field"><textarea id="crm-d-msg" rows="6" class="crm-field-text">${escapeHtml(lead.msg || '')}</textarea></label>
           </section>
         </div>
         <div class="crm-drawer-pane${tab === 'fit' ? '' : ' hidden'}" data-crm-pane="fit">
@@ -2258,14 +2302,7 @@ function crmDrawerHtml(lead) {
           </section>
         </div>
         <div class="crm-drawer-pane${tab === 'conversation' ? '' : ' hidden'}" data-crm-pane="conversation">
-          <section class="crm-drawer-section crm-drawer-section-body">
-            <div class="crm-drawer-section-head">
-              <h4 class="crm-drawer-section-title">Conversation</h4>
-              <span class="crm-body-count muted" id="crm-d-notes-count">${bodyLen ? `${bodyLen.toLocaleString('en-US')} chars` : 'Empty'}</span>
-            </div>
-            <p class="crm-drawer-hint muted">Live chat log between H.A.L.O. and this lead. Updated automatically by the agent — not editable here.</p>
-            <div id="crm-d-notes" class="crm-body-field crm-conversation-log" aria-readonly="true">${notesBody}</div>
-          </section>
+          ${conversationChatHtml(lead)}
         </div>
       </div>
       <footer class="crm-drawer-foot">
@@ -2423,13 +2460,8 @@ function bindCrmDrawerEvents() {
       });
     };
   });
-  const notes = document.getElementById('crm-d-notes');
-  const countEl = document.getElementById('crm-d-notes-count');
-  if (notes && countEl) {
-    const raw = notes.textContent || '';
-    const n = raw.trim().length;
-    countEl.textContent = n ? `${n.toLocaleString('en-US')} chars` : 'Empty';
-  }
+  const thread = document.querySelector('.halo-chat-thread');
+  if (thread) thread.scrollTop = thread.scrollHeight;
 }
 
 async function saveCrmDrawer() {
@@ -2438,7 +2470,6 @@ async function saveCrmDrawer() {
     name: document.getElementById('crm-d-name')?.value || '',
     url: document.getElementById('crm-d-url')?.value || '',
     status: document.getElementById('crm-d-status')?.value || 'Lead😴',
-    msg: document.getElementById('crm-d-msg')?.value || '',
     location: document.getElementById('crm-d-location')?.value || '',
     timezone: document.getElementById('crm-d-timezone')?.value || '',
     email: document.getElementById('crm-d-email')?.value || '',

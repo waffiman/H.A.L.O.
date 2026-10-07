@@ -7811,3 +7811,89 @@ html[data-theme="light"] .book-tz-select option {
   border: 1px solid transparent;
   box-shadow: 0 0 16px rgba(34, 197, 94, 0.28);
 }
+.crm-add-link {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-secondary);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.crm-add-link:hover { color: var(--ink); }
+.crm-drawer-pane[data-crm-pane="conversation"] { flex: 1; min-height: 0; }
+.halo-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  max-height: 560px;
+  border-radius: 16px;
+  background: #10141b;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.halo-chat-head {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 650;
+}
+.halo-chat-head span {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--ink-secondary);
+}
+.halo-chat-thread {
+  flex: 1;
+  overflow: auto;
+  padding: 16px 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.halo-msg { display: flex; flex-direction: column; max-width: 82%; gap: 2px; }
+.halo-msg-in { align-self: flex-start; }
+.halo-msg-out { align-self: flex-end; align-items: flex-end; }
+.halo-msg-who { font-size: 0.68rem; color: var(--ink-secondary); }
+.halo-msg-bubble {
+  padding: 10px 12px;
+  border-radius: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+  font-size: 0.88rem;
+}
+.halo-msg-in .halo-msg-bubble {
+  background: #232a36;
+  color: var(--ink);
+  border-bottom-left-radius: 5px;
+}
+.halo-msg-out .halo-msg-bubble {
+  background: #1f8f4e;
+  color: #f4fff8;
+  border-bottom-right-radius: 5px;
+}
+.halo-msg time { font-size: 0.68rem; color: var(--ink-secondary); }
+.halo-chat-empty {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 36px 20px;
+  color: var(--ink-secondary);
+}
+.halo-chat-empty strong { color: var(--ink); font-size: 1rem; }
+.halo-chat-empty p { margin: 0; max-width: 28ch; line-height: 1.45; }
+html[data-theme="light"] .halo-chat { background: #f3f5f7; border-color: #e4e7ec; }
+html[data-theme="light"] .halo-msg-in .halo-msg-bubble {
+  background: #fff;
+  color: #12161c;
+  border: 1px solid #e4e7ec;
+}
+html[data-theme="light"] .halo-msg-out .halo-msg-bubble { background: #15803d; color: #f7fff9; }
