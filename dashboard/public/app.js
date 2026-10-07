@@ -2077,6 +2077,63 @@ function crmDrawerMetric(label, value, extraStyle = '') {
   return `<div class="crm-drawer-metric"><span class="crm-drawer-metric-label">${escapeHtml(label)}</span><span class="crm-drawer-metric-val" title="${escapeAttr(v)}"${style}>${escapeHtml(crmTextPreview(v, 28))}</span></div>`;
 }
 
+function linkKindFromUrl(url) {
+  let host = '';
+  try {
+    host = new URL(String(url || '').trim()).hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return 'website';
+  }
+  if (host === 't.me' || host === 'telegram.me') return 'telegram';
+  if (host === 'x.com' || host === 'twitter.com') return 'x';
+  if (host.endsWith('linkedin.com')) return 'linkedin';
+  if (host.endsWith('instagram.com')) return 'instagram';
+  if (host === 'facebook.com' || host === 'fb.com') return 'facebook';
+  if (host === 'github.com') return 'github';
+  if (host === 'youtube.com' || host === 'youtu.be') return 'youtube';
+  if (host.endsWith('tiktok.com')) return 'tiktok';
+  if (host === 'medium.com' || host.endsWith('.medium.com')) return 'medium';
+  if (host === 'discord.com' || host === 'discord.gg') return 'discord';
+  if (host === 'wa.me' || host === 'whatsapp.com') return 'whatsapp';
+  return 'website';
+}
+
+function linkKindIcon(url) {
+  const kind = linkKindFromUrl(url);
+  const common = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+  const paths = {
+    linkedin: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 10v7M8 7h.01M12 17v-4a2 2 0 0 1 4 0v4"/>',
+    x: '<path d="M5 5l14 14M19 5 5 19"/>',
+    instagram: '<rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="3.5"/><circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" stroke="none"/>',
+    facebook: '<path d="M14 8h2V5h-2c-2.2 0-3 1.3-3 3v2H9v3h2v6h3v-6h2l1-3h-3V8c0-.6.4-1 1-1z"/>',
+    telegram: '<path d="M20 5 4 11l5 2 2 6 3-4 4 3 2-13z"/>',
+    github: '<path d="M9 19c-4 1.5-4-2.5-6-3m12 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3-.3 6.1-1.5 6.1-6.6a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.1-.3-3.6 1.4a12.3 12.3 0 0 0-6.2 0C6.4 2.4 5.3 2.7 5.3 2.7a4.8 4.8 0 0 0-.1 3.6 5.2 5.2 0 0 0-1.4 3.6c0 5.1 3.1 6.3 6.1 6.6a3.4 3.4 0 0 0-.9 2.6V22"/>',
+    youtube: '<rect x="3" y="6" width="18" height="12" rx="3"/><path d="m10 9 5 3-5 3V9z" fill="currentColor" stroke="none"/>',
+    tiktok: '<path d="M14 6c.6 2.4 2.2 3.8 4 4v3c-1.6 0-3-.5-4-1.4V16a5 5 0 1 1-5-5c.3 0 .7 0 1 .1V14a2 2 0 1 0 2 2V6h2z"/>',
+    medium: '<path d="M5 7v10M8 7c3 4 3 6 0 10M13 7c2.2 3.2 2.2 6.8 0 10M18 7c1.2 3 1.2 7 0 10"/>',
+    discord: '<path d="M7 8c2-1 4-1.5 5-1.5S15 7 17 8l1 8s-1.5 2-3 2l-.8-1.5c-1 .4-2.2.5-3.2.5s-2.2-.1-3.2-.5L7 18c-1.5 0-3-2-3-2l1-8z"/><path d="M9 13h.01M15 13h.01"/>',
+    whatsapp: '<path d="M6 18l-1 3 3-1a8 8 0 1 0-2-2z"/>',
+    website: '<path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/>',
+  };
+  return `<svg ${common} aria-hidden="true">${paths[kind] || paths.website}</svg>`;
+}
+
+function bindExtraLinkIcons(row) {
+  const input = row?.querySelector?.('.crm-extra-url');
+  const ico = row?.querySelector?.('.crm-link-ico');
+  if (!input || !ico) return;
+  input.addEventListener('input', () => {
+    ico.innerHTML = linkKindIcon(input.value);
+  });
+}
+
+function extraLinkRowHtml(url) {
+  return `<div class="crm-extra-link">
+    <input type="url" class="crm-extra-url" value="${escapeAttr(url || '')}" placeholder="https://…" />
+    <span class="crm-link-ico">${linkKindIcon(url || '')}</span>
+  </div>`;
+}
+
 function crmDrawerHtml(lead) {
   if (!lead) return '';
   const allowedTabs = new Set(CRM_DRAWER_TABS.map((t) => t.id));
@@ -2137,7 +2194,22 @@ function crmDrawerHtml(lead) {
             <div class="crm-drawer-grid">
               <label class="field">Name<input type="text" id="crm-d-name" value="${escapeAttr(lead.name || '')}" placeholder="Optional — enrich fills later" /></label>
               <label class="field">Status<select id="crm-d-status">${statusOpts}</select></label>
-              <label class="field crm-drawer-field-wide">Link ${lead.__draft || !lead.id ? '<span class="crm-req" title="Required">*</span>' : ''}<input type="url" id="crm-d-url" value="${escapeAttr(lead.url || '')}" placeholder="https://linkedin.com/in/…" required /></label>
+              <label class="field crm-drawer-field-wide">Link ${lead.__draft || !lead.id ? '<span class="crm-req" title="Required">*</span>' : ''}
+                <span class="crm-link-row">
+                  <input type="url" id="crm-d-url" value="${escapeAttr(lead.url || '')}" placeholder="https://linkedin.com/in/…" required />
+                  <span class="crm-link-ico" id="crm-d-url-ico">${linkKindIcon(lead.url || '')}</span>
+                </span>
+              </label>
+              <div class="field crm-drawer-field-wide" id="crm-extra-links">
+                ${(Array.isArray(lead.extraLinks) ? lead.extraLinks : []).map((item) => extraLinkRowHtml(item.url)).join('')}
+              </div>
+              <button type="button" class="btn ghost" id="crm-add-link">Add more</button>
+              <label class="field">Headline<input type="text" id="crm-d-headline" value="${escapeAttr(lead.headline || '')}" /></label>
+              <label class="field">Company<input type="text" id="crm-d-company" value="${escapeAttr(lead.company || '')}" /></label>
+              <label class="field crm-drawer-field-wide crm-about-field${lead.deepResearchedAt ? ' crm-about--deep' : ''}">
+                <span>${lead.deepResearchedAt ? 'DeepResearch' : 'About'}</span>
+                <textarea id="crm-d-about" rows="8">${escapeHtml(lead.about || '')}</textarea>
+              </label>
             </div>
           </section>
         </div>
@@ -2324,6 +2396,17 @@ function bindCrmDrawerEvents() {
   document.getElementById('crm-drawer-close')?.addEventListener('click', closeCrmDrawer);
   document.getElementById('crm-drawer-backdrop')?.addEventListener('click', closeCrmDrawer);
   document.getElementById('crm-d-save')?.addEventListener('click', saveCrmDrawer);
+  document.getElementById('crm-add-link')?.addEventListener('click', () => {
+    const box = document.getElementById('crm-extra-links');
+    if (!box || box.querySelectorAll('.crm-extra-url').length >= 12) return;
+    box.insertAdjacentHTML('beforeend', extraLinkRowHtml(''));
+    bindExtraLinkIcons(box.lastElementChild);
+  });
+  document.getElementById('crm-d-url')?.addEventListener('input', (e) => {
+    const ico = document.getElementById('crm-d-url-ico');
+    if (ico) ico.innerHTML = linkKindIcon(e.target.value);
+  });
+  document.querySelectorAll('.crm-extra-link').forEach(bindExtraLinkIcons);
   document.getElementById('crm-d-delete')?.addEventListener('click', deleteCrmDrawer);
   document.querySelectorAll('[data-crm-tab]').forEach((btn) => {
     btn.onclick = () => {
@@ -2350,6 +2433,7 @@ function bindCrmDrawerEvents() {
 }
 
 async function saveCrmDrawer() {
+  const link = String(document.getElementById('crm-d-url')?.value || '').trim();
   const patch = {
     name: document.getElementById('crm-d-name')?.value || '',
     url: document.getElementById('crm-d-url')?.value || '',
@@ -2358,13 +2442,38 @@ async function saveCrmDrawer() {
     location: document.getElementById('crm-d-location')?.value || '',
     timezone: document.getElementById('crm-d-timezone')?.value || '',
     email: document.getElementById('crm-d-email')?.value || '',
+    headline: document.getElementById('crm-d-headline')?.value || '',
+    company: document.getElementById('crm-d-company')?.value || '',
+    about: document.getElementById('crm-d-about')?.value || '',
+    extraLinks: [...document.querySelectorAll('.crm-extra-url')]
+      .map((el) => String(el.value || '').trim())
+      .filter(Boolean)
+      .filter((url) => {
+        try {
+          const a = new URL(url);
+          const b = new URL(link);
+          const host = (h) => h.replace(/^www\./i, '').toLowerCase();
+          const path = (p) => p.replace(/\/$/, '').toLowerCase();
+          return !(host(a.hostname) === host(b.hostname) && path(a.pathname) === path(b.pathname));
+        } catch {
+          return true;
+        }
+      })
+      .slice(0, 12)
+      .map((url) => ({ url })),
     lostReason: document.getElementById('crm-d-lost-reason')?.value || '',
     messengerApp: document.getElementById('crm-d-messenger-app')?.value || '',
     messengerValue: document.getElementById('crm-d-messenger-value')?.value || '',
   };
-  const link = String(patch.url || '').trim();
-  if (!link || !/linkedin\.com\/in\//i.test(link)) {
-    toast('LinkedIn profile Link is required (https://www.linkedin.com/in/…)', true);
+  const isLinkedIn = /linkedin\.com\/in\//i.test(link);
+  const isX = /(?:x\.com|twitter\.com)\/[A-Za-z0-9_]/i.test(link);
+  if (!link || (!isLinkedIn && !isX)) {
+    toast('Profile link must be a LinkedIn /in/ URL or an X profile', true);
+    document.getElementById('crm-d-url')?.focus();
+    return;
+  }
+  if ((crmDrawerLead?.__draft || !crmDrawerLead?.id) && !isLinkedIn) {
+    toast('New leads created here need a LinkedIn /in/ URL', true);
     document.getElementById('crm-d-url')?.focus();
     return;
   }
@@ -2963,6 +3072,7 @@ function bindSwitchAutosave() {
   const chLi = document.getElementById('ch-linkedin');
   const chX = document.getElementById('ch-x');
   const chTg = document.getElementById('ch-telegram');
+  const deepResearch = document.getElementById('deepResearch');
 
   const persistAndRefresh = async (patch) => {
     await persistSwitches(patch);
@@ -3026,9 +3136,15 @@ function bindSwitchAutosave() {
   [chLi, chX, chTg].forEach((el) => {
     if (el) el.onchange = onChannel;
   });
+  if (deepResearch) {
+    deepResearch.onchange = async () => {
+      settings.deepResearch = deepResearch.checked;
+      await persistAndRefresh({ deepResearch: deepResearch.checked });
+    };
+  }
 }
 
-function channelTile(key, label, enabled, { comingSoon = false, leadsPerCycle = null, leadsPerCycleLabel = null, leadsEditable = true } = {}) {
+function channelTile(key, label, enabled, { comingSoon = false, leadsPerCycle = null, leadsPerCycleLabel = null, leadsEditable = true, leadsInputId = 'dashConnectInvites', leadsMax = 100 } = {}) {
   const cycleLabel = leadsPerCycleLabel || LEADS_PER_CYCLE_LABEL;
   const title = comingSoon
     ? `${label} placeholder channel`
@@ -3037,7 +3153,7 @@ function channelTile(key, label, enabled, { comingSoon = false, leadsPerCycle = 
     leadsPerCycle != null && !comingSoon && leadsEditable
       ? `<label class="field field-tight channel-leads-field" title="${escapeAttr(cycleLabel)}">
           <span class="channel-stat-label">${escapeHtml(cycleLabel)}</span>
-          <input type="number" id="dashConnectInvites" class="sync-max-input" min="0" max="100" step="1" value="${Number(leadsPerCycle) || 0}" />
+          <input type="number" id="${leadsInputId}" class="sync-max-input" min="0" max="${Number(leadsMax) || 100}" step="1" value="${Number.isFinite(Number(leadsPerCycle)) ? Number(leadsPerCycle) : 0}" />
         </label>`
       : leadsPerCycle != null
         ? `<div class="channel-stat" title="${escapeAttr(cycleLabel)}">
@@ -3156,8 +3272,21 @@ function renderDashboard() {
         leadsPerCycleLabel: LEADS_PER_CYCLE_LABEL,
         leadsEditable: true,
       })}
-      ${channelTile('x', 'X', s.channels.x)}
+      ${channelTile('x', 'X', s.channels.x, {
+        leadsPerCycle: s.x?.leadsPerRun ?? 5,
+        leadsPerCycleLabel: 'New X leads per Stage A',
+        leadsEditable: true,
+        leadsInputId: 'dashXLeadsPerRun',
+        leadsMax: 20,
+      })}
       ${channelTile('telegram', 'Telegram', s.channels.telegram, { comingSoon: true })}
+    </div>
+    <div class="tile" title="After basic enrich, run DeepResearch before lead score and ice">
+      <h3>DeepResearch</h3>
+      <p class="muted">Off: score and ice follow basic enrich. On: DeepResearch runs first. It does not open the main profile link.</p>
+      <div class="row">${switchEl('deepResearch', !!s.deepResearch, 'Enable DeepResearch after basic enrich')}
+        <span class="muted">${s.deepResearch ? 'On' : 'Off'}</span>
+      </div>
     </div>
     <div class="dash-quality-row">${leadQualityCardHtml()}</div>
 
@@ -3226,6 +3355,7 @@ function renderDashboard() {
   bindCrmSnapshotDonut();
   bindSwitchAutosave();
   bindConnectInvitesAutosave();
+  bindXLeadsAutosave();
   bindConnectInvitesWarn();
   bindStageBIntervalGuard();
   bindAnalyticsCanvas();
@@ -5480,6 +5610,7 @@ function renderLinkedIn() {
   bindSwitchAutosave();
   bindConnectInvitesWarn();
   bindConnectInvitesAutosave();
+  bindXLeadsAutosave();
   bindConnectAcceptExpireControls();
   bindPortraitProspectingToggle();
   bindLinkedInSessionForm();
@@ -5497,17 +5628,22 @@ function renderX() {
   const sess = s.x?.session || s.xSession || {};
   const cookies = s.x?.cookies || s.xCookies || {};
   const ok = xSessionOkFromSettings(s);
-  setPageHeader('X', 'Session for the X channel (outreach comes later)');
+  setPageHeader('X', 'Session and new-lead search');
   titleEl.title = 'X channel';
 
   const channelStrip = `<div class="li-channel-strip">
       <div class="li-channel-strip-copy">
         <strong>Channel</strong>
-        <span class="muted">Ready for Stage A / B later — not wired yet</span>
+        <span class="muted">Stage A searches People and inserts Lead😴 when the chat is open. Enrich comes later.</span>
         ${s.channels.x ? '<span class="badge">active</span>' : '<span class="badge off">off</span>'}
       </div>
       ${switchEl('ch-x', s.channels.x, 'Enable X channel')}
-    </div>`;
+    </div>
+    <label class="field field-tight" title="New X leads per Stage A">
+      <span>New X leads per Stage A</span>
+      <input type="number" id="xLeadsPerRun" min="0" max="20" step="1" value="${Number.isFinite(Number(s.x?.leadsPerRun)) ? Number(s.x.leadsPerRun) : 5}" />
+    </label>
+    <p class="muted">0 turns search off. First page of People search, then a chat open to drop closed inboxes. No follow and no message yet.</p>`;
 
   const signInForm = `<form id="x-session-form" class="li-session-form" autocomplete="on">
           <label class="field" for="x-username">Email or username
@@ -5560,6 +5696,7 @@ function renderX() {
     </div>
   `;
   bindSwitchAutosave();
+  bindXLeadsAutosave();
   bindXSessionForm();
   bindXCookiePaste();
 }
@@ -6755,6 +6892,71 @@ function bindConnectInvitesAutosave() {
   });
 
   updateWarn(settings.linkedin?.connectMaxPerRun ?? inputs[0].value);
+}
+
+/** Dashboard X tile ↔ X page "New X leads per Stage A". 0 disables search. */
+function bindXLeadsAutosave() {
+  const inputs = [
+    document.getElementById('dashXLeadsPerRun'),
+    document.getElementById('xLeadsPerRun'),
+  ].filter(Boolean);
+  if (!inputs.length) return;
+
+  const syncPeers = (source, raw) => {
+    inputs.forEach((el) => {
+      if (el === source || document.activeElement === el) return;
+      if (el.value !== raw) el.value = raw;
+    });
+  };
+
+  const normalize = (raw) => {
+    const trimmed = String(raw ?? '').trim();
+    if (trimmed === '') return null;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.min(20, Math.round(n)));
+  };
+
+  const applySaved = (n) => {
+    if (!settings.x) settings.x = {};
+    settings.x.leadsPerRun = n;
+    inputs.forEach((el) => {
+      if (document.activeElement === el) return;
+      const s = String(n);
+      if (el.value !== s) el.value = s;
+    });
+  };
+
+  const commit = async (input) => {
+    let n = normalize(input.value);
+    if (n == null) {
+      const prev = Number(settings.x?.leadsPerRun);
+      n = Number.isFinite(prev) ? prev : 5;
+    }
+    input.value = String(n);
+    syncPeers(input, input.value);
+    applySaved(n);
+    try {
+      const data = await api('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({ x: { leadsPerRun: n } }),
+      });
+      settings = data.settings;
+      if (settings.notifications) notifications = settings.notifications;
+      const next = Number(settings.x?.leadsPerRun);
+      if (Number.isFinite(next)) applySaved(next);
+    } catch (e) {
+      toast(e.message, true);
+    }
+  };
+
+  inputs.forEach((input) => {
+    input.addEventListener('input', () => syncPeers(input, input.value));
+    input.addEventListener('change', () => { void commit(input); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+  });
 }
 
 function bindSyncCapWarn() {

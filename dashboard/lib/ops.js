@@ -922,6 +922,7 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
       x: env.CHANNEL_X_ENABLED === '1',
       telegram: env.CHANNEL_TELEGRAM_ENABLED === '1',
     },
+    deepResearch: env.DEEP_RESEARCH_ENABLED === '1',
     linkedin: {
       targetUrl: env.TARGET_LINKEDIN_URL || '',
       syncMaxNew: Number(env.SYNC_MAX_NEW || env.SYNC_FIRST_RUN_LIMIT || 20),
@@ -959,6 +960,12 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
       session: xSession,
       cookies: xCookies,
       sessionOk: xSessionOk,
+      leadsPerRun: (() => {
+        const raw = env.X_LEADS_PER_RUN;
+        if (raw === undefined || raw === null || String(raw).trim() === '') return 5;
+        const n = Number(raw);
+        return Number.isFinite(n) ? Math.max(0, Math.min(20, Math.round(n))) : 5;
+      })(),
     },
     xSession,
     xCookies,
@@ -1289,6 +1296,16 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
     if (typeof body.channels.telegram === 'boolean') {
       updates.CHANNEL_TELEGRAM_ENABLED = body.channels.telegram ? '1' : '0';
     }
+  }
+
+  if (typeof body.deepResearch === 'boolean') {
+    updates.DEEP_RESEARCH_ENABLED = body.deepResearch ? '1' : '0';
+  }
+
+  if (body.x && typeof body.x === 'object' && body.x.leadsPerRun != null && body.x.leadsPerRun !== '') {
+    const n = Number(body.x.leadsPerRun);
+    const capped = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.round(n))) : 5;
+    updates.X_LEADS_PER_RUN = String(capped);
   }
 
   if (body.linkedin && typeof body.linkedin === 'object') {

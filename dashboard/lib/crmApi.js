@@ -36,6 +36,27 @@ function ws(env = readEnvFile(), workspaceId) {
   return String(env.WORKSPACE_ID || 'default').trim() || 'default';
 }
 
+function extraLinkKind(url) {
+  let host = '';
+  try {
+    host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return 'website';
+  }
+  if (host === 't.me' || host === 'telegram.me') return 'telegram';
+  if (host === 'x.com' || host === 'twitter.com') return 'x';
+  if (host.endsWith('linkedin.com')) return 'linkedin';
+  if (host.endsWith('instagram.com')) return 'instagram';
+  if (host === 'facebook.com' || host === 'fb.com') return 'facebook';
+  if (host === 'github.com') return 'github';
+  if (host === 'youtube.com' || host === 'youtu.be') return 'youtube';
+  if (host.endsWith('tiktok.com')) return 'tiktok';
+  if (host === 'medium.com' || host.endsWith('.medium.com')) return 'medium';
+  if (host === 'discord.com' || host === 'discord.gg') return 'discord';
+  if (host === 'wa.me' || host === 'whatsapp.com') return 'whatsapp';
+  return 'website';
+}
+
 function rowToLead(row) {
   return {
     id: row.id,
@@ -59,6 +80,18 @@ function rowToLead(row) {
       return raw;
     })(),
     notes: String(row.notes || ''),
+    headline: String(row.headline || '').trim(),
+    company: String(row.company || '').trim(),
+    about: String(row.about || '').trim(),
+    extraLinks: Array.isArray(row.extra_links)
+      ? row.extra_links
+          .map((item) => ({
+            url: String(item?.url || '').trim(),
+            kind: String(item?.kind || 'website').trim() || 'website',
+          }))
+          .filter((item) => item.url)
+      : [],
+    deepResearchedAt: row.deep_researched_at || null,
   };
 }
 
@@ -178,6 +211,19 @@ export async function patchLead(id, fields, env = readEnvFile(), workspaceId) {
   if (fields.messengerApp != null) patch.messenger_app = String(fields.messengerApp).trim().slice(0, 32);
   if (fields.messengerValue != null) {
     patch.messenger_value = String(fields.messengerValue).trim().slice(0, 300);
+  }
+  if (fields.headline != null) patch.headline = String(fields.headline).trim().slice(0, 300);
+  if (fields.company != null) patch.company = String(fields.company).trim().slice(0, 200);
+  if (fields.about != null) patch.about = String(fields.about).slice(0, 8000);
+  if (fields.extraLinks != null) {
+    const list = Array.isArray(fields.extraLinks) ? fields.extraLinks : [];
+    patch.extra_links = list
+      .map((item) => {
+        const url = String(item?.url || item || '').trim().slice(0, 400);
+        return url ? { url, kind: extraLinkKind(url) } : null;
+      })
+      .filter(Boolean)
+      .slice(0, 12);
   }
   const { data, error } = await sb
     .from('leads')

@@ -38,6 +38,11 @@ alter table public.leads add column if not exists messenger_app text not null de
 alter table public.leads add column if not exists messenger_value text not null default '';
 alter table public.leads add column if not exists lead_score integer;
 alter table public.leads add column if not exists score_breakdown jsonb;
+alter table public.leads add column if not exists headline text not null default '';
+alter table public.leads add column if not exists company text not null default '';
+alter table public.leads add column if not exists about text not null default '';
+alter table public.leads add column if not exists extra_links jsonb not null default '[]'::jsonb;
+alter table public.leads add column if not exists deep_researched_at timestamptz;
 
 create unique index if not exists leads_workspace_link_uidx
   on public.leads (workspace_id, link)

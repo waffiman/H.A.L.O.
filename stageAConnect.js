@@ -366,9 +366,12 @@ export async function runStageAP1EnrichSendPass(ctx) {
   } = ctx;
 
   const { STATUS_LEAD, isLeadReadyForIcePipeline } = await import('./crm/constants.js');
+  const { channelFromUrl } = await import('./leadChannel.js');
   const readyIds = new Set(promotedIds);
+  const linkedInOnly = (l) => channelFromUrl(l.url) !== 'x';
   const backlog = (await getLeads(STATUS_LEAD))
     .filter(matchesTarget)
+    .filter(linkedInOnly)
     .filter((l) =>
       isLeadReadyForIcePipeline(l, {
         promotedIds: readyIds,
@@ -401,6 +404,7 @@ export async function runStageAP1EnrichSendPass(ctx) {
 
   const fresh = (await getLeads(STATUS_LEAD))
     .filter(matchesTarget)
+    .filter(linkedInOnly)
     .filter((l) =>
       isLeadReadyForIcePipeline(l, {
         promotedIds: readyIds,

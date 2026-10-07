@@ -2,6 +2,8 @@
  * Supabase CRM adapter — PostgREST fetch (Node 20 safe).
  */
 import { profileSlugFromUrl, canonicalProfileUrl } from '../connectionsSync.js';
+import { canonicalXProfileUrl, channelFromUrl } from '../leadChannel.js';
+import { normalizeExtraLinks } from '../leadLinks.js';
 import { STATUS_LEAD } from './constants.js';
 import { restDelete, restFetchAll, restInsert, restSelect, restUpdate, workspaceId } from './supabaseRest.js';
 
@@ -23,13 +25,18 @@ function rowToLead(row) {
     processingAt: row.processing_at ? new Date(row.processing_at) : null,
     status: String(row.status || '').trim(),
     notes: String(row.notes || ''),
+    headline: String(row.headline || '').trim(),
+    company: String(row.company || '').trim(),
+    about: String(row.about || '').trim(),
+    extraLinks: normalizeExtraLinks(row.extra_links),
+    deepResearchedAt: row.deep_researched_at || null,
   };
 }
 
 export async function listByStatus(statusName) {
   const ws = workspaceId();
   const rows = await restFetchAll('leads', { workspace_id: ws, status: statusName });
-  return rows.map(rowToLead).filter((l) => (l.url || '').includes('linkedin.com'));
+  return rows.map(rowToLead).filter((l) => Boolean(channelFromUrl(l.url)));
 }
 
 export async function findLeadsByName(statusName, searchToken) {
@@ -134,6 +141,22 @@ export async function createLead({ url, name = '', status = STATUS_LEAD } = {}) 
     ...(status === STATUS_LEAD ? { processing_at: new Date().toISOString() } : {}),
   });
   return { id: row.id, url: cleanUrl, slug, name: titleName };
+}
+
+export async function createXLead({ url, name = '' } = {}) {
+  const cleanUrl = canonicalXProfileUrl(url);
+  if (!cleanUrl) throw new Error(`Invalid X URL: ${url}`);
+  const titleName = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const row = await restInsert('leads', {
+    workspace_id: workspaceId(),
+    name: titleName,
+    link: cleanUrl,
+    status: STATUS_LEAD,
+    ice_breaker: '',
+    notes: '',
+    processing_at: new Date().toISOString(),
+  });
+  return { id: row.id, url: cleanUrl, name: titleName };
 }
 
 export async function createLeadSleep({ url }) {
@@ -316,6 +339,15 @@ export async function patchLead(id, fields = {}) {
   if (fields.scoreBreakdown != null || fields.score_breakdown != null) {
     const b = fields.scoreBreakdown ?? fields.score_breakdown;
     if (b && typeof b === 'object') patch.score_breakdown = b;
+  }
+  if (fields.headline != null) patch.headline = String(fields.headline).trim().slice(0, 300);
+  if (fields.company != null) patch.company = String(fields.company).trim().slice(0, 200);
+  if (fields.about != null) patch.about = String(fields.about).slice(0, 8000);
+  if (fields.extraLinks != null || fields.extra_links != null) {
+    patch.extra_links = normalizeExtraLinks(fields.extraLinks ?? fields.extra_links);
+  }
+  if (fields.deepResearchedAt != null || fields.deep_researched_at != null) {
+    patch.deep_researched_at = fields.deepResearchedAt || fields.deep_researched_at;
   }
   const row = await restUpdate('leads', id, patch);
   return rowToLead(row);

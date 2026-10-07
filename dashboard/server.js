@@ -615,6 +615,7 @@ app.post('/api/settings/switches', async (req, res) => {
     if (typeof body.stageBEnabled === 'boolean') patch.stageBEnabled = body.stageBEnabled;
     if (body._masterSource === true) patch._masterSource = true;
     if (body.channels && typeof body.channels === 'object') patch.channels = body.channels;
+    if (typeof body.deepResearch === 'boolean') patch.deepResearch = body.deepResearch;
     if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
     const ws = req.tenant.workspaceId;
     const settings = await applyDashboardPatch(patch, ws, {

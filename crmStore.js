@@ -62,6 +62,15 @@ export async function createLead(fields) {
   return a.createLead(fields);
 }
 
+/** X profile → Lead😴. Notes get the ready marker; enrich and ice stay later steps. */
+export async function createXLead(fields) {
+  const a = await adapter();
+  const created = await a.createXLead(fields);
+  const { LEAD_READY_MARKER } = await import('./crm/constants.js');
+  await a.appendNote(created.id, `X search — ${LEAD_READY_MARKER}`);
+  return created;
+}
+
 export async function createLeadSleep(fields) {
   const a = await adapter();
   return a.createLeadSleep(fields);

@@ -1,6 +1,7 @@
 /**
  * Infer outreach channel from a CRM Link. No DB column — host only.
- * Phase 1: helper only. Do not change listByStatus / createLead yet.
+ * listByStatus keeps linkedin.com and x.com / twitter.com. LinkedIn createLead
+ * stays LinkedIn-only; X inserts go through createXLead.
  */
 
 export function channelFromUrl(url = '') {

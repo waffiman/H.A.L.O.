@@ -7,6 +7,7 @@ import { splitMessageForDm, sanitizeIceBreaker } from './messageQuality.js';
 import * as crm from './crmStore.js';
 import { cookiesFile, sessionDataDir, stateJsonFile } from './dataRoot.js';
 import { STATUS_LEAD, STATUS_CONVERSATION, isLeadReadyForIcePipeline } from './crm/constants.js';
+import { channelFromUrl } from './leadChannel.js';
 
 dotenv.config({ override: true });
 // Tenant one-shots: load cabinet overrides after root .env (WORKSPACE_ID, stage flags, …)
@@ -18,7 +19,11 @@ if (process.env.TENANT_DATA_ROOT) {
  *  STAGE_A_ONESHOT=1 preserves CLI/docker overrides across reload (one-shot scripts). */
 function reloadEnv() {
   const preserve = {};
-  if (process.env.STAGE_A_ONESHOT === '1' || process.env.STAGE_B_ONESHOT === '1') {
+  if (
+    process.env.STAGE_A_ONESHOT === '1' ||
+    process.env.STAGE_B_ONESHOT === '1' ||
+    process.env.X_SEARCH_ONESHOT === '1'
+  ) {
     for (const k of [
       'OUTREACH_PAUSED',
       'SKIP_STAGE_A',
@@ -44,6 +49,9 @@ function reloadEnv() {
       'CONNECT_MAX_PER_RUN',
       'CONNECT_DRY_RUN',
       'CONNECT_ACCEPT_WAIT_DAYS',
+      'CHANNEL_X_ENABLED',
+      'X_LEADS_PER_RUN',
+      'X_SEARCH_ONESHOT',
       'CONNECT_ACCEPT_EXPIRE',
       'GEMINI_API_KEY',
       'GEMINI_MODEL',
@@ -2042,8 +2050,10 @@ async function runStageA() {
     console.log('Stage A skipped (OUTREACH_PAUSED / SKIP_STAGE_A).');
     return;
   }
+  const xChannelOn = process.env.CHANNEL_X_ENABLED === '1';
   if (process.env.CHANNEL_LINKEDIN_ENABLED === '0') {
-    console.log('Stage A skipped (CHANNEL_LINKEDIN_ENABLED=0).');
+    console.log('Stage A LinkedIn skipped (CHANNEL_LINKEDIN_ENABLED=0).');
+    if (xChannelOn) await runXLeadSearchFromStageA();
     return;
   }
   console.log('=== STAGE A: Acquisition (per-lead: sync → enrich → ice) ===');
@@ -2306,6 +2316,10 @@ async function runStageA() {
         } catch (_) {}
       }
       for (const lead of backlog) {
+        if (channelFromUrl(lead.url) === 'x') {
+          console.log(`Skip X leftover (enrich/ice is a later step): ${lead.url}`);
+          continue;
+        }
         if (phase1DmOk >= sendCap) {
           console.log(`STAGE_A_SEND_MAX=${sendMaxRaw} reached during leftover drain.`);
           break;
@@ -2624,6 +2638,23 @@ async function runStageA() {
     }
   } finally {
     await closeBrowser(browser);
+  }
+  if (process.env.CHANNEL_X_ENABLED === '1') await runXLeadSearchFromStageA();
+}
+
+/** X People search after the LinkedIn browser is closed, then Apify enrich. No ice or DM. */
+async function runXLeadSearchFromStageA() {
+  try {
+    const { runXLeadSearchPhase } = await import('./xLeadSearch.js');
+    await runXLeadSearchPhase();
+  } catch (e) {
+    console.error('X lead search:', e?.message || e);
+  }
+  try {
+    const { enrichReadyXLeads } = await import('./xEnrich.js');
+    await enrichReadyXLeads();
+  } catch (e) {
+    console.error('X enrich:', e?.message || e);
   }
 }
 

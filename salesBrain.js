@@ -510,14 +510,14 @@ function finalizeReplyMode(raw) {
  * Order: Gemini (key1) → Gemini (key2) → Cohere.
  * OpenAI only if OPENAI_API_KEY is set (this project normally does not use it).
  */
-async function generateSingleShot(mode, system, user) {
+async function completeSingleShot(system, user, { json = false } = {}) {
   let raw = null;
   const keys = geminiKeys();
 
   // OpenAI is unused in this project; ignore leftover keys unless explicitly enabled.
   if (process.env.BRAIN_ALLOW_OPENAI === '1' && process.env.OPENAI_API_KEY) {
     try {
-      raw = await callOpenAI(system, user, { json: mode === 'reply' });
+      raw = await callOpenAI(system, user, { json });
     } catch (e) {
       console.error('OpenAI failed, trying Gemini:', e.message);
     }
@@ -556,6 +556,11 @@ async function generateSingleShot(mode, system, user) {
   if (!raw) {
     throw new Error('No usable LLM key (GEMINI / COHERE) or all providers returned empty');
   }
+  return raw;
+}
+
+async function generateSingleShot(mode, system, user) {
+  const raw = await completeSingleShot(system, user, { json: mode === 'reply' });
   if (mode === 'reply') return finalizeReplyMode(raw);
   return finalizeTextMode(mode, raw);
 }
@@ -910,4 +915,137 @@ export async function generateSalesMessage(opts) {
   }
 
   return decision;
+}
+
+const ABOUT_SYSTEM = `You write a lead dossier called About.
+Use only facts present in the input. Do not invent employers, numbers, intentions, or relationships.
+Include as many true facts as the input supports.
+Write short plain lines a person and a later AI can both read.
+No greeting, no sign-off, no sales pitch, no questions, no placeholders.
+If CURRENT ABOUT and ADDITIONS are present, keep every still-true fact from CURRENT ABOUT and add only new facts from ADDITIONS. Do not delete true facts and do not repeat them.`;
+
+function aboutFallback(profile, links, currentAbout) {
+  const lines = [];
+  const add = (label, value) => {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (text) lines.push(`${label}: ${text}`);
+  };
+  add('Name', profile?.name);
+  add('Role', profile?.headline);
+  add('Company', profile?.company);
+  add('Location', profile?.location);
+  add('Email', profile?.email);
+  add('Bio', profile?.description || profile?.about);
+  if (profile?.followers) add('Followers', profile.followers);
+  if (profile?.following) add('Following', profile.following);
+  if (profile?.createdAt) add('Joined', profile.createdAt);
+  const urls = (links || []).map((item) => item.url).filter(Boolean);
+  if (urls.length) add('Links', urls.join(', '));
+  const base = String(currentAbout || '').trim();
+  return [base, lines.join('\n')].filter(Boolean).join('\n').slice(0, 8000);
+}
+
+/**
+ * Fixed dossier. Not read from brain/user_prompt.md and not editable on the dashboard.
+ */
+export async function generateLeadAbout({ profile = {}, links = [], currentAbout = '', additions = [] } = {}) {
+  const facts = {
+    name: profile.name || '',
+    headline: profile.headline || '',
+    company: profile.company || '',
+    location: profile.location || '',
+    email: profile.email || '',
+    bio: profile.description || profile.about || '',
+    followers: profile.followers || undefined,
+    following: profile.following || undefined,
+    joined: profile.createdAt || '',
+    experience: Array.isArray(profile.experience) ? profile.experience.slice(0, 5) : undefined,
+    links: (links || []).map((item) => ({ url: item.url, kind: item.kind })),
+    currentAbout: String(currentAbout || '').trim(),
+    additions: additions || [],
+  };
+  try {
+    const decision = await generateSingleShot('ice_breaker', ABOUT_SYSTEM, JSON.stringify(facts, null, 2));
+    const text = String(decision?.text || '').trim();
+    if (text) return text.slice(0, 8000);
+  } catch (e) {
+    console.error('About model failed, using factual lines:', e.message);
+  }
+  return aboutFallback(profile, links, currentAbout);
+}
+
+const DEEP_FILL_SYSTEM = `You update a lead card after DeepResearch.
+Return STRICT JSON only, no markdown:
+{"about":"...","fill":{"name":"","headline":"","company":"","location":"","email":"","links":[]}}
+
+about is a dossier of true facts. Keep every still-true line from CURRENT ABOUT and add new facts from ADDITIONS.
+fill may set a key only when that exact fact is written in the input and the key is listed in emptyFields.
+Use "" or [] when the input does not support a value.
+When you fill a field, also keep that same fact inside about. Do not remove it from about to avoid repetition.
+Do not invent employers, cities, emails, or URLs. No greeting, no ice, no questions.`;
+
+function parseDeepFill(raw, fallbackAbout) {
+  let text = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start >= 0 && end > start) text = text.slice(start, end + 1);
+  try {
+    const parsed = JSON.parse(text);
+    const fill = parsed.fill && typeof parsed.fill === 'object' ? parsed.fill : {};
+    const about = String(parsed.about || '').trim().slice(0, 8000);
+    return {
+      about: about || String(fallbackAbout || '').slice(0, 8000),
+      fill: {
+        name: String(fill.name || '').trim(),
+        headline: String(fill.headline || '').trim(),
+        company: String(fill.company || '').trim(),
+        location: String(fill.location || '').trim(),
+        email: String(fill.email || '').trim(),
+        links: Array.isArray(fill.links) ? fill.links.map((item) => String(item || '').trim()).filter(Boolean) : [],
+      },
+    };
+  } catch {
+    const prose = String(raw || '').trim();
+    return {
+      about: (prose || String(fallbackAbout || '')).slice(0, 8000),
+      fill: { name: '', headline: '', company: '', location: '', email: '', links: [] },
+    };
+  }
+}
+
+/**
+ * DeepResearch merge. About keeps the facts, and fill proposes values for fields that are still empty.
+ */
+export async function generateDeepResearchUpdate({
+  profile = {},
+  links = [],
+  currentAbout = '',
+  additions = [],
+  emptyFields = [],
+} = {}) {
+  const facts = {
+    name: profile.name || '',
+    headline: profile.headline || '',
+    company: profile.company || '',
+    location: profile.location || '',
+    email: profile.email || '',
+    bio: profile.description || profile.about || '',
+    links: (links || []).map((item) => ({ url: item.url, kind: item.kind })),
+    currentAbout: String(currentAbout || '').trim(),
+    additions: additions || [],
+    emptyFields,
+  };
+  const baseAbout = aboutFallback(profile, links, currentAbout);
+  const have = baseAbout.toLowerCase();
+  const extraFacts = (additions || [])
+    .map((item) => String(item?.text || '').replace(/\s+/g, ' ').trim())
+    .filter((text) => text && !have.includes(text.toLowerCase()));
+  const fallbackAbout = [baseAbout, ...extraFacts].filter(Boolean).join('\n').slice(0, 8000);
+  try {
+    const raw = await completeSingleShot(DEEP_FILL_SYSTEM, JSON.stringify(facts, null, 2));
+    return parseDeepFill(raw, fallbackAbout);
+  } catch (e) {
+    console.error('DeepResearch card model failed:', e.message);
+    return parseDeepFill('', fallbackAbout);
+  }
 }

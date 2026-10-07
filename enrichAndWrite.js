@@ -14,7 +14,7 @@ const APIFY_ACTOR = process.env.APIFY_ACTOR || 'apimaestro~linkedin-profile-deta
 const ENRICH_MAX = Number(process.env.ENRICH_MAX_PER_RUN || 10);
 const APIFY_PAUSE_MS = Number(process.env.APIFY_PAUSE_MS || 2500);
 
-function apifyTokens() {
+export function apifyTokens() {
   const out = [];
   const seen = new Set();
   const add = (raw) => {
@@ -401,20 +401,39 @@ export async function enrichOneLead(lead) {
         (profile.skills?.length ? ` | skills=${profile.skills.length}` : '') +
         (profile.experience?.length ? ` | exp=${profile.experience.length}` : '')
     );
-    // Immediately after Apify: ICP score, then ice-breaker (same run — never deferred).
+    const { writeBasicEnrichCard, maybeDeepResearch } = await import('./leadCard.js');
+    const raw = profile.apifyRaw || {};
+    let cardLead = await writeBasicEnrichCard(
+      { ...lead, name: nameForIce || lead.name },
+      {
+        ...profile,
+        name: nameForIce || profile.name,
+        linkCandidates: [
+          profile.companyUrl,
+          profile.about,
+          profile.headline,
+          raw.website,
+          raw.company_website,
+          raw.companyWebsite,
+        ],
+      }
+    );
+    cardLead = await maybeDeepResearch(cardLead);
+    const dossier = { ...profile, about: cardLead.about || profile.about, name: nameForIce || profile.name };
+    // Lead score and ice follow the card. DeepResearch, when enabled, has already finished.
     let leadScore = null;
     let scoreBreakdown = null;
     try {
       const { scoreLead } = await import('./leadScoring.js');
       const { readSalesPolicy } = await import('./brainStore.js');
-      const scored = await scoreLead(profile, readSalesPolicy());
+      const scored = await scoreLead(dossier, readSalesPolicy());
       leadScore = scored.score;
       scoreBreakdown = scored.breakdown;
       console.log(`  Lead score: ${leadScore}/10 (${scored.breakdown?.source || 'rubric'})`);
     } catch (e) {
       console.error('  Lead score skipped:', e.message);
     }
-    const ice = await generateIceBreaker({ ...profile, name: nameForIce || apifyName });
+    const ice = await generateIceBreaker({ ...dossier, name: nameForIce || apifyName });
     const setProcessingAt = !lead.processingAt;
     await updateNotionNameAndIceBreaker(lead.id, {
       name: nameForNotion,

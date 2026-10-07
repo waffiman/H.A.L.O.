@@ -4,6 +4,7 @@
 import { Client } from '@notionhq/client';
 import { notionRichText } from '../messageQuality.js';
 import { canonicalProfileUrl, profileSlugFromUrl } from '../connectionsSync.js';
+import { canonicalXProfileUrl, channelFromUrl } from '../leadChannel.js';
 import { STATUS_LEAD } from './constants.js';
 
 function getNotion() {
@@ -50,7 +51,7 @@ async function queryAll(filter) {
 
 export async function listByStatus(statusName) {
   const results = await queryAll({ property: 'Status', select: { equals: statusName } });
-  return results.map(mapPage).filter((l) => l.url.includes('linkedin.com'));
+  return results.map(mapPage).filter((l) => Boolean(channelFromUrl(l.url)));
 }
 
 export async function findLeadsByName(statusName, searchToken) {
@@ -160,6 +161,22 @@ export async function createLead({ url, name = '', status = STATUS_LEAD } = {}) 
   }
   const page = await notion.pages.create({ parent: { database_id: databaseId }, properties });
   return { id: page.id, url: cleanUrl, slug, name: titleName };
+}
+
+export async function createXLead({ url, name = '' } = {}) {
+  const notion = getNotion();
+  const databaseId = getDatabaseId();
+  const cleanUrl = canonicalXProfileUrl(url);
+  if (!cleanUrl) throw new Error(`Invalid X URL: ${url}`);
+  const titleName = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const properties = {
+    Name: { title: titleName ? [{ type: 'text', text: { content: titleName } }] : [] },
+    Link: { url: cleanUrl },
+    Status: { select: { name: STATUS_LEAD } },
+    'Processing at': { date: { start: new Date().toISOString() } },
+  };
+  const page = await notion.pages.create({ parent: { database_id: databaseId }, properties });
+  return { id: page.id, url: cleanUrl, name: titleName };
 }
 
 export async function createLeadSleep({ url }) {

@@ -7797,3 +7797,17 @@ html[data-theme="light"] .book-tz-select option {
   background: #fff;
   color: #12161c;
 }
+.crm-link-row, .crm-extra-link { display: flex; align-items: center; gap: 8px; }
+.crm-link-row input, .crm-extra-link input { flex: 1; min-width: 0; }
+.crm-extra-link { margin-top: 8px; }
+.crm-link-ico { width: 18px; height: 18px; flex: 0 0 18px; color: var(--muted, #8b95a8); display: inline-flex; }
+.crm-link-ico svg { width: 18px; height: 18px; display: block; }
+.crm-about--deep {
+  border-radius: 12px;
+  padding: 8px;
+  background:
+    linear-gradient(var(--panel, #181d26), var(--panel, #181d26)) padding-box,
+    linear-gradient(120deg, #bbf7d0, #22c55e, #86efac) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.28);
+}
