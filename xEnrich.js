@@ -155,7 +155,8 @@ function profileNote(profile) {
     profile.description ? `bio: ${profile.description}` : '',
     profile.website ? `website: ${profile.website}` : '',
     `followers: ${profile.followers} following: ${profile.following}`,
-    `canDm: ${profile.canDm} protected: ${profile.protected} verified: ${verified}`,
+    // canDm from Apify is informational only — Stage A insert uses browser message gate, not this flag.
+    `canDm(apify): ${profile.canDm} protected: ${profile.protected} verified: ${verified}`,
     profile.createdAt ? `joined: ${profile.createdAt}` : '',
     profile.professionalType ? `professional: ${profile.professionalType}` : '',
     profile.statusesCount ? `posts: ${profile.statusesCount}` : '',

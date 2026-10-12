@@ -1,7 +1,7 @@
 /**
  * Stage A step 1 — X People search in the logged-in X browser.
- * Inserts Lead😴 (https://x.com/{handle} + ready marker) when the chat composer
- * is usable. No follow, no Apify, no ice, no DM.
+ * Inserts Lead😴 only when the unencrypted classic /messages composer is writable
+ * (no Premium, not encrypted-only /i/chat). Follow + re-probe before CRM insert.
  */
 import fs from 'fs';
 import path from 'path';
@@ -18,7 +18,6 @@ import {
   xCookiesFile,
 } from './xSessionHealth.js';
 
-const CLOSED_INBOX_RE = /has a closed inbox|closed inbox|if you know their x number/i;
 const STOP = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'you', 'are']);
 
 export function xLeadsPerRun() {
@@ -144,54 +143,9 @@ async function readPeopleCards(page) {
   });
 }
 
-function premiumBlockedText(text) {
-  return /get premium to message|only premium users can send|upgrade to premium|subscribe to premium|premium is required|you need premium/i.test(
-    String(text || '')
-  );
-}
-
-async function chatHasComposer(page) {
-  const selectors = [
-    '[data-testid="dmComposerTextInput"]',
-    '[data-testid="dmComposerFocusTextInput"]',
-    '[data-testid="messageEntry"] [role="textbox"]',
-    '[data-testid="messageEntry"] [contenteditable="true"]',
-    '[data-testid="xchatEmbedRoute"] [contenteditable="true"]',
-    'div[role="textbox"][contenteditable="true"]',
-  ];
-  for (const selector of selectors) {
-    const el = page.locator(selector).first();
-    if ((await el.count().catch(() => 0)) === 0) continue;
-    if (await el.isVisible().catch(() => false)) return true;
-  }
-  return false;
-}
-
 async function chatIsOpen(page, handle) {
-  await page.goto(`https://x.com/${handle}`, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
-  await page.waitForTimeout(1800);
-  if (isLoginWall(page.url())) return { dead: true, open: false, reason: 'login' };
-  const before = await page.locator('body').innerText().catch(() => '');
-  if (CLOSED_INBOX_RE.test(before)) return { open: false, reason: 'closed inbox' };
-
-  const testId = page.locator('[data-testid="sendDMFromProfile"]').first();
-  const byRole = page.getByRole('button', { name: /^message$/i }).first();
-  const hasTestId = (await testId.count().catch(() => 0)) > 0;
-  const hasRole = (await byRole.count().catch(() => 0)) > 0;
-  if (!hasTestId && !hasRole) return { open: false, reason: 'no message button' };
-  await (hasTestId ? testId : byRole).click({ timeout: 8000 }).catch(() => {});
-  await page.waitForTimeout(2200);
-  if (isLoginWall(page.url())) return { dead: true, open: false, reason: 'login' };
-  const after = await page.locator('body').innerText().catch(() => '');
-  if (CLOSED_INBOX_RE.test(after)) return { open: false, reason: 'closed inbox' };
-  if (premiumBlockedText(after)) return { open: false, reason: 'x_premium_required' };
-  // URL alone is not enough — /i/chat can open without a writable composer (Premium / pin).
-  if (await chatHasComposer(page)) return { open: true, reason: 'composer' };
-  if (/pin\/recovery/i.test(page.url())) return { open: false, reason: 'x_chat_passcode' };
-  if (/\/messages\//i.test(page.url()) && (await chatHasComposer(page))) {
-    return { open: true, reason: 'messages' };
-  }
-  return { open: false, reason: 'composer not found' };
+  const { probeXMessageability } = await import('./xMessageGate.js');
+  return probeXMessageability(page, handle);
 }
 
 function pause(ms) {
@@ -281,9 +235,9 @@ export async function runXLeadSearchPhase() {
         console.log('X lead search stopped — session died during chat check. Cookies left untouched.');
         break;
       }
-      if (!gate.open) {
+      if (!gate.open || !gate.unencrypted) {
         skippedCards += 1;
-        console.log(`X skip @${candidate.handle}: ${gate.reason}`);
+        console.log(`X skip @${candidate.handle}: ${gate.reason || 'not_unencrypted'}`);
         await pause(4000 + Math.floor(Math.random() * 3000));
         continue;
       }
@@ -301,14 +255,37 @@ export async function runXLeadSearchPhase() {
           await pause(4000 + Math.floor(Math.random() * 3000));
           continue;
         }
+        // Re-probe after follow — Premium “must follow you” sometimes flips; encrypted must still lose.
+        await pause(2500);
+        const afterFollow = await chatIsOpen(page, candidate.handle);
+        if (afterFollow.dead) {
+          sessionDead = true;
+          markXSessionDead('auth_wall');
+          break;
+        }
+        if (!afterFollow.open || !afterFollow.unencrypted) {
+          skippedCards += 1;
+          console.log(
+            `X skip @${candidate.handle} after follow: ${afterFollow.reason || 'not_unencrypted'} (not inserted)`
+          );
+          await pause(4000 + Math.floor(Math.random() * 3000));
+          continue;
+        }
         const created = await crm.createXLead({ url, name: candidate.name });
         inserted += 1;
         known.add(candidate.handle.toLowerCase());
-        await crm.appendNote(
-          created.id,
-          followed.already ? 'X follow — already following' : 'X follow — followed before CRM insert'
-        ).catch(() => {});
-        console.log(`X Lead inserted @${candidate.handle} (${created.id}) follow=${followed.already ? 'already' : 'new'}`);
+        await crm
+          .appendNote(
+            created.id,
+            [
+              followed.already ? 'X follow — already following' : 'X follow — followed before CRM insert',
+              'X message gate — unencrypted classic composer OK (no Premium)',
+            ].join('\n')
+          )
+          .catch(() => {});
+        console.log(
+          `X Lead inserted @${candidate.handle} (${created.id}) follow=${followed.already ? 'already' : 'new'} gate=unencrypted`
+        );
       } catch (e) {
         console.error(`X insert @${candidate.handle}:`, e.message);
       }
