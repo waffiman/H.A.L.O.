@@ -41,6 +41,18 @@ async function init() {
   $('btn-logout-pick').onclick = onLogout;
   $('btn-sync').onclick = onSync;
   bindPasswordToggle();
+  const createBtn = $('btn-create-account');
+  const forgotBtn = $('btn-forgot');
+  if (createBtn) {
+    createBtn.onclick = () => {
+      chrome.tabs.create({ url: `${state.apiBase}/landing.html#signup` });
+    };
+  }
+  if (forgotBtn) {
+    forgotBtn.onclick = () => {
+      chrome.tabs.create({ url: `${state.apiBase}/reset.html` });
+    };
+  }
   $('btn-resync').onclick = () => {
     state.forceResync = true;
     setSyncMode('ready');

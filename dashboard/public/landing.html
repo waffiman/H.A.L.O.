@@ -34,6 +34,42 @@ a{color:inherit;text-decoration:none}
 [data-rv].vis{opacity:1;transform:none}
 [data-stagger]>[data-rv]{transition-delay:calc(var(--i,0) * .12s)}
 
+/* ══ SETSAIL-STYLE SCRUB (hero → demo → features) ══ */
+body.halo-scrub-lock{overflow:hidden}
+.halo-scrub{position:relative;height:100vh;overflow:hidden;z-index:1}
+.halo-scrub-viewport{position:absolute;inset:0}
+.halo-slide{position:absolute;inset:0;width:100%;height:100%;overflow:auto;opacity:0;pointer-events:none;will-change:opacity,transform;transform:translate3d(0,40px,0) scale(.96);backface-visibility:hidden}
+.halo-slide.is-active{pointer-events:auto}
+.halo-slide .hero{min-height:100%;padding-top:7rem}
+.halo-slide .demo-sec,.halo-slide #features{padding-top:5.5rem;padding-bottom:3rem;min-height:100%}
+.halo-slide-dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;gap:10px}
+.halo-slide-dot{width:9px;height:9px;border-radius:50%;border:1px solid rgba(34,197,94,.45);background:transparent;padding:0;cursor:pointer;transition:all .25s}
+.halo-slide-dot.active{background:var(--g);box-shadow:0 0 10px var(--gg);transform:scale(1.15)}
+.halo-scroll-hint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;color:var(--muted);font:inherit;font-size:.72rem;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .3s}
+.halo-scroll-hint span{width:18px;height:28px;border:1px solid rgba(34,197,94,.35);border-radius:10px;position:relative}
+.halo-scroll-hint span::after{content:'';position:absolute;left:50%;top:6px;width:3px;height:6px;border-radius:2px;background:var(--g);transform:translateX(-50%);animation:hintY 1.4s ease-in-out infinite}
+@keyframes hintY{0%,100%{opacity:.3;transform:translate(-50%,0)}50%{opacity:1;transform:translate(-50%,8px)}}
+@media(max-width:768px){.halo-slide-dots{right:10px}.halo-scroll-hint{bottom:14px}}
+@media(prefers-reduced-motion:reduce){body.halo-scrub-lock{overflow:auto}.halo-scrub{height:auto;overflow:visible}.halo-scrub-viewport{position:static}.halo-slide{position:static;opacity:1;transform:none;pointer-events:auto;overflow:visible}.halo-slide-dots,.halo-scroll-hint{display:none}}
+
+/* ══ AUTH MODAL ══ */
+.auth-backdrop{position:fixed;inset:0;z-index:200;background:rgba(6,8,12,.72);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:1.25rem}
+.auth-backdrop.open{display:flex}
+.auth-card{width:min(400px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1.5rem 1.4rem 1.25rem;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.auth-card h3{font-size:1.05rem;margin:0 0 .35rem}
+.auth-card .auth-lead{color:var(--muted);font-size:.82rem;margin:0 0 1rem;line-height:1.45}
+.auth-card .fg{margin-bottom:.75rem}
+.auth-card label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:.3rem}
+.auth-card input{width:100%;padding:.7rem .85rem;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+.auth-card .auth-err{color:#fca5a5;font-size:.8rem;margin:0 0 .6rem;display:none}
+.auth-card .auth-ok{color:#86efac;font-size:.8rem;margin:0 0 .6rem;display:none}
+.auth-card .auth-submit{width:100%;margin-top:.25rem;padding:.75rem 1rem;border:0;border-radius:10px;background:var(--g);color:#04140a;font-weight:700;cursor:pointer}
+.auth-card .auth-links{display:flex;justify-content:center;gap:.6rem;margin-top:.85rem;font-size:.78rem;color:var(--muted)}
+.auth-card .auth-links button{appearance:none;border:0;background:none;color:var(--muted);font:inherit;font-size:.78rem;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
+.auth-card .auth-links button:hover{color:var(--ink)}
+.auth-close{position:absolute;top:10px;right:12px;border:0;background:none;color:var(--muted);font-size:1.2rem;cursor:pointer;line-height:1}
+.auth-card{position:relative}
+
 /* ══ NAV ══ */
 nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 3rem;height:64px;background:rgba(12,15,18,.7);backdrop-filter:blur(24px)saturate(1.5);border-bottom:1px solid var(--ls);transition:all .3s}
 nav.scrolled{background:rgba(12,15,18,.93);box-shadow:0 4px 30px rgba(0,0,0,.4)}
@@ -46,8 +82,9 @@ nav.scrolled{background:rgba(12,15,18,.93);box-shadow:0 4px 30px rgba(0,0,0,.4)}
 .nr{display:flex;align-items:center;gap:.75rem}
 .nav-cta{background:var(--g);color:#fff;padding:.45rem 1.2rem;border-radius:var(--rs);font-weight:700;font-size:.82rem;box-shadow:0 0 18px var(--gg);transition:all var(--tr)}
 .nav-cta:hover{transform:translateY(-1px);box-shadow:0 0 30px var(--gg)}
-.nav-login{color:var(--ink);font-size:.82rem;font-weight:600;padding:.45rem 1rem;border-radius:var(--rs);border:1px solid var(--line);transition:all var(--tr)}
+.nav-login{appearance:none;background:transparent;cursor:pointer;color:var(--ink);font-size:.82rem;font-weight:600;padding:.45rem 1rem;border-radius:var(--rs);border:1px solid var(--line);transition:all var(--tr);font-family:inherit}
 .nav-login:hover{border-color:var(--g);color:var(--g);background:var(--gs)}
+.linkish{appearance:none;border:0;background:none;color:var(--g);font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
 .pass-wrap{position:relative}
 .pass-wrap input{padding-right:2.6rem}
 .pass-toggle{
@@ -352,7 +389,7 @@ footer{padding:1.8rem 1.5rem;border-top:1px solid var(--ls);display:flex;align-i
     <span>H.A.L.O.</span>
   </div>
   <div class="nc"><a href="#demo">Demo</a><a href="#features">Features</a><a href="#pricing">Pricing</a></div>
-  <div class="nr"><a href="/login.html" class="nav-login">Sign in</a><a href="#signup" class="nav-cta">Start Free →</a></div>
+  <div class="nr"><button type="button" class="nav-login" id="nav-login-btn">Sign in</button><a href="#signup" class="nav-cta">Start Free →</a></div>
 </nav>
 
 <!-- HERO -->
@@ -621,10 +658,41 @@ footer{padding:1.8rem 1.5rem;border-top:1px solid var(--ls);display:flex;align-i
         </div>
         <button type="submit" class="cta-btn">Create Account →</button>
       </form>
-      <p class="cta-note">Already have an account? <a href="/login">Sign in</a></p>
+      <p class="cta-note">Already have an account? <button type="button" class="linkish" id="signup-login-btn">Sign in</button></p>
     </div>
   </div>
 </section>
+
+<div class="auth-backdrop" id="auth-modal" aria-hidden="true">
+  <div class="auth-card" role="dialog" aria-labelledby="auth-title">
+    <button type="button" class="auth-close" id="auth-close" aria-label="Close">×</button>
+    <h3 id="auth-title">Sign in</h3>
+    <p class="auth-lead" id="auth-lead">Use the email and password for your HALO cabinet.</p>
+    <p class="auth-err" id="auth-err"></p>
+    <p class="auth-ok" id="auth-ok"></p>
+    <form id="auth-login-form">
+      <div class="fg"><label for="auth-email">Email</label><input id="auth-email" type="email" required autocomplete="username" placeholder="you@company.com"/></div>
+      <div class="fg"><label for="auth-password">Password</label>
+        <div class="pass-wrap">
+          <input id="auth-password" type="password" required autocomplete="current-password" placeholder="••••••••"/>
+        </div>
+      </div>
+      <button type="submit" class="auth-submit">Sign in →</button>
+    </form>
+    <form id="auth-forgot-form" hidden>
+      <div class="fg"><label for="auth-forgot-email">Email</label><input id="auth-forgot-email" type="email" required autocomplete="username" placeholder="you@company.com"/></div>
+      <button type="submit" class="auth-submit">Send reset link</button>
+    </form>
+    <div class="auth-links" id="auth-links-login">
+      <button type="button" id="auth-forgot-btn">Forgot password</button>
+      <span>·</span>
+      <a href="#signup" id="auth-create-link">Create account</a>
+    </div>
+    <div class="auth-links" id="auth-links-forgot" hidden>
+      <button type="button" id="auth-back-login">Back to sign in</button>
+    </div>
+  </div>
+</div>
 
 <footer>
   <div class="ft-l"><img class="halo-ft-logo" src="/logo.svg" width="22" height="22" alt=""/> H.A.L.O.</div>
@@ -728,7 +796,7 @@ document.querySelectorAll('.ctr-v').forEach(el=>{
   obs.observe(el);
 });
 
-// ── SCROLL REVEAL (data-rv) ──
+// ── SCROLL REVEAL (data-rv) — still used below scrub (pricing/signup) ──
 const rvObs=new IntersectionObserver(entries=>{
   entries.forEach(e=>{
     if(e.isIntersecting){e.target.classList.add('vis');rvObs.unobserve(e.target)}
@@ -737,7 +805,254 @@ const rvObs=new IntersectionObserver(entries=>{
 document.querySelectorAll('[data-rv]').forEach(el=>rvObs.observe(el));
 
 // ── Smooth scroll ──
-document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();document.querySelector(a.getAttribute('href'))?.scrollIntoView({behavior:'smooth'})}));
+document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{
+  const id=a.getAttribute('href');
+  if(!id||id==='#')return;
+  const target=document.querySelector(id);
+  if(!target)return;
+  e.preventDefault();
+  if(window.__haloScrubGoto && (id==='#demo'||id==='#features'||id==='#signup'||id==='#pricing')){
+    window.__haloScrubGoto(id);
+    return;
+  }
+  target.scrollIntoView({behavior:'smooth'});
+}));
+
+// ── SETSAIL-STYLE WHEEL SCRUB (hero / demo / features) ──
+(()=>{
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const slideEls=[document.querySelector('.hero'),document.getElementById('demo'),document.getElementById('features')].filter(Boolean);
+  if(slideEls.length<2) return;
+  const MAX_SLIDE=slideEls.length-1;
+  let targetProgress=0;
+  let currentProgress=0;
+  let snapTimer=null;
+  let unlocked=false;
+  let touchStartY=null;
+  let touchOriginY=null;
+  let touchOriginSlide=0;
+
+  const scrub=document.createElement('div');
+  scrub.className='halo-scrub';
+  scrub.id='halo-scrub';
+  const viewport=document.createElement('div');
+  viewport.className='halo-scrub-viewport';
+  const first=slideEls[0];
+  first.parentNode.insertBefore(scrub, first);
+  slideEls.forEach((el,i)=>{
+    el.classList.add('halo-slide');
+    el.dataset.slide=String(i);
+    viewport.appendChild(el);
+  });
+  scrub.appendChild(viewport);
+
+  const dots=document.createElement('div');
+  dots.className='halo-slide-dots';
+  dots.setAttribute('aria-hidden','true');
+  slideEls.forEach((_,i)=>{
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='halo-slide-dot'+(i===0?' active':'');
+    b.setAttribute('data-home-slide',String(i));
+    b.addEventListener('click',()=>{ lockScrub(); targetProgress=i; });
+    dots.appendChild(b);
+  });
+  document.body.appendChild(dots);
+
+  const hint=document.createElement('button');
+  hint.type='button';
+  hint.className='halo-scroll-hint';
+  hint.id='haloScrollHint';
+  hint.innerHTML='<span></span>Scroll';
+  hint.addEventListener('click',()=>{ lockScrub(); targetProgress=Math.min(1, MAX_SLIDE); });
+  document.body.appendChild(hint);
+
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const easeInOutCubic=x=>x<0.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+
+  function lockScrub(){
+    unlocked=false;
+    document.body.classList.add('halo-scrub-lock');
+    window.scrollTo(0,0);
+  }
+  function unlockScrub(){
+    unlocked=true;
+    document.body.classList.remove('halo-scrub-lock');
+    hint.style.opacity='0';
+    hint.style.pointerEvents='none';
+  }
+
+  function renderFrame(p){
+    slideEls.forEach((el,i)=>{
+      const dist=p-i;
+      const enter=easeInOutCubic(clamp(1-Math.abs(dist),0,1));
+      const y=(dist)*-36 + (1-enter)*28;
+      const scale=0.94+0.06*enter;
+      el.style.opacity=String(enter.toFixed(3));
+      el.style.transform=`translate3d(0, ${y.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
+      el.classList.toggle('is-active', enter>0.45);
+      if(enter>0.55) el.querySelectorAll('[data-rv]').forEach(n=>n.classList.add('vis'));
+    });
+    dots.querySelectorAll('.halo-slide-dot').forEach((d,i)=>d.classList.toggle('active', Math.round(clamp(p,0,MAX_SLIDE))===i));
+    if(!unlocked){
+      const hintAlpha=clamp(1-p*2.2,0,1);
+      hint.style.opacity=String(hintAlpha.toFixed(3));
+      hint.style.pointerEvents=hintAlpha>0.2?'auto':'none';
+      hint.style.transform=`translate3d(-50%, ${(p*10).toFixed(1)}px, 0)`;
+    }
+  }
+
+  function scheduleSoftSnap(){
+    if(snapTimer) clearTimeout(snapTimer);
+    snapTimer=setTimeout(()=>{
+      const nearest=Math.round(targetProgress);
+      if(Math.abs(targetProgress-nearest)<0.36) targetProgress=clamp(nearest,0,MAX_SLIDE);
+    },420);
+  }
+
+  function tick(){
+    const diff=targetProgress-currentProgress;
+    if(Math.abs(diff)>0.0005){
+      currentProgress+=diff*0.115;
+      renderFrame(currentProgress);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function onWheel(e){
+    if(e.ctrlKey) return;
+    if(unlocked){
+      if(window.scrollY<=2 && e.deltaY<0){
+        e.preventDefault();
+        lockScrub();
+        targetProgress=MAX_SLIDE;
+      }
+      return;
+    }
+    e.preventDefault();
+    const step=clamp(e.deltaY*0.00145,-0.42,0.42);
+    const next=targetProgress+step;
+    if(next>MAX_SLIDE+0.02 && e.deltaY>0){
+      targetProgress=MAX_SLIDE;
+      unlockScrub();
+      const rest=document.getElementById('pricing')||document.getElementById('signup');
+      if(rest) rest.scrollIntoView({behavior:'smooth'});
+      return;
+    }
+    targetProgress=clamp(next,0,MAX_SLIDE);
+    scheduleSoftSnap();
+  }
+
+  window.addEventListener('wheel',onWheel,{passive:false});
+  window.addEventListener('touchstart',(e)=>{
+    if(unlocked||!e.touches?.length) return;
+    touchStartY=e.touches[0].clientY;
+    touchOriginY=touchStartY;
+    touchOriginSlide=Math.round(targetProgress);
+  },{passive:true});
+  window.addEventListener('touchmove',(e)=>{
+    if(unlocked||touchStartY==null||!e.touches?.length) return;
+    const curY=e.touches[0].clientY;
+    const dy=touchStartY-curY;
+    touchStartY=curY;
+    targetProgress=clamp(targetProgress+dy*0.0042,0,MAX_SLIDE);
+    scheduleSoftSnap();
+  },{passive:true});
+  window.addEventListener('touchend',(e)=>{
+    if(!unlocked && touchOriginY!=null && e.changedTouches?.length){
+      const totalDy=touchOriginY-e.changedTouches[0].clientY;
+      if(Math.abs(totalDy)>36){
+        const dir=totalDy>0?1:-1;
+        const next=touchOriginSlide+dir;
+        if(next>MAX_SLIDE){
+          unlockScrub();
+          document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'});
+        } else {
+          targetProgress=clamp(next,0,MAX_SLIDE);
+        }
+      } else {
+        targetProgress=clamp(Math.round(targetProgress),0,MAX_SLIDE);
+      }
+    }
+    touchStartY=null; touchOriginY=null;
+  },{passive:true});
+
+  window.__haloScrubGoto=(hash)=>{
+    if(hash==='#demo'){ lockScrub(); targetProgress=1; return; }
+    if(hash==='#features'){ lockScrub(); targetProgress=Math.min(2,MAX_SLIDE); return; }
+    if(hash==='#pricing'||hash==='#signup'){
+      unlockScrub();
+      document.querySelector(hash)?.scrollIntoView({behavior:'smooth'});
+    }
+  };
+
+  if(location.hash==='#signup'||location.hash==='#pricing'){
+    unlockScrub();
+    setTimeout(()=>document.querySelector(location.hash)?.scrollIntoView(),50);
+  } else {
+    lockScrub();
+  }
+  renderFrame(0);
+  requestAnimationFrame(tick);
+})();
+
+// ── Auth modal (Sign in + Forgot password) ──
+(()=>{
+  const modal=document.getElementById('auth-modal');
+  if(!modal) return;
+  const loginForm=document.getElementById('auth-login-form');
+  const forgotForm=document.getElementById('auth-forgot-form');
+  const err=document.getElementById('auth-err');
+  const ok=document.getElementById('auth-ok');
+  const title=document.getElementById('auth-title');
+  const lead=document.getElementById('auth-lead');
+  const linksLogin=document.getElementById('auth-links-login');
+  const linksForgot=document.getElementById('auth-links-forgot');
+  const show=(el,on)=>{ if(el) el.style.display=on?'block':'none'; };
+  const open=()=>{ modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); };
+  const close=()=>{ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); };
+  const showLogin=()=>{
+    loginForm.hidden=false; forgotForm.hidden=true;
+    linksLogin.hidden=false; linksForgot.hidden=true;
+    title.textContent='Sign in';
+    lead.textContent='Use the email and password for your HALO cabinet.';
+    show(err,false); show(ok,false);
+  };
+  const showForgot=()=>{
+    loginForm.hidden=true; forgotForm.hidden=false;
+    linksLogin.hidden=true; linksForgot.hidden=false;
+    title.textContent='Forgot password';
+    lead.textContent='Passwords are hashed — HALO never shows the old one. Enter your email for a reset link.';
+    show(err,false); show(ok,false);
+  };
+  document.getElementById('nav-login-btn')?.addEventListener('click',()=>{ showLogin(); open(); });
+  document.getElementById('signup-login-btn')?.addEventListener('click',()=>{ showLogin(); open(); });
+  document.getElementById('auth-close')?.addEventListener('click',close);
+  document.getElementById('auth-forgot-btn')?.addEventListener('click',showForgot);
+  document.getElementById('auth-back-login')?.addEventListener('click',showLogin);
+  document.getElementById('auth-create-link')?.addEventListener('click',()=>{ close(); });
+  modal.addEventListener('click',(e)=>{ if(e.target===modal) close(); });
+  loginForm?.addEventListener('submit',async(e)=>{
+    e.preventDefault(); show(err,false); show(ok,false);
+    try{
+      const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({email:document.getElementById('auth-email').value,password:document.getElementById('auth-password').value})});
+      const d=await r.json();
+      if(!r.ok||!(d.ok||d.success)) throw new Error(d.error||d.message||'Sign in failed');
+      location.href=d.dashboard_url||'/';
+    }catch(ex){ err.textContent=ex.message; show(err,true); }
+  });
+  forgotForm?.addEventListener('submit',async(e)=>{
+    e.preventDefault(); show(err,false); show(ok,false);
+    try{
+      const r=await fetch('/api/auth/forgot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('auth-forgot-email').value})});
+      const d=await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.error||'Request failed');
+      ok.textContent='If that email is registered, a reset link was issued.';
+      show(ok,true);
+    }catch(ex){ err.textContent=ex.message; show(err,true); }
+  });
+  if(location.hash==='#login'){ showLogin(); open(); }
+})();
 
 // ══════════════════════════════════════
 // ANIMATED DEMO ENGINE

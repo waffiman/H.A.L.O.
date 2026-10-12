@@ -8,8 +8,11 @@ import { collectExtraLinks } from './leadLinks.js';
 import { timezoneFromLocation } from './locationTimezone.js';
 import { generateDeepResearchUpdate } from './salesBrain.js';
 
+import { deepResearchToolRegistry, TOOL_CATALOG } from './deepResearchTools.js';
+
 /** @type {{ id: string, kinds: string[]|null, run: Function }[]} */
-export const DEEP_RESEARCH_TOOLS = [];
+export const DEEP_RESEARCH_TOOLS = deepResearchToolRegistry();
+export { TOOL_CATALOG };
 
 const FILLABLE = ['name', 'headline', 'company', 'location', 'email'];
 

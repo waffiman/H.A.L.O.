@@ -43,6 +43,7 @@ import { notionConfigured as notionOnlyConfigured } from './notionProvision.js';
 import { supabaseDashboardUrl } from './supabaseProvision.js';
 import { getSupabaseKeepaliveStatus } from './supabaseKeepalive.js';
 import { getTelegramIntegrationMeta } from './telegramBot.js';
+import { clearXPasscodeRequired, readXPasscodeState } from './xPasscodeState.js';
 import {
   defaultBookingSchedule,
   normalizeBookingSchedule,
@@ -923,6 +924,20 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
       telegram: env.CHANNEL_TELEGRAM_ENABLED === '1',
     },
     deepResearch: env.DEEP_RESEARCH_ENABLED === '1',
+    deepResearchTools: [
+      {
+        id: 'website',
+        title: 'Website reader',
+        blurb:
+          'Reads homepage text from website sub-links over plain HTTP. On captcha or antibot, falls back to cheap Apify fetchers (Smart Page Fetcher, then Web Fetch).',
+      },
+      {
+        id: 'brave',
+        title: 'Brave Search',
+        blurb:
+          'Short web searches from name, headline, company, and sub-link domains. Keeps hits that mention the handle or those domains. Does not open the main profile link.',
+      },
+    ],
     linkedin: {
       targetUrl: env.TARGET_LINKEDIN_URL || '',
       syncMaxNew: Number(env.SYNC_MAX_NEW || env.SYNC_FIRST_RUN_LIMIT || 20),
@@ -960,6 +975,12 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
       session: xSession,
       cookies: xCookies,
       sessionOk: xSessionOk,
+      passcodeSet: String(env.X_CHAT_PASSCODE || '').replace(/\D/g, '').length === 4,
+      needsPasscode: (() => {
+        const st = readXPasscodeState(ws);
+        const hasPin = String(env.X_CHAT_PASSCODE || '').replace(/\D/g, '').length === 4;
+        return Boolean(st.needsPasscode) && !hasPin;
+      })(),
       leadsPerRun: (() => {
         const raw = env.X_LEADS_PER_RUN;
         if (raw === undefined || raw === null || String(raw).trim() === '') return 5;
@@ -1300,6 +1321,16 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
 
   if (typeof body.deepResearch === 'boolean') {
     updates.DEEP_RESEARCH_ENABLED = body.deepResearch ? '1' : '0';
+  }
+
+  if (body.x && typeof body.x === 'object' && body.x.chatPasscode != null) {
+    const digits = String(body.x.chatPasscode || '').replace(/\D/g, '').slice(0, 4);
+    if (digits.length === 4) {
+      updates.X_CHAT_PASSCODE = digits;
+      clearXPasscodeRequired(ws);
+    } else if (String(body.x.chatPasscode).trim() === '') {
+      removeKeys.push('X_CHAT_PASSCODE');
+    }
   }
 
   if (body.x && typeof body.x === 'object' && body.x.leadsPerRun != null && body.x.leadsPerRun !== '') {

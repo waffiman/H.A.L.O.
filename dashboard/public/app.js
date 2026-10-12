@@ -2934,17 +2934,21 @@ function renderNav() {
   const byId = Object.fromEntries(NAV.map((n) => [n.id, n]));
   const integrationsProblem = settings?.integrationsHasProblem === true;
   const linkedinProblem = settings?.linkedinSessionOk === false;
+  const xPasscodeWarn = settings?.x?.needsPasscode === true;
   navEl.innerHTML = NAV_GROUPS.map((g) => {
     const items = g.ids
       .map((id) => byId[id])
       .filter(Boolean)
       .map((n) => {
         const linkedinWarn = n.id === 'linkedin' && linkedinProblem;
+        const xWarn = n.id === 'x' && xPasscodeWarn;
         const profileWarn = n.id === 'profile' && integrationsProblem;
-        const warn = linkedinWarn || profileWarn;
+        const warn = linkedinWarn || xWarn || profileWarn;
         const badge = linkedinWarn
           ? navWarnBadge('LinkedIn session inactive')
-          : profileWarn
+          : xWarn
+            ? navWarnBadge('X chat passcode needed')
+            : profileWarn
             ? navProblemDot('Credentials need attention')
             : '';
         return `<button type="button" class="nav-item ${page === n.id ? 'active' : ''}${warn ? ' nav-item-warn' : ''}" data-page="${n.id}" title="${escapeAttr(n.title)}">
@@ -3210,6 +3214,29 @@ function infoTip(text) {
   </span>`;
 }
 
+function deepResearchInfoTip(s) {
+  const tools = Array.isArray(s?.deepResearchTools) && s.deepResearchTools.length
+    ? s.deepResearchTools
+    : [
+        { title: 'Website reader', blurb: 'HTTP homepage first; Apify Web Fetch on antibot.' },
+        { title: 'Brave Search', blurb: 'Short searches from card fields and sub-link domains.' },
+      ];
+  const list = tools
+    .map(
+      (t) =>
+        `<li><strong>${escapeHtml(t.title || t.id || 'Tool')}</strong><span>${escapeHtml(t.blurb || '')}</span></li>`
+    )
+    .join('');
+  return `<span class="info-tip info-tip-panel" tabindex="0">
+    <span class="info-tip-ico" aria-hidden="true">i</span>
+    <span class="info-tip-bubble deep-tools-bubble" role="tooltip">
+      <strong class="deep-tools-title">DeepResearch pack</strong>
+      <ul class="deep-tools-list">${list}</ul>
+      <p class="deep-tools-note">Never opens the main profile Link. More tools will appear here as they are added.</p>
+    </span>
+  </span>`;
+}
+
 function leadQualityCardHtml() {
   const all = Object.values(crmKanban || {}).flat();
   const scored = all.filter((l) => l.leadScore != null && Number.isFinite(Number(l.leadScore)));
@@ -3313,7 +3340,7 @@ function renderDashboard() {
       ${channelTile('telegram', 'Telegram', s.channels.telegram, { comingSoon: true })}
     </div>
     <div class="tile" title="After basic enrich, run DeepResearch before lead score and ice">
-      <h3>DeepResearch</h3>
+      <h3>DeepResearch ${deepResearchInfoTip(s)}</h3>
       <p class="muted">Off: score and ice follow basic enrich. On: DeepResearch runs first. It does not open the main profile link.</p>
       <div class="row">${switchEl('deepResearch', !!s.deepResearch, 'Enable DeepResearch after basic enrich')}
         <span class="muted">${s.deepResearch ? 'On' : 'Off'}</span>
@@ -5674,7 +5701,7 @@ function renderX() {
       <span>New X leads per Stage A</span>
       <input type="number" id="xLeadsPerRun" min="0" max="20" step="1" value="${Number.isFinite(Number(s.x?.leadsPerRun)) ? Number(s.x.leadsPerRun) : 5}" />
     </label>
-    <p class="muted">0 turns search off. First page of People search, then a chat open to drop closed inboxes. No follow and no message yet.</p>`;
+    <p class="muted">0 turns search off. First page of People search, follow the profile, then insert Lead😴 when the chat is open. Enrich comes later.</p>`;
 
   const signInForm = `<form id="x-session-form" class="li-session-form" autocomplete="on">
           <label class="field" for="x-username">Email or username
@@ -5718,10 +5745,24 @@ function renderX() {
       </details>`;
 
   const extensionCard = extensionPromoCard();
+  const needsPin = s.x?.needsPasscode === true;
+  const pinSet = s.x?.passcodeSet === true;
+  const passcodeCard = `<div class="card${needsPin ? ' x-passcode-needed' : ''}" id="x-passcode-card">
+      <h3>X chat passcode ${needsPin ? '<span class="badge bad">Required</span>' : pinSet ? '<span class="badge">Saved</span>' : ''}</h3>
+      <p class="muted card-lead">Encrypted X Chat may ask for a 4-digit passcode. Stage A pauses the X channel until it is saved here.</p>
+      <label class="field" for="x-chat-passcode">Passcode
+        <input id="x-chat-passcode" type="password" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="${pinSet ? '••••' : '4 digits'}" />
+      </label>
+      <div class="row section-actions">
+        <button type="button" class="btn primary" id="x-passcode-save">Save passcode</button>
+      </div>
+      <p class="muted" id="x-passcode-status" role="status"></p>
+    </div>`;
 
   view.innerHTML = `
     <div class="li-page">
       ${sessionCard}
+      ${passcodeCard}
       ${extensionCard}
       ${cookiePasteCard}
     </div>
@@ -5730,6 +5771,88 @@ function renderX() {
   bindXLeadsAutosave();
   bindXSessionForm();
   bindXCookiePaste();
+  bindXPasscodeForm();
+  if (needsPin) openXPasscodePopup();
+}
+
+function bindXPasscodeForm() {
+  const btn = document.getElementById('x-passcode-save');
+  const input = document.getElementById('x-chat-passcode');
+  const statusEl = document.getElementById('x-passcode-status');
+  if (!btn || !input) return;
+  btn.onclick = async () => {
+    const digits = String(input.value || '').replace(/\D/g, '').slice(0, 4);
+    if (digits.length !== 4) {
+      if (statusEl) statusEl.textContent = 'Enter the 4-digit X chat passcode.';
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const data = await api('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({ x: { chatPasscode: digits } }),
+      });
+      settings = data.settings || settings;
+      input.value = '';
+      if (statusEl) statusEl.textContent = 'Passcode saved. X channel can resume.';
+      toast('X chat passcode saved');
+      closeXPasscodePopup();
+      renderNav();
+      renderX();
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+      toast(err.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+}
+
+function openXPasscodePopup() {
+  if (document.getElementById('x-passcode-modal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'x-passcode-modal';
+  modal.className = 'modal-backdrop';
+  modal.innerHTML = `<div class="modal-card x-passcode-modal" role="dialog" aria-labelledby="x-passcode-modal-title">
+    <h3 id="x-passcode-modal-title">Enter X chat passcode</h3>
+    <p class="muted">H.A.L.O. hit encrypted Chat recovery. Enter the 4-digit passcode from your X account to unlock the channel.</p>
+    <label class="field">Passcode
+      <input id="x-passcode-modal-input" type="password" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="4 digits" />
+    </label>
+    <div class="row section-actions">
+      <button type="button" class="btn ghost" id="x-passcode-modal-later">Later</button>
+      <button type="button" class="btn primary" id="x-passcode-modal-save">Save</button>
+    </div>
+    <p class="muted" id="x-passcode-modal-status" role="status"></p>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('x-passcode-modal-later')?.addEventListener('click', closeXPasscodePopup);
+  document.getElementById('x-passcode-modal-save')?.addEventListener('click', async () => {
+    const input = document.getElementById('x-passcode-modal-input');
+    const statusEl = document.getElementById('x-passcode-modal-status');
+    const digits = String(input?.value || '').replace(/\D/g, '').slice(0, 4);
+    if (digits.length !== 4) {
+      if (statusEl) statusEl.textContent = 'Enter 4 digits.';
+      return;
+    }
+    try {
+      const data = await api('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({ x: { chatPasscode: digits } }),
+      });
+      settings = data.settings || settings;
+      closeXPasscodePopup();
+      toast('X chat passcode saved');
+      renderNav();
+      if (page === 'x') renderX();
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+    }
+  });
+}
+
+function closeXPasscodePopup() {
+  document.getElementById('x-passcode-modal')?.remove();
 }
 
 function bindXCookiePaste() {

@@ -194,6 +194,11 @@ export async function runXLeadSearchPhase() {
     markXSessionDead('missing_auth_token');
     return { skipped: true, reason: 'no_auth' };
   }
+  const { xChannelBlockedOnPasscode, markXPasscodeRequired } = await import('./xPasscode.js');
+  if (xChannelBlockedOnPasscode()) {
+    console.log('X lead search skipped — waiting for X chat passcode from the operator.');
+    return { skipped: true, reason: 'needs_passcode' };
+  }
 
   const known = await knownHandles();
   console.log(`X lead search: cap=${cap} known=${known.size} q="${query}"`);
@@ -258,10 +263,26 @@ export async function runXLeadSearchPhase() {
       }
       const url = canonicalXProfileUrl(candidate.handle);
       try {
+        const { followXProfile } = await import('./xFollow.js');
+        const followed = await followXProfile(candidate.handle, { context });
+        if (!followed.ok) {
+          console.log(`X follow @${candidate.handle} skipped insert: ${followed.reason}`);
+          if (followed.reason === 'auth_wall' || followed.sessionOk === false) {
+            sessionDead = true;
+            break;
+          }
+          skippedCards += 1;
+          await pause(4000 + Math.floor(Math.random() * 3000));
+          continue;
+        }
         const created = await crm.createXLead({ url, name: candidate.name });
         inserted += 1;
         known.add(candidate.handle.toLowerCase());
-        console.log(`X Lead inserted @${candidate.handle} (${created.id})`);
+        await crm.appendNote(
+          created.id,
+          followed.already ? 'X follow — already following' : 'X follow — followed before CRM insert'
+        ).catch(() => {});
+        console.log(`X Lead inserted @${candidate.handle} (${created.id}) follow=${followed.already ? 'already' : 'new'}`);
       } catch (e) {
         console.error(`X insert @${candidate.handle}:`, e.message);
       }

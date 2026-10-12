@@ -7890,6 +7890,14 @@ html[data-theme="light"] .book-tz-select option {
 }
 .halo-chat-empty strong { color: var(--ink); font-size: 1rem; }
 .halo-chat-empty p { margin: 0; max-width: 28ch; line-height: 1.45; }
+.deep-tools-bubble { min-width: 260px; max-width: 320px; text-align: left; padding: 12px 14px; }
+.deep-tools-title { display: block; margin-bottom: 8px; font-size: 0.8rem; }
+.deep-tools-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.deep-tools-list li { display: grid; gap: 2px; font-size: 0.74rem; line-height: 1.4; color: var(--ink-secondary); }
+.deep-tools-list strong { color: var(--ink); font-size: 0.78rem; }
+.deep-tools-note { margin: 10px 0 0; font-size: 0.7rem; color: var(--ink-secondary); }
+.x-passcode-needed { border-color: rgba(239, 68, 68, 0.45); box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.12); }
+.x-passcode-modal { max-width: 420px; }
 html[data-theme="light"] .halo-chat { background: #f3f5f7; border-color: #e4e7ec; }
 html[data-theme="light"] .halo-msg-in .halo-msg-bubble {
   background: #fff;

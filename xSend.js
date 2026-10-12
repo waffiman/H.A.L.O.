@@ -7,6 +7,12 @@ import path from 'path';
 import { chromium } from 'playwright';
 import { dataRoot } from './dataRoot.js';
 import { markXSessionDead, markXSessionOk, xAuthTokenPresent, xCookiesFile } from './xSessionHealth.js';
+import {
+  clearXPasscodeRequired,
+  markXPasscodeRequired,
+  xChannelBlockedOnPasscode,
+  xChatPasscodePresent,
+} from './xPasscode.js';
 
 function sessionDir() {
   return path.join(dataRoot(), 'session_data_x_search');
@@ -111,7 +117,9 @@ async function unlockChatPasscode(page) {
   }
   await page.waitForURL((url) => !/pin\/recovery/i.test(String(url)), { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(1200);
-  return !/pin\/recovery/i.test(page.url());
+  const ok = !/pin\/recovery/i.test(page.url());
+  if (ok) clearXPasscodeRequired();
+  return ok;
 }
 
 async function openComposer(page, handle) {
@@ -167,7 +175,8 @@ async function openComposer(page, handle) {
       }
     }
   }
-  if (/pin\/recovery|passcode/i.test(target.url())) {
+  if (/pin\/recovery/i.test(target.url()) && !xChatPasscodePresent()) {
+    markXPasscodeRequired('pin_recovery');
     const ui = await noteUi(target, 'x chat passcode');
     return { open: false, reason: 'x_chat_passcode', ui };
   }
@@ -183,7 +192,8 @@ async function openComposer(page, handle) {
       console.log(`X DM not sent — Premium required for this recipient.`);
       return { open: false, reason: 'x_premium_required' };
     }
-    if (/pin\/recovery|passcode/i.test(target.url())) {
+    if (/pin\/recovery/i.test(target.url())) {
+      if (!xChatPasscodePresent()) markXPasscodeRequired('pin_recovery');
       const ui = await noteUi(target, 'x chat passcode');
       return { open: false, reason: 'x_chat_passcode', ui };
     }
@@ -203,6 +213,9 @@ export async function sendXDm(handle, text) {
   if (!xAuthTokenPresent().present) {
     markXSessionDead('missing_auth_token');
     return { ok: false, reason: 'no_auth', sessionOk: false };
+  }
+  if (xChannelBlockedOnPasscode()) {
+    return { ok: false, reason: 'x_chat_passcode', sessionOk: true };
   }
 
   fs.mkdirSync(sessionDir(), { recursive: true });

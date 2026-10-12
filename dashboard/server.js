@@ -213,6 +213,7 @@ function isPublicPath(req) {
   if (
     p === '/login.html' ||
     p === '/landing.html' ||
+    p === '/reset.html' ||
     p === '/extension-privacy.html' ||
     p === '/waffi-telegram-bot.png' ||
     p === '/waffi-logo.png' ||
@@ -223,6 +224,7 @@ function isPublicPath(req) {
   if (p === '/login' || p === '/landing') return true;
   // Login/register/logout are public; /api/auth/me must still resolve the session.
   if (p === '/api/auth/login' || p === '/api/auth/register' || p === '/api/auth/logout') return true;
+  if (p === '/api/auth/forgot' || p === '/api/auth/reset') return true;
   if (p === '/auth/register') return true;
   if (p.startsWith('/api/billing/webhook')) return true;
   if (p.startsWith('/api/telegram/webhook')) return true;
@@ -474,6 +476,25 @@ async function handleRegister(req, res) {
 
 app.post('/api/auth/register', registerLimiter, handleRegister);
 app.post('/auth/register', registerLimiter, handleRegister);
+app.post('/api/auth/forgot', loginLimiter, async (req, res) => {
+  try {
+    const { requestPasswordReset } = await import('./lib/passwordReset.js');
+    const origin = `${req.protocol}://${req.get('host') || 'localhost'}`;
+    await requestPasswordReset(req.body?.email, { origin });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || 'Reset failed' });
+  }
+});
+app.post('/api/auth/reset', loginLimiter, async (req, res) => {
+  try {
+    const { completePasswordReset } = await import('./lib/passwordReset.js');
+    await completePasswordReset(req.body?.token, req.body?.password);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message || 'Reset failed' });
+  }
+});
 app.post('/api/auth/logout', (_req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
