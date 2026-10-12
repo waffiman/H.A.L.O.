@@ -69,38 +69,114 @@ async function acceptCookies(page) {
   await page.waitForTimeout(800);
 }
 
+async function dismissChatOverlays(page) {
+  const closeBtns = page.locator(
+    '[aria-label="Close"], [data-testid="app-bar-close"], [data-testid="xChatClose"], button:has-text("Not now"), button:has-text("Maybe later")'
+  );
+  const n = Math.min(await closeBtns.count().catch(() => 0), 3);
+  for (let i = 0; i < n; i++) {
+    await closeBtns.nth(i).click({ timeout: 1500 }).catch(() => {});
+  }
+}
+
+function premiumBlockedText(text) {
+  return /get premium to message|only premium users can send|upgrade to premium|subscribe to premium|premium is required|you need premium/i.test(
+    String(text || '')
+  );
+}
+
+async function isPremiumGate(page) {
+  const body = await page.locator('body').innerText().catch(() => '');
+  if (premiumBlockedText(body)) return true;
+  const cta = page.getByRole('button', { name: /get premium|upgrade|subscribe/i }).first();
+  if ((await cta.count().catch(() => 0)) > 0) {
+    const dialog = page.locator('[role="dialog"], [data-testid="sheetDialog"]').first();
+    if ((await dialog.count().catch(() => 0)) > 0) return true;
+  }
+  return false;
+}
+
 async function composerInput(page) {
+  await dismissChatOverlays(page);
   const selectors = [
     '[data-testid="dmComposerTextInput"]',
     '[data-testid="dmComposerFocusTextInput"]',
     '[data-testid="messageEntry"] [role="textbox"]',
+    '[data-testid="messageEntry"] [contenteditable="true"]',
     'aside [role="textbox"]',
     '[data-testid="DMDrawer"] [role="textbox"]',
     '[role="dialog"] [role="textbox"]',
+    '[role="dialog"] [contenteditable="true"]',
+    '[data-testid="xchatEmbedRoute"] [contenteditable="true"]',
+    '[data-testid="xchatEmbedRoute"] [role="textbox"]',
+    'div[contenteditable="true"][data-testid]',
+    'div[role="textbox"][contenteditable="true"]',
   ];
   for (const selector of selectors) {
     const input = page.locator(selector).first();
-    if ((await input.count().catch(() => 0)) > 0) return input;
+    if ((await input.count().catch(() => 0)) === 0) continue;
+    if (!(await input.isVisible().catch(() => false))) continue;
+    return input;
+  }
+  // X Chat sometimes nests the editor in an iframe.
+  for (const frame of page.frames()) {
+    if (frame === page.mainFrame()) continue;
+    try {
+      const handle = await frame
+        .locator(
+          '[data-testid="dmComposerTextInput"], [role="textbox"][contenteditable="true"], div[contenteditable="true"]'
+        )
+        .first()
+        .elementHandle({ timeout: 800 });
+      if (handle) return frame.locator(':scope').locator('[contenteditable="true"], [role="textbox"]').first();
+    } catch {
+      /* next frame */
+    }
   }
   return null;
+}
+
+async function waitForComposer(page, { tries = 4, delayMs = 1200 } = {}) {
+  for (let i = 0; i < tries; i++) {
+    if (await isPremiumGate(page)) return { input: null, premium: true };
+    const input = await composerInput(page);
+    if (input) return { input, premium: false };
+    await page.waitForTimeout(delayMs);
+  }
+  if (await isPremiumGate(page)) return { input: null, premium: true };
+  return { input: null, premium: false };
 }
 
 async function noteUi(page, reason) {
   const url = page.url();
   const text = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 500);
   const testids = await page
-    .evaluate(() => [...document.querySelectorAll('[data-testid]')].map((el) => el.getAttribute('data-testid')).filter(Boolean).slice(0, 40))
+    .evaluate(() =>
+      [...document.querySelectorAll('[data-testid]')]
+        .map((el) => el.getAttribute('data-testid'))
+        .filter(Boolean)
+        .slice(0, 40)
+    )
     .catch(() => []);
-  const shot = path.join(dataRoot(), 'scripts', '_x_dm_shot.png');
+  const shotDir = path.join(dataRoot(), 'scripts');
+  fs.mkdirSync(shotDir, { recursive: true });
+  const shot = path.join(shotDir, '_x_dm_shot.png');
   await page.screenshot({ path: shot, fullPage: false }).catch(() => {});
   console.log(`X DM ui: ${reason} url=${url} testids=${testids.join(',')}`);
   console.log(`X DM text: ${text}`);
   return { url, text, testids };
 }
 
+function peerIdsFromChatUrl(url) {
+  const m = String(url || '').match(/\/i\/chat\/(?:g)?(\d+)(?:-(\d+))?/i);
+  if (!m) return [];
+  return [m[1], m[2]].filter(Boolean);
+}
+
 async function unlockChatPasscode(page) {
   const code = String(process.env.X_CHAT_PASSCODE || '').replace(/\D/g, '').slice(0, 4);
-  if (code.length !== 4 || !/pin\/recovery/i.test(page.url())) return false;
+  if (code.length !== 4) return false;
+  if (!/pin\/recovery/i.test(page.url())) return false;
   await acceptCookies(page);
   const digits = page.locator('input[inputmode="numeric"], input[maxlength="1"]');
   const count = await digits.count().catch(() => 0);
@@ -115,11 +191,83 @@ async function unlockChatPasscode(page) {
     if (box) await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.46);
     await page.keyboard.type(code, { delay: 90 });
   }
-  await page.waitForURL((url) => !/pin\/recovery/i.test(String(url)), { timeout: 8000 }).catch(() => {});
+  const confirm = page.getByRole('button', { name: /confirm|continue|next|unlock/i }).first();
+  if ((await confirm.count().catch(() => 0)) > 0) {
+    await confirm.click({ timeout: 4000 }).catch(() => {});
+  }
+  await page.waitForURL((url) => !/pin\/recovery/i.test(String(url)), { timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(1200);
   const ok = !/pin\/recovery/i.test(page.url());
   if (ok) clearXPasscodeRequired();
   return ok;
+}
+
+async function tryClassicMessages(page, peerIds = []) {
+  const paths = [];
+  for (const id of peerIds) {
+    paths.push(`https://x.com/messages/${id}`);
+    paths.push(`https://x.com/messages/compose?recipient_id=${id}`);
+  }
+  for (const url of paths) {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+    await page.waitForTimeout(1800);
+    await acceptCookies(page);
+    if (/pin\/recovery/i.test(page.url())) {
+      const unlocked = await unlockChatPasscode(page);
+      if (!unlocked && !xChatPasscodePresent()) {
+        markXPasscodeRequired('pin_recovery');
+        return { open: false, reason: 'x_chat_passcode' };
+      }
+    }
+    if (isLoginWall(page.url())) return { dead: true, reason: 'login' };
+    const waited = await waitForComposer(page);
+    if (waited.premium) return { open: false, reason: 'x_premium_required' };
+    if (waited.input) return { open: true, input: waited.input, page };
+  }
+  return null;
+}
+
+async function tryComposeByHandle(page, handle) {
+  await page.goto('https://x.com/messages/compose', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+  await acceptCookies(page);
+  if (/pin\/recovery/i.test(page.url())) {
+    await unlockChatPasscode(page);
+  }
+  if (isLoginWall(page.url())) return { dead: true, reason: 'login' };
+  if (await isPremiumGate(page)) return { open: false, reason: 'x_premium_required' };
+
+  const search = page
+    .locator(
+      '[data-testid="searchPeople"], input[placeholder*="Search"], input[aria-label*="Search"], [role="combobox"]'
+    )
+    .first();
+  if ((await search.count().catch(() => 0)) === 0) return null;
+  await search.click({ timeout: 4000 }).catch(() => {});
+  await search.fill(`@${handle}`).catch(async () => {
+    await page.keyboard.type(`@${handle}`, { delay: 40 });
+  });
+  await page.waitForTimeout(1800);
+  const hit = page
+    .locator(`[data-testid="TypeaheadUser"] >> text=@${handle}`)
+    .or(page.getByRole('option', { name: new RegExp(`@?${handle}`, 'i') }))
+    .or(page.locator(`text=@${handle}`))
+    .first();
+  if ((await hit.count().catch(() => 0)) > 0) {
+    await hit.click({ timeout: 5000 }).catch(() => {});
+  } else {
+    await page.keyboard.press('Enter').catch(() => {});
+  }
+  await page.waitForTimeout(2000);
+  const next = page.getByRole('button', { name: /^next$/i }).first();
+  if ((await next.count().catch(() => 0)) > 0) {
+    await next.click({ timeout: 4000 }).catch(() => {});
+    await page.waitForTimeout(1500);
+  }
+  const waited = await waitForComposer(page);
+  if (waited.premium) return { open: false, reason: 'x_premium_required' };
+  if (waited.input) return { open: true, input: waited.input, page };
+  return null;
 }
 
 async function openComposer(page, handle) {
@@ -131,76 +279,63 @@ async function openComposer(page, handle) {
   if (/has a closed inbox|closed inbox|if you know their x number/i.test(before)) {
     return { open: false, reason: 'closed inbox' };
   }
+
   const testId = page.locator('[data-testid="sendDMFromProfile"]').first();
   const byRole = page.getByRole('button', { name: /^message$/i }).first();
   const hasTestId = (await testId.count().catch(() => 0)) > 0;
   const hasRole = (await byRole.count().catch(() => 0)) > 0;
   if (!hasTestId && !hasRole) {
+    // Profile may hide Message until follow settles — try compose-by-handle.
+    const viaCompose = await tryComposeByHandle(page, handle);
+    if (viaCompose) return viaCompose;
     const ui = await noteUi(page, 'no message button');
     return { open: false, reason: 'no message button', ui };
   }
-  const popupPromise = page.context().waitForEvent('page', { timeout: 4000 }).catch(() => null);
+
+  const popupPromise = page.context().waitForEvent('page', { timeout: 5000 }).catch(() => null);
   await (hasTestId ? testId : byRole).click({ timeout: 8000 });
   const popup = await popupPromise;
   let target = popup || page;
   await target.waitForTimeout(2500);
   await acceptCookies(target);
+  await dismissChatOverlays(target);
+
   if (/\/i\/chat\/pin\/recovery/i.test(target.url())) {
     const unlocked = await unlockChatPasscode(target);
-    if (unlocked) {
-      let input = await composerInput(target);
-      if (!input) {
-        await target.waitForTimeout(1500);
-        input = await composerInput(target);
-      }
-      if (input) return { open: true, input, page: target };
-    }
-    const from = new URL(target.url()).searchParams.get('from') || '';
-    const peer = (from.match(/\/i\/chat\/g?(\d+)/) || [])[1];
-    if (peer) {
-      await target
-        .goto(`https://x.com/messages/${peer}`, { waitUntil: 'domcontentloaded', timeout: 45000 })
-        .catch(() => {});
-      await target.waitForTimeout(2000);
-      await acceptCookies(target);
-      if (/pin\/recovery/i.test(target.url())) {
-        await target
-          .goto(`https://x.com/messages/compose?recipient_id=${peer}`, {
-            waitUntil: 'domcontentloaded',
-            timeout: 45000,
-          })
-          .catch(() => {});
-        await target.waitForTimeout(2000);
-        await acceptCookies(target);
-      }
-    }
-  }
-  if (/pin\/recovery/i.test(target.url()) && !xChatPasscodePresent()) {
-    markXPasscodeRequired('pin_recovery');
-    const ui = await noteUi(target, 'x chat passcode');
-    return { open: false, reason: 'x_chat_passcode', ui };
-  }
-  if (isLoginWall(target.url())) return { dead: true, reason: 'login' };
-  let input = await composerInput(target);
-  if (!input && /\/messages|\/i\/chat\//i.test(target.url())) {
-    await target.waitForTimeout(2000);
-    input = await composerInput(target);
-  }
-  if (!input) {
-    const wall = await target.locator('body').innerText().catch(() => '');
-    if (/get premium to message|only premium users can send/i.test(wall)) {
-      console.log(`X DM not sent — Premium required for this recipient.`);
-      return { open: false, reason: 'x_premium_required' };
-    }
-    if (/pin\/recovery/i.test(target.url())) {
-      if (!xChatPasscodePresent()) markXPasscodeRequired('pin_recovery');
+    if (!unlocked && !xChatPasscodePresent()) {
+      markXPasscodeRequired('pin_recovery');
       const ui = await noteUi(target, 'x chat passcode');
       return { open: false, reason: 'x_chat_passcode', ui };
     }
-    const ui = await noteUi(target, 'composer not found');
-    return { open: false, reason: 'composer not found', ui };
   }
-  return { open: true, input, page: target };
+
+  if (isLoginWall(target.url())) return { dead: true, reason: 'login' };
+
+  let waited = await waitForComposer(target, { tries: 5, delayMs: 1400 });
+  if (waited.premium) {
+    console.log(`X DM not sent — Premium required for @${handle}.`);
+    return { open: false, reason: 'x_premium_required' };
+  }
+  if (waited.input) return { open: true, input: waited.input, page: target };
+
+  // Classic desktop messaging often has a real composer when /i/chat embed does not.
+  const peers = peerIdsFromChatUrl(target.url());
+  const classic = await tryClassicMessages(target, peers);
+  if (classic) return classic;
+
+  const viaCompose = await tryComposeByHandle(target, handle);
+  if (viaCompose) return viaCompose;
+
+  if (/pin\/recovery/i.test(target.url())) {
+    if (!xChatPasscodePresent()) markXPasscodeRequired('pin_recovery');
+    const ui = await noteUi(target, 'x chat passcode');
+    return { open: false, reason: 'x_chat_passcode', ui };
+  }
+  if (await isPremiumGate(target)) {
+    return { open: false, reason: 'x_premium_required' };
+  }
+  const ui = await noteUi(target, 'composer not found');
+  return { open: false, reason: 'composer not found', ui };
 }
 
 /**
@@ -258,6 +393,9 @@ export async function sendXDm(handle, text) {
       markXSessionDead('auth_wall');
       console.log(`X DM @${cleanHandle} stopped after send — login wall. Cookies left untouched.`);
       return { ok: false, reason: 'auth_wall_after_send', sessionOk: false };
+    }
+    if (await isPremiumGate(box)) {
+      return { ok: false, reason: 'x_premium_required', sessionOk: true };
     }
     const body = await box.locator('body').innerText().catch(() => '');
     const visible = body.includes(message.slice(0, 40));

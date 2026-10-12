@@ -211,6 +211,10 @@ export async function loginWithPassword(email, password, env = readEnvFile()) {
   if (!row || !verifyPassword(password, row.password_hash)) {
     throw new Error('Invalid email or password');
   }
+  // Explicit false only — missing column (pre-migration) still signs in.
+  if (row.email_verified === false) {
+    throw new Error('Verify your email first — open the link we sent, or use /verify.html');
+  }
   return getTenantByEmail(email, env);
 }
 

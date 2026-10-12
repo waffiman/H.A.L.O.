@@ -1247,14 +1247,22 @@ startAutoplay();
   });
 })();
 
-// ── Signup ──
+// ── Signup (email verification required) ──
 async function handleSignup(e){
   e.preventDefault();const btn=document.querySelector('.cta-btn');
-  btn.textContent='Creating...';btn.disabled=true;
-  try{const r=await fetch('/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('name').value,email:document.getElementById('email').value,password:document.getElementById('password').value})});const d=await r.json();
-  if(d.success){btn.textContent='✅ Done!';setTimeout(()=>location.href=d.dashboard_url||'/',1200)}
-  else{btn.textContent='Create Account →';btn.disabled=false;alert(d.message||'Failed')}}
-  catch{btn.textContent='Create Account →';btn.disabled=false;alert('Network error')}
+  btn.textContent='Sending…';btn.disabled=true;
+  try{
+    const r=await fetch('/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('name').value,email:document.getElementById('email').value,password:document.getElementById('password').value})});
+    const d=await r.json();
+    if(d.success && d.needsVerify){
+      btn.textContent='Check your email →';
+      alert('We sent a verification link and a 6-digit code to your email. Confirm it to open your cabinet.');
+      location.href='/verify.html';
+      return;
+    }
+    if(d.success){btn.textContent='✅ Done!';setTimeout(()=>location.href=d.dashboard_url||'/',1200)}
+    else{btn.textContent='Create Account →';btn.disabled=false;alert(d.message||'Failed')}
+  }catch{btn.textContent='Create Account →';btn.disabled=false;alert('Network error')}
 }
 </script>
 </body>

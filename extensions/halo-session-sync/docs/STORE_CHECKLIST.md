@@ -14,12 +14,18 @@ Opens without login (verified).
 
 `config.js` → `DEFAULT_API_BASE = https://small-glenn-field-portal.trycloudflare.com`
 
-## Zip
+## Zip (upload this for Chrome Web Store update)
+
+**Ready zip path:**
+
+`c:\Users\micha\OneDrive\Рабочий стол\WAFFi\Cold Outreach Agent\extensions\halo-session-sync-1.3.0.zip`
+
+Rebuild if needed:
 
 ```powershell
 cd "c:\Users\micha\OneDrive\Рабочий стол\WAFFi\Cold Outreach Agent\extensions\halo-session-sync"
-Compress-Archive -Path manifest.json,config.js,background.js,popup.js,popup.html,popup.css,icons `
-  -DestinationPath ..\halo-session-sync-1.2.3.zip -Force
+Compress-Archive -Path manifest.json,config.js,background.js,popup.js,popup.html,popup.css,dashboard-bridge.js,icons `
+  -DestinationPath ..\halo-session-sync-1.3.0.zip -Force
 ```
 
 ## Store listing essentials

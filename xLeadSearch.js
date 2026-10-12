@@ -144,6 +144,29 @@ async function readPeopleCards(page) {
   });
 }
 
+function premiumBlockedText(text) {
+  return /get premium to message|only premium users can send|upgrade to premium|subscribe to premium|premium is required|you need premium/i.test(
+    String(text || '')
+  );
+}
+
+async function chatHasComposer(page) {
+  const selectors = [
+    '[data-testid="dmComposerTextInput"]',
+    '[data-testid="dmComposerFocusTextInput"]',
+    '[data-testid="messageEntry"] [role="textbox"]',
+    '[data-testid="messageEntry"] [contenteditable="true"]',
+    '[data-testid="xchatEmbedRoute"] [contenteditable="true"]',
+    'div[role="textbox"][contenteditable="true"]',
+  ];
+  for (const selector of selectors) {
+    const el = page.locator(selector).first();
+    if ((await el.count().catch(() => 0)) === 0) continue;
+    if (await el.isVisible().catch(() => false)) return true;
+  }
+  return false;
+}
+
 async function chatIsOpen(page, handle) {
   await page.goto(`https://x.com/${handle}`, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
   await page.waitForTimeout(1800);
@@ -157,14 +180,17 @@ async function chatIsOpen(page, handle) {
   const hasRole = (await byRole.count().catch(() => 0)) > 0;
   if (!hasTestId && !hasRole) return { open: false, reason: 'no message button' };
   await (hasTestId ? testId : byRole).click({ timeout: 8000 }).catch(() => {});
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2200);
   if (isLoginWall(page.url())) return { dead: true, open: false, reason: 'login' };
   const after = await page.locator('body').innerText().catch(() => '');
   if (CLOSED_INBOX_RE.test(after)) return { open: false, reason: 'closed inbox' };
-  if ((await page.locator('[data-testid="dmComposerTextInput"]').count().catch(() => 0)) > 0) {
-    return { open: true, reason: 'composer' };
+  if (premiumBlockedText(after)) return { open: false, reason: 'x_premium_required' };
+  // URL alone is not enough — /i/chat can open without a writable composer (Premium / pin).
+  if (await chatHasComposer(page)) return { open: true, reason: 'composer' };
+  if (/pin\/recovery/i.test(page.url())) return { open: false, reason: 'x_chat_passcode' };
+  if (/\/messages\//i.test(page.url()) && (await chatHasComposer(page))) {
+    return { open: true, reason: 'messages' };
   }
-  if (/\/messages|\/i\/chat\//i.test(page.url())) return { open: true, reason: 'messages' };
   return { open: false, reason: 'composer not found' };
 }
 

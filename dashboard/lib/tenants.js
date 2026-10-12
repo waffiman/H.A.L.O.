@@ -67,6 +67,9 @@ export function waffiWorkspaceId() {
 
 function rowToTenant(row) {
   if (!row) return null;
+  // Missing column (pre-migration) = trusted; explicit false = unverified.
+  const verified =
+    row.email_verified === false ? false : row.email_verified == null ? true : Boolean(row.email_verified);
   return {
     id: row.id,
     email: String(row.email || '').trim().toLowerCase(),
@@ -76,6 +79,8 @@ function rowToTenant(row) {
     role: String(row.role || 'user'),
     subscriptionStatus: String(row.subscription_status || 'trial'),
     trialLeadLimit: Number(row.trial_lead_limit) || 50,
+    emailVerified: verified,
+    emailVerifiedAt: row.email_verified_at || null,
     userUnreadSupport: row.user_unread_support === true,
     supportAttention: row.support_attention === true,
     supportAttentionAt: row.support_attention_at || null,

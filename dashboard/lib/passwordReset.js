@@ -72,6 +72,7 @@ export async function requestPasswordReset(email, { origin = '' } = {}) {
   if (!clean || !clean.includes('@')) return { ok: true };
   const tenant = await getTenantByEmail(clean, env).catch(() => null);
   if (!tenant) return { ok: true };
+  if (tenant.emailVerified === false) return { ok: true };
 
   const token = crypto.randomBytes(24).toString('base64url');
   const data = prune(loadStore());

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>H.A.L.O. — Verify email</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #0b0f14; color: #e8eaed; }
+    .card { width: min(420px, 100%); background: #151a22; border: 1px solid #2a3140; border-radius: 16px; padding: 28px; }
+    h1 { font-size: 1.15rem; margin: 0 0 8px; }
+    .muted { color: #9aa3b2; font-size: 0.88rem; margin: 0 0 18px; line-height: 1.45; }
+    .field { display: grid; gap: 6px; margin-bottom: 12px; }
+    label { font-size: 0.8rem; color: #9aa3b2; }
+    input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #2a3140; background: #0f1319; color: #e8eaed; }
+    button { width: 100%; margin-top: 6px; padding: 11px 14px; border: 0; border-radius: 10px; background: #22c55e; color: #04140a; font-weight: 700; cursor: pointer; }
+    .err { color: #fca5a5; font-size: 0.85rem; margin-bottom: 10px; display: none; }
+    .ok { color: #86efac; font-size: 0.85rem; margin-bottom: 10px; display: none; }
+    .links { margin-top: 14px; font-size: 0.82rem; }
+    .links a { color: #86efac; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Verify your email</h1>
+    <p class="muted" id="lead">Open the link from your inbox, or enter the 6-digit code we sent. Your HALO cabinet is created only after verification.</p>
+    <p class="err" id="err"></p>
+    <p class="ok" id="ok"></p>
+    <form id="form">
+      <div class="field" id="email-field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" placeholder="you@company.com" /></div>
+      <div class="field" id="code-field"><label for="code">6-digit code</label><input id="code" inputmode="numeric" maxlength="6" placeholder="123456" /></div>
+      <button type="submit" id="btn">Verify →</button>
+    </form>
+    <p class="links"><a href="/landing.html#signup">Back to signup</a> · <a href="/login.html">Sign in</a></p>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token') || '';
+    const err = document.getElementById('err');
+    const ok = document.getElementById('ok');
+    const emailField = document.getElementById('email-field');
+    const codeField = document.getElementById('code-field');
+    const btn = document.getElementById('btn');
+    if (token) {
+      document.getElementById('lead').textContent = 'Confirming your email from the link…';
+      emailField.hidden = true;
+      codeField.hidden = true;
+      btn.hidden = true;
+      (async () => {
+        try {
+          const res = await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ token }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Verification failed');
+          ok.textContent = 'Email verified. Opening your cabinet…';
+          ok.style.display = 'block';
+          setTimeout(() => { location.href = data.dashboard_url || '/'; }, 900);
+        } catch (ex) {
+          err.textContent = ex.message;
+          err.style.display = 'block';
+          emailField.hidden = false;
+          codeField.hidden = false;
+          btn.hidden = false;
+          document.getElementById('lead').textContent = 'Link failed — enter the email and 6-digit code from the message.';
+        }
+      })();
+    }
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.style.display = 'none';
+      ok.style.display = 'none';
+      try {
+        const res = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            email: document.getElementById('email').value,
+            code: document.getElementById('code').value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Verification failed');
+        ok.textContent = 'Email verified. Opening your cabinet…';
+        ok.style.display = 'block';
+        setTimeout(() => { location.href = data.dashboard_url || '/'; }, 900);
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

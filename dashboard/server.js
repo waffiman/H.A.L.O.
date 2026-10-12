@@ -41,9 +41,9 @@ import {
   tenantPublic,
   ensureSessionSecret,
 } from './lib/tenantAuth.js';
-import { getTenantByEmail, countLeadsForWorkspace, createTenant, assertTrialAllowsNewLead, waffiWorkspaceId } from './lib/tenants.js';
+import { getTenantByEmail, countLeadsForWorkspace, assertTrialAllowsNewLead, waffiWorkspaceId } from './lib/tenants.js';
 import { readEnvFile } from './lib/env.js';
-import { ensureTenantRuntime, allocateWorkspaceId } from './lib/tenantRuntime.js';
+import { allocateWorkspaceId } from './lib/tenantRuntime.js';
 import { browserLockStatus } from './lib/browserQueue.js';
 import {
   createCheckoutSession,
@@ -214,6 +214,7 @@ function isPublicPath(req) {
     p === '/login.html' ||
     p === '/landing.html' ||
     p === '/reset.html' ||
+    p === '/verify.html' ||
     p === '/extension-privacy.html' ||
     p === '/waffi-telegram-bot.png' ||
     p === '/waffi-logo.png' ||
@@ -225,6 +226,7 @@ function isPublicPath(req) {
   // Login/register/logout are public; /api/auth/me must still resolve the session.
   if (p === '/api/auth/login' || p === '/api/auth/register' || p === '/api/auth/logout') return true;
   if (p === '/api/auth/forgot' || p === '/api/auth/reset') return true;
+  if (p === '/api/auth/verify' || p === '/api/auth/verify/resend') return true;
   if (p === '/auth/register') return true;
   if (p.startsWith('/api/billing/webhook')) return true;
   if (p.startsWith('/api/telegram/webhook')) return true;
@@ -429,43 +431,30 @@ async function handleRegister(req, res) {
     if (!email.includes('@')) throw new Error('Valid email required');
     if (password.length < 8) throw new Error('Password must be at least 8 characters');
 
-    const existing = await getTenantByEmail(email);
-    if (existing) throw new Error('An account with this email already exists. Sign in instead.');
-
-    let workspaceId = allocateWorkspaceId(email);
-    for (let i = 0; i < 3; i++) {
-      try {
-        const tenant = await createTenant({
-          email,
-          password,
-          workspaceId,
-          displayName: displayName || email.split('@')[0],
-          company,
-          role: 'owner',
-          subscriptionStatus: 'trial',
-        });
-        ensureTenantRuntime(tenant.workspaceId);
-        const token = createSessionToken(tenant);
-        setSessionCookie(res, token);
-        return res.json({
-          ok: true,
-          success: true,
-          tenant: tenantPublic(tenant),
-          dashboard_url: '/',
-          sessionToken: token,
-          message: 'Account created',
-        });
-      } catch (e) {
-        if (/duplicate|unique/i.test(e.message) && i < 2) {
-          workspaceId = allocateWorkspaceId(email);
-          continue;
-        }
-        throw e;
-      }
-    }
-    throw new Error('Could not create account');
+    const { startEmailVerification } = await import('./lib/emailVerify.js');
+    const origin = `${req.protocol}://${req.get('host') || 'localhost'}`;
+    const workspaceId = allocateWorkspaceId(email);
+    await startEmailVerification(
+      {
+        email,
+        password,
+        displayName: displayName || email.split('@')[0],
+        company,
+        workspaceId,
+      },
+      { origin }
+    );
+    return res.json({
+      ok: true,
+      success: true,
+      needsVerify: true,
+      email,
+      verify_url: '/verify.html',
+      message: 'Check your email for a verification link or 6-digit code.',
+    });
   } catch (e) {
-    res.status(400).json({
+    const status = /RESEND_API_KEY|PUBLIC_DASHBOARD_URL|Email delivery/i.test(e.message || '') ? 503 : 400;
+    res.status(status).json({
       ok: false,
       success: false,
       error: e.message || 'Registration failed',
@@ -476,6 +465,28 @@ async function handleRegister(req, res) {
 
 app.post('/api/auth/register', registerLimiter, handleRegister);
 app.post('/auth/register', registerLimiter, handleRegister);
+app.post('/api/auth/verify', loginLimiter, async (req, res) => {
+  try {
+    const { confirmEmailVerification } = await import('./lib/emailVerify.js');
+    const tenant = await confirmEmailVerification({
+      token: req.body?.token,
+      code: req.body?.code,
+      email: req.body?.email,
+    });
+    const session = createSessionToken(tenant);
+    setSessionCookie(res, session);
+    res.json({
+      ok: true,
+      success: true,
+      tenant: tenantPublic(tenant),
+      dashboard_url: '/',
+      sessionToken: session,
+      message: 'Email verified',
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message || 'Verification failed' });
+  }
+});
 app.post('/api/auth/forgot', loginLimiter, async (req, res) => {
   try {
     const { requestPasswordReset } = await import('./lib/passwordReset.js');
