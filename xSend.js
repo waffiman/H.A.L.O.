@@ -70,17 +70,23 @@ async function acceptCookies(page) {
 }
 
 async function dismissChatOverlays(page) {
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForTimeout(250);
   const closeBtns = page.locator(
-    '[aria-label="Close"], [data-testid="app-bar-close"], [data-testid="xChatClose"], button:has-text("Not now"), button:has-text("Maybe later")'
+    '[aria-label="Close"], [data-testid="app-bar-close"], [data-testid="xChatClose"], [data-testid="xchatEmbedShare"] [aria-label="Close"], button:has-text("Not now"), button:has-text("Maybe later")'
   );
-  const n = Math.min(await closeBtns.count().catch(() => 0), 3);
+  const n = Math.min(await closeBtns.count().catch(() => 0), 4);
   for (let i = 0; i < n; i++) {
-    await closeBtns.nth(i).click({ timeout: 1500 }).catch(() => {});
+    await closeBtns.nth(i).click({ timeout: 1500, force: true }).catch(() => {});
   }
+  // Share / mask layers often sit above the composer in /i/chat.
+  await page.locator('[data-testid="mask"]').first().click({ timeout: 800, force: true }).catch(() => {});
+  await page.keyboard.press('Escape').catch(() => {});
 }
 
 function premiumBlockedText(text) {
-  return /get premium to message|only premium users can send|upgrade to premium|subscribe to premium|premium is required|you need premium/i.test(
+  // Do NOT match generic sidebar "Subscribe to Premium" promos — only DM walls.
+  return /get premium to message|only premium users can send|premium to message people|you need.?premium to (send|message)|premium is required to (send|message)|get verified to message|upgrade to premium to message/i.test(
     String(text || '')
   );
 }
@@ -382,11 +388,20 @@ export async function sendXDm(handle, text) {
       return { ok: false, reason: gate.reason, sessionOk: true };
     }
     const box = gate.page || page;
-    await gate.input.click({ timeout: 5000 });
+    await dismissChatOverlays(box);
+    try {
+      await gate.input.click({ timeout: 4000, force: true });
+    } catch {
+      await gate.input.focus({ timeout: 3000 }).catch(() => {});
+    }
     await box.keyboard.type(message, { delay: 15 });
+    await dismissChatOverlays(box);
     const send = box.locator('[data-testid="dmComposerSendButton"]').first();
-    if ((await send.count().catch(() => 0)) > 0) await send.click({ timeout: 8000 });
-    else await box.keyboard.press('Enter');
+    if ((await send.count().catch(() => 0)) > 0) {
+      await send.click({ timeout: 8000, force: true }).catch(async () => {
+        await box.keyboard.press('Enter');
+      });
+    } else await box.keyboard.press('Enter');
     await box.waitForTimeout(2500);
     if (isLoginWall(box.url())) {
       sessionDead = true;

@@ -5,6 +5,7 @@ const ICONS = {
   email: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4caf50" d="M45 16.2 35 23.7V40h7c1.7 0 3-1.3 3-3V16.2z"/><path fill="#1e88e5" d="M3 16.2 13 23.7V40H6c-1.7 0-3-1.3-3-3V16.2z"/><path fill="#e53935" d="m35 11.2-11 8.25-11-8.25L12 17l1 6.7L24 32l11-8.3 1-6.5z"/><path fill="#c62828" d="M3 12.3V16.2l10 7.5V11.2L9.9 8.9C9.1 8.3 8.2 8 7.3 8 4.9 8 3 9.9 3 12.3z"/><path fill="#fbc02d" d="M45 12.3V16.2l-10 7.5V11.2l3.1-2.3c.8-.6 1.7-.9 2.6-.9 2.4 0 4.3 1.9 4.3 4.3z"/></svg>',
   x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#E7E9EA" d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64z"/></svg>',
   telegram: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#26A5E4" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>',
+  channels: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.7"/></svg>',
   google: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.3 4.2-4.1 5.6l6.2 5.2C40.2 35.8 44 30.4 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>',
   chrome: '<svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="haloChromeRed" x1="3.2173" y1="15" x2="44.7812" y2="15" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#d93025"/><stop offset="1" stop-color="#ea4335"/></linearGradient><linearGradient id="haloChromeYellow" x1="20.7219" y1="47.6791" x2="41.5039" y2="11.6837" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fcc934"/><stop offset="1" stop-color="#fbbc04"/></linearGradient><linearGradient id="haloChromeGreen" x1="26.5981" y1="46.5015" x2="5.8161" y2="10.506" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1e8e3e"/><stop offset="1" stop-color="#34a853"/></linearGradient></defs><circle cx="24" cy="24" r="12" fill="#fff"/><path d="M24,12H44.7812a23.9939,23.9939,0,0,0-41.5639.0029L13.6079,30l.0093-.0024A11.9852,11.9852,0,0,1,24,12Z" fill="url(#haloChromeRed)"/><circle cx="24" cy="24" r="9.5" fill="#1a73e8"/><path d="M34.3913,30.0029,24.0007,48A23.994,23.994,0,0,0,44.78,12.0031H23.9989l-.0025.0093A11.985,11.985,0,0,1,34.3913,30.0029Z" fill="url(#haloChromeYellow)"/><path d="M13.6086,30.0031,3.218,12.006A23.994,23.994,0,0,0,24.0025,48L34.3931,30.0029l-.0067-.0068a11.9852,11.9852,0,0,1-20.7778.007Z" fill="url(#haloChromeGreen)"/></svg>',
   integrations: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>',
@@ -48,17 +49,79 @@ function extensionPromoCard() {
   </div>`;
 }
 
+const CHANNEL_DEFS = [
+  {
+    id: 'linkedin',
+    label: 'LinkedIn',
+    kind: 'full',
+    kindLabel: 'Find + contact',
+    blurb: 'Prospect search, invites, enrich, and DMs.',
+    ready: true,
+  },
+  {
+    id: 'x',
+    label: 'X',
+    kind: 'full',
+    kindLabel: 'Find + contact',
+    blurb: 'People search, follow, enrich, and chat.',
+    ready: true,
+  },
+  {
+    id: 'email',
+    label: 'Email',
+    kind: 'contact',
+    kindLabel: 'Contact only',
+    blurb: 'Direct outreach by email (coming soon).',
+    ready: false,
+  },
+  {
+    id: 'telegram',
+    label: 'Telegram',
+    kind: 'contact',
+    kindLabel: 'Contact only',
+    blurb: 'Direct Telegram messages (coming soon).',
+    ready: false,
+  },
+];
+
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', title: 'Overview, stages, channels' },
   { id: 'crm', label: 'CRM', title: 'Pipeline, leads, and CRM backend' },
-  { id: 'linkedin', label: 'LinkedIn', title: 'LinkedIn channel settings and session' },
-  { id: 'email', label: 'Email', title: 'Email outreach channel (coming soon)' },
-  { id: 'x', label: 'X', title: 'X channel session' },
-  { id: 'telegram', label: 'Telegram', title: 'Telegram channel (coming soon)' },
+  { id: 'channels', label: 'Channels', title: 'All communication channels' },
+  { id: 'linkedin', label: 'LinkedIn', title: 'LinkedIn channel settings and session', channel: true },
+  { id: 'email', label: 'Email', title: 'Email outreach channel (coming soon)', channel: true },
+  { id: 'x', label: 'X', title: 'X channel session', channel: true },
+  { id: 'telegram', label: 'Telegram', title: 'Telegram channel (coming soon)', channel: true },
   { id: 'profile', label: 'Settings', title: 'Account, billing, and integrations' },
   { id: 'brain', label: 'Brain', title: 'Sales Brain — master prompt and strategy analysis' },
   { id: 'faq', label: 'FAQ', title: 'Setup guide and quick answers' },
 ];
+
+const RECENT_CHANNELS_KEY = 'halo_recent_channels';
+const RECENT_CHANNELS_MAX = 5;
+
+function readRecentChannels() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT_CHANNELS_KEY) || '[]');
+    const allowed = new Set(CHANNEL_DEFS.map((c) => c.id));
+    return (Array.isArray(raw) ? raw : [])
+      .map((id) => String(id || ''))
+      .filter((id) => allowed.has(id))
+      .slice(0, RECENT_CHANNELS_MAX);
+  } catch {
+    return [];
+  }
+}
+
+function touchRecentChannel(id) {
+  if (!CHANNEL_DEFS.some((c) => c.id === id)) return;
+  const next = [id, ...readRecentChannels().filter((x) => x !== id)].slice(0, RECENT_CHANNELS_MAX);
+  try {
+    localStorage.setItem(RECENT_CHANNELS_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore quota */
+  }
+}
 
 let settings = null;
 let counts = null;
@@ -1261,7 +1324,7 @@ function unitSelect(id, unit) {
 
 const NAV_GROUPS = [
   { label: 'Overview', ids: ['dashboard', 'crm'] },
-  { label: 'Channels', ids: ['linkedin', 'email', 'x', 'telegram'] },
+  { label: 'Channels', ids: ['channels'], recentChannels: true },
   { label: 'Account', ids: ['profile'] },
   { label: 'Help', ids: ['faq'] },
 ];
@@ -2930,29 +2993,33 @@ function navProblemDot(title) {
   return `<span class="nav-problem-dot" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}"></span>`;
 }
 
+function navChannelBadge(id) {
+  const linkedinProblem = settings?.linkedinSessionOk === false;
+  const xPasscodeWarn = settings?.x?.needsPasscode === true;
+  if (id === 'linkedin' && linkedinProblem) return navWarnBadge('LinkedIn session inactive');
+  if (id === 'x' && xPasscodeWarn) return navWarnBadge('X chat passcode needed');
+  return '';
+}
+
 function renderNav() {
   const byId = Object.fromEntries(NAV.map((n) => [n.id, n]));
   const integrationsProblem = settings?.integrationsHasProblem === true;
-  const linkedinProblem = settings?.linkedinSessionOk === false;
-  const xPasscodeWarn = settings?.x?.needsPasscode === true;
+  const recent = readRecentChannels();
   navEl.innerHTML = NAV_GROUPS.map((g) => {
-    const items = g.ids
+    const hubIds = g.ids || [];
+    const recentIds = g.recentChannels ? recent : [];
+    const ids = [...hubIds, ...recentIds.filter((id) => !hubIds.includes(id))];
+    const items = ids
       .map((id) => byId[id])
       .filter(Boolean)
       .map((n) => {
-        const linkedinWarn = n.id === 'linkedin' && linkedinProblem;
-        const xWarn = n.id === 'x' && xPasscodeWarn;
+        const channelWarn = Boolean(navChannelBadge(n.id));
         const profileWarn = n.id === 'profile' && integrationsProblem;
-        const warn = linkedinWarn || xWarn || profileWarn;
-        const badge = linkedinWarn
-          ? navWarnBadge('LinkedIn session inactive')
-          : xWarn
-            ? navWarnBadge('X chat passcode needed')
-            : profileWarn
-            ? navProblemDot('Credentials need attention')
-            : '';
-        return `<button type="button" class="nav-item ${page === n.id ? 'active' : ''}${warn ? ' nav-item-warn' : ''}" data-page="${n.id}" title="${escapeAttr(n.title)}">
-      <span class="nav-ico">${ICONS[n.id] || ''}</span><span class="label-text">${n.label}</span>${badge}
+        const warn = channelWarn || profileWarn;
+        const badge = navChannelBadge(n.id) || (profileWarn ? navProblemDot('Credentials need attention') : '');
+        const recentClass = recentIds.includes(n.id) ? ' nav-item-recent' : '';
+        return `<button type="button" class="nav-item ${page === n.id ? 'active' : ''}${warn ? ' nav-item-warn' : ''}${recentClass}" data-page="${n.id}" title="${escapeAttr(n.title)}">
+      <span class="nav-ico">${ICONS[n.id] || ICONS.channels || ''}</span><span class="label-text">${n.label}</span>${badge}
     </button>`;
       })
       .join('');
@@ -2962,6 +3029,7 @@ function renderNav() {
   navEl.querySelectorAll('[data-page]').forEach((btn) => {
     btn.onclick = () => {
       page = btn.dataset.page;
+      if (CHANNEL_DEFS.some((c) => c.id === page)) touchRecentChannel(page);
       if (page === 'profile') {
         openProfileTile = '';
         const h = (location.hash || '').replace(/^#/, '');
@@ -5544,12 +5612,69 @@ function renderCrm() {
   });
 }
 
+function channelActiveBadge(id) {
+  const s = settings || {};
+  if (id === 'linkedin') {
+    return s.channels?.linkedin
+      ? '<span class="badge">enabled</span>'
+      : '<span class="badge off">off</span>';
+  }
+  if (id === 'x') {
+    return s.channels?.x ? '<span class="badge">enabled</span>' : '<span class="badge off">off</span>';
+  }
+  return '<span class="badge off">soon</span>';
+}
+
+function renderChannels() {
+  setPageHeader('Channels', 'Find+contact networks and contact-only inboxes');
+  titleEl.title = 'Channels';
+  const full = CHANNEL_DEFS.filter((c) => c.kind === 'full');
+  const contact = CHANNEL_DEFS.filter((c) => c.kind === 'contact');
+  const tile = (c) => {
+    const warn =
+      (c.id === 'linkedin' && settings?.linkedinSessionOk === false) ||
+      (c.id === 'x' && settings?.x?.needsPasscode === true);
+    return `<button type="button" class="channel-tile${warn ? ' channel-tile-warn' : ''}" data-open-channel="${c.id}">
+      <span class="channel-tile-ico" aria-hidden="true">${ICONS[c.id] || ''}</span>
+      <span class="channel-tile-body">
+        <span class="channel-tile-top">
+          <strong>${escapeHtml(c.label)}</strong>
+          ${channelActiveBadge(c.id)}
+        </span>
+        <span class="channel-tile-kind">${escapeHtml(c.kindLabel)}</span>
+        <span class="muted channel-tile-blurb">${escapeHtml(c.blurb)}</span>
+      </span>
+      <span class="channel-tile-go" aria-hidden="true">→</span>
+    </button>`;
+  };
+  view.innerHTML = `<div class="channels-page">
+    <section class="channels-section">
+      <h3 class="channels-section-title">Find + contact</h3>
+      <p class="muted channels-section-lead">Search for leads and message them in the same channel.</p>
+      <div class="channels-grid">${full.map(tile).join('')}</div>
+    </section>
+    <section class="channels-section">
+      <h3 class="channels-section-title">Contact only</h3>
+      <p class="muted channels-section-lead">Reach people you already know — no prospecting search.</p>
+      <div class="channels-grid">${contact.map(tile).join('')}</div>
+    </section>
+  </div>`;
+  view.querySelectorAll('[data-open-channel]').forEach((btn) => {
+    btn.onclick = () => {
+      page = btn.getAttribute('data-open-channel');
+      touchRecentChannel(page);
+      render();
+    };
+  });
+}
+
 function renderLinkedIn() {
   const s = settings;
   const sess = s.session || {};
   const ok = sess.ok === true && !sess.needsCookieRepair && s.cookies.present;
   setPageHeader('LinkedIn', 'Session and Stage A prospecting');
   titleEl.title = 'LinkedIn channel';
+  touchRecentChannel('linkedin');
 
   const channelStrip = `<div class="li-channel-strip">
       <div class="li-channel-strip-copy">
@@ -5682,6 +5807,7 @@ function xSessionOkFromSettings(s) {
 }
 
 function renderX() {
+  touchRecentChannel('x');
   const s = settings;
   const sess = s.x?.session || s.xSession || {};
   const cookies = s.x?.cookies || s.xCookies || {};
@@ -9232,7 +9358,7 @@ function setNotifyOpen(open) {
 
 function updateSaveVisibility() {
   if (!topActions) return;
-  const hide = page === 'telegram' || page === 'email' || page === 'faq';
+  const hide = page === 'telegram' || page === 'email' || page === 'faq' || page === 'channels';
   topActions.classList.toggle('no-save', hide);
 }
 
@@ -9246,11 +9372,16 @@ function render() {
   updateSaveVisibility();
   if (page === 'dashboard') renderDashboard();
   else if (page === 'crm') renderCrm();
+  else if (page === 'channels') renderChannels();
   else if (page === 'linkedin') renderLinkedIn();
-  else if (page === 'email') renderComing('Email');
-  else if (page === 'x') renderX();
-  else if (page === 'telegram') renderComing('Telegram');
-  else if (page === 'integrations') renderIntegrations();
+  else if (page === 'email') {
+    touchRecentChannel('email');
+    renderComing('Email');
+  } else if (page === 'x') renderX();
+  else if (page === 'telegram') {
+    touchRecentChannel('telegram');
+    renderComing('Telegram');
+  } else if (page === 'integrations') renderIntegrations();
   else if (page === 'profile') renderProfile();
   else if (page === 'brain') renderBrain();
   else if (page === 'brain-sales') renderBrainSales();

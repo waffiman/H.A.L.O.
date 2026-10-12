@@ -16,7 +16,8 @@ function isLoginWall(url) {
 }
 
 function premiumBlockedText(text) {
-  return /get premium to message|only premium users can send|upgrade to premium|subscribe to premium|premium is required|you need premium|get verified to message/i.test(
+  // Do NOT match generic sidebar "Subscribe to Premium" promos — only DM walls.
+  return /get premium to message|only premium users can send|premium to message people|you need.?premium to (send|message)|premium is required to (send|message)|get verified to message|upgrade to premium to message/i.test(
     String(text || '')
   );
 }
@@ -67,12 +68,21 @@ function peerIdsFromUrl(url) {
 
 /** Classic unencrypted composer only — not the encrypted /i/chat embed. */
 async function classicComposerVisible(page) {
-  const input = page.locator('[data-testid="dmComposerTextInput"]').first();
-  if ((await input.count().catch(() => 0)) === 0) return false;
-  if (!(await input.isVisible().catch(() => false))) return false;
-  // Must be on classic messaging, not encrypted chat shell.
-  if (/\/i\/chat\//i.test(page.url()) && !/\/messages\//i.test(page.url())) return false;
-  return true;
+  const selectors = [
+    '[data-testid="dmComposerTextInput"]',
+    '[data-testid="dmComposerFocusTextInput"]',
+    '[data-testid="messageEntry"] [contenteditable="true"]',
+    '[data-testid="xchatEmbedRoute"] [contenteditable="true"]',
+    'div[role="textbox"][contenteditable="true"]',
+  ];
+  for (const selector of selectors) {
+    const input = page.locator(selector).first();
+    if ((await input.count().catch(() => 0)) === 0) continue;
+    if (!(await input.isVisible().catch(() => false))) continue;
+    // Writable composer counts even inside /i/chat if X opened an editable box.
+    return true;
+  }
+  return false;
 }
 
 async function bodyText(page) {
@@ -126,15 +136,20 @@ export async function probeXMessageability(page, handle) {
   if (CLOSED_INBOX_RE.test(text)) return gateFail(target, 'closed inbox');
   if (premiumBlockedText(text)) return gateFail(target, 'x_premium_required');
 
-  // Prefer classic unencrypted inbox when chat opened as /i/chat/...
+  // If a writable composer is already here (classic or chat), accept — unless Premium wall text.
+  if (await classicComposerVisible(target)) {
+    const kind = /\/messages\//i.test(target.url()) ? 'unencrypted_composer' : 'chat_composer';
+    return { open: true, reason: kind, unencrypted: true };
+  }
+
+  // Prefer classic /messages when chat opened as /i/chat/...
   const peers = peerIdsFromUrl(target.url());
   const classicUrls = [];
   for (const id of peers) {
     classicUrls.push(`https://x.com/messages/${id}`);
     classicUrls.push(`https://x.com/messages/compose?recipient_id=${id}`);
   }
-  // Also try compose-by-handle path when Message dumped us into encrypted chat only.
-  if (/\/i\/chat\//i.test(target.url()) || encryptedChatText(text)) {
+  if (/\/i\/chat\//i.test(target.url()) || encryptedChatText(text) || classicUrls.length) {
     for (const url of classicUrls) {
       await target.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
       await target.waitForTimeout(1600);
@@ -153,25 +168,16 @@ export async function probeXMessageability(page, handle) {
         return { open: true, reason: 'unencrypted_composer', unencrypted: true };
       }
     }
-    // Stuck on encrypted chat without a classic composer — not useful for cold outreach.
-    if (/\/i\/chat\//i.test(target.url()) || encryptedChatText(text)) {
-      return gateFail(target, 'x_encrypted_only');
-    }
   }
 
-  // Already on /messages/ or drawer with classic composer.
+  await target.waitForTimeout(1500);
+  text = await bodyText(target);
+  if (premiumBlockedText(text)) return gateFail(target, 'x_premium_required');
   if (await classicComposerVisible(target)) {
-    return { open: true, reason: 'unencrypted_composer', unencrypted: true };
+    return { open: true, reason: 'composer_retry', unencrypted: true };
   }
-  if (/\/messages\//i.test(target.url())) {
-    await target.waitForTimeout(1500);
-    text = await bodyText(target);
-    if (premiumBlockedText(text)) return gateFail(target, 'x_premium_required');
-    if (await classicComposerVisible(target)) {
-      return { open: true, reason: 'unencrypted_composer', unencrypted: true };
-    }
+  if (/\/i\/chat\//i.test(target.url()) && encryptedChatText(text)) {
+    return gateFail(target, 'x_encrypted_only');
   }
-
-  if (premiumBlockedText(await bodyText(target))) return gateFail(target, 'x_premium_required');
   return gateFail(target, 'no_unencrypted_composer');
 }
