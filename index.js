@@ -183,7 +183,8 @@ let crmReadErrors = 0;
 
 async function getLeads(statusName) {
   try {
-    const leads = await crm.listByStatus(statusName);
+    // light: no notes transcript (only the ready marker) — this runs ~5x per Stage A + every Stage B tick.
+    const leads = await crm.listByStatus(statusName, { light: true });
     console.log(`CRM query for "${statusName}" returned ${leads.length} results.`);
     return leads;
   } catch (e) {
@@ -3239,6 +3240,11 @@ async function runStageB() {
         try {
           console.log(`Closing follow-up: ${lead.name}`);
           const crafted = await craftClosingFollowup(lead);
+          if (!crafted?.text || crafted.text.trim().length < 20) {
+            // Empty = blocked by outbound guard or LLM failure; never send blank / mark Lost.
+            console.log(`  Closing skipped (empty/blocked draft) — ${lead.name}`);
+            continue;
+          }
           const sendLead = { ...lead, msg: crafted.text, dmKind: 'closing_followup' };
           const ok = await sendMessageToLead(page, browser, statePath, sendLead);
           if (ok) {

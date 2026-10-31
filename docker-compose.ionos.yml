@@ -51,12 +51,34 @@ services:
       - HALO_COOKIE_SECURE=1
     volumes:
       - .:/app-data
-      # Same tree at host path so `docker compose --project-directory $HOST_APP_ROOT` can see .env inside this container
+      # Same tree at host path so docker args / compose paths are host paths
       - /root/cold-outreach-agent:/root/cold-outreach-agent
-      - /var/run/docker.sock:/var/run/docker.sock
+      # Compose file read-only here: halo-ops will run `compose up linkedin-agent`
+      # on request, so the dashboard must not be able to rewrite that service.
+      - ./docker-compose.ionos.yml:/app-data/docker-compose.ionos.yml:ro
+      - ./docker-compose.ionos.yml:/root/cold-outreach-agent/docker-compose.ionos.yml:ro
+      # No docker.sock: the `docker` binary here is a shim that calls halo-ops.
+    depends_on:
+      - halo-ops
     dns:
       - 8.8.8.8
       - 1.1.1.1
+
+  # Only container with docker.sock. Runs allowlisted docker commands
+  # (ops/validate.mjs) for the dashboard; no published ports, token-gated.
+  halo-ops:
+    build:
+      context: .
+      dockerfile: ops/Dockerfile
+    container_name: halo-ops
+    restart: unless-stopped
+    environment:
+      - HALO_OPS_TOKEN=${HALO_OPS_TOKEN:-}
+      - HALO_OPS_REPO_ROOT=/root/cold-outreach-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Read-only: compose file + --env-file are read client-side by the docker CLI
+      - /root/cold-outreach-agent:/root/cold-outreach-agent:ro
 
   # Public HTTPS front door: Let's Encrypt cert for HALO_DOMAIN, 80 → 443 redirect.
   # Set HALO_DOMAIN in .env (DNS A record → this VPS) before `up -d caddy`.

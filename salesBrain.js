@@ -19,6 +19,8 @@ import {
 import { composeBrainSystem, loadBrainSystemPrefix, readSalesPolicy } from './brainStore.js';
 import { markBrainRoleHealth } from './brainLlmHealth.js';
 import { normalizeLostReason } from './crm/leadFields.js';
+import { CRM_STATUSES, STATUS_CONVERSATION } from './crm/constants.js';
+import { guardOutbound } from './outboundGuard.js';
 import {
   buildBookingOffers,
   enforceBookACallDecision,
@@ -467,6 +469,8 @@ function parseReplyJson(raw) {
   if (intent === 'book') status = 'Active ✅';
   if (intent === 'lost') status = 'Lost❌';
   if (intent === 'continue' || intent === 'hold') status = 'Conversation 💬';
+  // Model output is shaped by lead text; never let it invent a status.
+  if (!CRM_STATUSES.includes(status)) status = STATUS_CONVERSATION;
   const reply = stripMidThreadFormalities(sanitizeIceBreaker(String(parsed.reply || '')));
   const lostReason =
     intent === 'lost' || status === 'Lost❌'
@@ -914,7 +918,49 @@ export async function generateSalesMessage(opts) {
     }
   }
 
-  return decision;
+  return applyOutboundGuard(decision, {
+    mode,
+    lead: opts.lead,
+    systemText: `${system}\n${bookingOffersBlock}`,
+    allowUrls: [meetUrl].filter(Boolean),
+  });
+}
+
+/**
+ * Block drafts that leak instructions, talk about being an AI, or carry foreign
+ * links (outboundGuard.js). A blocked reply becomes empty with status unchanged,
+ * so Stage B takes its existing no-send path and the lead stays Conversation 💬.
+ * OUTBOUND_GUARD=0 disables (debug only).
+ */
+function applyOutboundGuard(decision, { mode, lead, systemText, allowUrls }) {
+  if (process.env.OUTBOUND_GUARD === '0' || !decision) return decision;
+  const text = String(decision.reply || decision.text || '');
+  const verdict = guardOutbound({ text, systemText, allowUrls });
+  if (verdict.ok) return decision;
+  const who = String(lead?.name || lead?.url || 'lead').slice(0, 80);
+  console.warn(`[outbound-guard] blocked ${mode} for ${who}: ${verdict.reasons.join(', ')}`);
+  import('./notify.js')
+    .then(({ notify }) =>
+      notify({
+        key: `outbound_guard_${lead?.id || who}`,
+        type: 'brain',
+        severity: 'warning',
+        title: 'Brain draft blocked',
+        message: `${mode} for ${who} was not sent (${verdict.reasons.join(', ')}). Review the thread and reply manually.`,
+      })
+    )
+    .catch(() => {});
+  return {
+    ...decision,
+    reply: '',
+    text: '',
+    status: mode === 'reply' ? STATUS_CONVERSATION : decision.status,
+    intent: 'blocked',
+    notes_append: [decision.notes_append, `outbound guard: ${verdict.reasons.join(', ')}`]
+      .filter(Boolean)
+      .join(' | '),
+    guardBlocked: verdict.reasons,
+  };
 }
 
 const ABOUT_SYSTEM = `You write a lead dossier called About.

@@ -4,7 +4,7 @@
 import { profileSlugFromUrl, canonicalProfileUrl } from '../connectionsSync.js';
 import { canonicalInstagramProfileUrl, canonicalXProfileUrl, channelFromUrl } from '../leadChannel.js';
 import { normalizeExtraLinks } from '../leadLinks.js';
-import { STATUS_LEAD } from './constants.js';
+import { STATUS_LEAD, LEAD_READY_MARKER } from './constants.js';
 import { restDelete, restFetchAll, restInsert, restSelect, restUpdate, workspaceId } from './supabaseRest.js';
 
 function rowToLead(row) {
@@ -33,28 +33,77 @@ function rowToLead(row) {
   };
 }
 
-export async function listByStatus(statusName) {
+// Every column rowToLead reads except `notes` (full transcript — the heavy one).
+const LIGHT_LEAD_COLUMNS =
+  'id,name,link,ice_breaker,location,timezone,email,lost_reason,messenger_app,messenger_value,' +
+  'lead_score,score_breakdown,processing_at,status,headline,company,about,extra_links,deep_researched_at';
+
+/**
+ * @param {string} statusName
+ * @param {{ light?: boolean }} [opts] light: skip `notes`; only the
+ *   LEAD_READY_MARKER is restored (via a small id-only query) so
+ *   isLeadReadyForIcePipeline still works. Falls back to a full read on error.
+ */
+export async function listByStatus(statusName, { light = false } = {}) {
   const ws = workspaceId();
-  const rows = await restFetchAll('leads', { workspace_id: ws, status: statusName });
+  const filters = { workspace_id: ws, status: statusName };
+  if (light) {
+    try {
+      const [rows, marked] = await Promise.all([
+        restFetchAll('leads', filters, undefined, { select: LIGHT_LEAD_COLUMNS }),
+        restFetchAll(
+          'leads',
+          { ...filters, notes: `ilike.*${LEAD_READY_MARKER}*` },
+          undefined,
+          { select: 'id' }
+        ),
+      ]);
+      const ready = new Set(marked.map((r) => r.id));
+      return rows
+        .map((row) => rowToLead({ ...row, notes: ready.has(row.id) ? LEAD_READY_MARKER : '' }))
+        .filter((l) => Boolean(channelFromUrl(l.url)));
+    } catch (e) {
+      console.warn('listByStatus light read failed, using full read:', e.message || e);
+    }
+  }
+  const rows = await restFetchAll('leads', filters);
   return rows.map(rowToLead).filter((l) => Boolean(channelFromUrl(l.url)));
 }
 
+/**
+ * Inbox sender names are attacker-controlled (any LinkedIn display name). Strip
+ * LIKE / PostgREST wildcards so a name like "%" or "*" cannot match every lead.
+ */
+function likeToken(raw) {
+  return String(raw || '')
+    .replace(/[%*_\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
 export async function findLeadsByName(statusName, searchToken) {
+  const token = likeToken(searchToken);
+  if (token.length < 2) return [];
   const ws = workspaceId();
   const rows = await restFetchAll('leads', {
     workspace_id: ws,
     status: statusName,
-    name: `ilike.%${searchToken}%`,
+    name: `ilike.%${token}%`,
   });
   return rows.map(rowToLead);
 }
 
 export async function findCrmBySenderName(searchToken) {
+  const token = likeToken(searchToken);
+  if (token.length < 2) return [];
   const ws = workspaceId();
-  const rows = await restFetchAll('leads', {
-    workspace_id: ws,
-    name: `ilike.%${searchToken}%`,
-  });
+  const rows = await restFetchAll(
+    'leads',
+    { workspace_id: ws, name: `ilike.%${token}%` },
+    undefined,
+    { select: 'id,name,link,ice_breaker,status' }
+  );
   return rows.map((row) => ({
     id: row.id,
     name: String(row.name || '').trim(),

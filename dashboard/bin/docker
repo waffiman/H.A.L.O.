@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+/**
+ * `docker` shim for the dashboard container (no docker.sock here).
+ * Forwards argv to the halo-ops sidecar, which validates and runs it, then
+ * replays stdout/stderr and the exit code so existing execFileSync('docker', …)
+ * call sites keep working unchanged.
+ */
+// Dynamic import works whether Node loads this file as CommonJS (in the image,
+// /usr/local/bin has no package.json) or as ESM (in the repo, "type": "module").
+import('node:http').then(({ default: http }) => {
+const url = new URL(process.env.HALO_OPS_URL || 'http://halo-ops:7070/docker');
+const token = process.env.HALO_OPS_TOKEN || '';
+const body = JSON.stringify({ argv: process.argv.slice(2) });
+
+const req = http.request(
+  {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'content-length': Buffer.byteLength(body),
+      'x-halo-ops-token': token,
+    },
+    timeout: 0, // tenant one-shots can block for up to 90 min
+  },
+  (res) => {
+    let raw = '';
+    res.setEncoding('utf8');
+    res.on('data', (c) => (raw += c));
+    res.on('end', () => {
+      let r = {};
+      try {
+        r = JSON.parse(raw);
+      } catch {
+        process.stderr.write(`docker shim: bad response from halo-ops (HTTP ${res.statusCode})\n`);
+        process.exit(1);
+      }
+      if (r.stdout) process.stdout.write(r.stdout);
+      if (r.stderr) process.stderr.write(r.stderr);
+      if (res.statusCode === 401) process.stderr.write('docker shim: halo-ops rejected token\n');
+      process.exitCode = Number.isInteger(r.code) ? r.code : res.statusCode === 200 ? 0 : 1;
+    });
+  }
+);
+req.on('error', (e) => {
+  process.stderr.write(`docker shim: halo-ops unreachable: ${e.message}\n`);
+  process.exit(1);
+});
+req.end(body);
+});

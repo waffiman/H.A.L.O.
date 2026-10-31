@@ -40,6 +40,7 @@ Automated LinkedIn cold outreach for WAFFi:
 |---------|-----------|------|
 | `linkedin-agent` | `linkedin-agent` | Playwright agent: Stage A/B scheduler (`node index.js`) |
 | `outreach-dashboard` | `outreach-dashboard` | Control UI on `127.0.0.1:3080` (local only since 2026-10-31; no public `:80` mapping) |
+| `halo-ops` | `halo-ops` | **Only container with `docker.sock`** (2026-10-31). The dashboard's `docker` binary is a shim ([`dashboard/bin/docker`](dashboard/bin/docker)) that POSTs argv here with `HALO_OPS_TOKEN`; [`ops/validate.mjs`](ops/validate.mjs) allows only the repair/tenant/agent commands the dashboard uses (agent image only, binds inside the repo, no privileged/host flags). Dashboard mounts the compose file read-only. Add new docker calls to the allowlist or they fail with `halo-ops refused`. |
 | `caddy` | `caddy` | Public HTTPS front door: Let's Encrypt cert for `HALO_DOMAIN`, `80→443` redirect, proxies to the dashboard ([`Caddyfile`](Caddyfile)). Strips client `CF-Connecting-IP`. Dashboard sets `HALO_COOKIE_SECURE=1`. |
 | `n8n` | `n8n` | Legacy workflows; agent enrich no longer depends on it |
 
@@ -290,6 +291,10 @@ Callers (`enrichAndWrite`, `conversationAgent`) still only call `generateSalesMe
 | **Outcome** (`book_a_call` / purchase / qualify / referral) | No | Reply → Active rules |
 | **Booking schedule** (`booking` weekly availability) | No | Reply when outcome = `book_a_call` |
 | **URL override** | Replaces auto-built URL (exact LinkedIn facets from browser) | — |
+
+### Outbound guard (2026-10-31)
+
+Every Brain draft (ice, reply, closing) passes [`outboundGuard.js`](outboundGuard.js) before it is returned: a draft that copies 12+ consecutive words of the system prompt / strategy notes, talks about its own instructions or being an AI, or contains a link whose host is not in the prompt / Meet / Google Calendar is **blocked** — reply becomes empty, status stays `Conversation 💬`, Telegram/dashboard notification "Brain draft blocked". Stage B takes its normal no-send path; blocked closings are skipped (never sent blank, never marked Lost). Reply JSON statuses outside the four CRM statuses are coerced to `Conversation 💬`. `OUTBOUND_GUARD=0` disables (debug).
 
 ### Book a call (token-light)
 

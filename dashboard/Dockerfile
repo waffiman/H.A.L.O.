@@ -8,7 +8,10 @@ COPY marketing/ ./
 RUN npm run build
 
 FROM node:22-alpine
-RUN apk add --no-cache curl docker-cli docker-cli-compose
+# No docker CLI / socket here: bin/docker forwards to the halo-ops sidecar.
+RUN apk add --no-cache curl
+COPY dashboard/bin/docker /usr/local/bin/docker
+RUN chmod 0755 /usr/local/bin/docker
 WORKDIR /app
 # Build context = repo root (see docker-compose.ionos.yml)
 COPY dashboard/package.json dashboard/package-lock.json ./

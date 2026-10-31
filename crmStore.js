@@ -22,9 +22,9 @@ export function isCrmConfigured(env = process.env) {
   return Boolean(String(env.NOTION_TOKEN || '').trim() && String(env.NOTION_DATABASE_ID || '').trim());
 }
 
-export async function listByStatus(statusName) {
+export async function listByStatus(statusName, opts) {
   const a = await adapter();
-  return a.listByStatus(statusName);
+  return a.listByStatus(statusName, opts);
 }
 
 export async function findLeadsByName(statusName, searchToken) {
