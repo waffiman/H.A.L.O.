@@ -40,6 +40,7 @@ topology (its §14 rule).
 | Dashboard | `dashboard/server.js` (routes), `dashboard/lib/ops.js` (settings ↔ `.env`), `dashboard/lib/*`, `dashboard/public/app.js` (5.4k-line vanilla SPA) |
 | Schema | `sql/halo_crm_leads.sql`, `sql/halo_tenants.sql`, `sql/migrate_lead_enrich_fields.sql` |
 | Deploy | `Dockerfile`, `dashboard/Dockerfile`, `docker-compose.ionos.yml` (production) |
+| Architecture diagrams | `docs/architecture/*.md` (Mermaid; update alongside OVERVIEW when flows change) |
 
 ## Conventions
 

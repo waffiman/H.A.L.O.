@@ -7,7 +7,8 @@ Company behind outreach copy remains WAFFi.
 
 > **Agent knowledge base.** Read this first after any idle period.  
 > Keep this file updated whenever behavior, env flags, dashboard UI, or deploy paths change.  
-> Last updated: 2026-09-23 (landing hero typewriter + public HTTP :80).
+> Last updated: 2026-10-31 (architecture diagrams in `docs/architecture/`; §3 diagram moved to 4-status model).  
+> **Visual guide:** [`docs/architecture/README.md`](docs/architecture/README.md) has Mermaid diagrams of every subsystem.
 
 ---
 
@@ -87,15 +88,21 @@ Safe to deploy: code (`brainAnalyzer.js`, `brainStore.js`, …), `brain/user_pro
 
 Exact Status select names (emoji matter). **Do not invent extra statuses.**
 
+> **Status model update:** `Proposal 1️⃣` / `Proposal 2️⃣` were collapsed into
+> `Lead😴` / `Conversation 💬` (see `crm/constants.js` `normalizeCrmStatus`).
+> An accepted invite stays `Lead😴` with the "ready for enrich + ice" note marker.
+> Where this section and §4 still say Proposal 1️⃣ / 2️⃣, read Lead😴 (ready) /
+> Conversation 💬. Full state machine: [`docs/architecture/pipeline.md`](docs/architecture/pipeline.md).
+
 ```mermaid
 flowchart LR
-  Search["People search<br/>(Brain portrait)"] --> Lead["Lead😴<br/>invite sent"]
-  Lead -->|accept| P1["Proposal 1️⃣"]
-  Conn["Legacy My Network"] --> P1
-  P1 -->|ice DM sent| P2["Proposal 2️⃣"]
-  P2 -->|brain: book| Active["Active ✅"]
-  P2 -->|brain: lost / silence closing| Lost["Lost❌"]
-  Lost -->|inbound reply revive| P2
+  Search["People search<br/>(Brain portrait)"] --> Lead["Lead😴<br/>invite pending"]
+  Lead -->|accept: ready marker| Ready["Lead😴<br/>ready for enrich + ice"]
+  Conn["Legacy My Network"] --> Ready
+  Ready -->|ice DM sent| Conv["Conversation 💬"]
+  Conv -->|brain: book| Active["Active ✅"]
+  Conv -->|brain: lost / silence closing| Lost["Lost❌"]
+  Lost -->|inbound reply revive| Conv
 ```
 
 | Status | Who owns it | Meaning |
