@@ -4,7 +4,7 @@
 import { Client } from '@notionhq/client';
 import { notionRichText } from '../messageQuality.js';
 import { canonicalProfileUrl, profileSlugFromUrl } from '../connectionsSync.js';
-import { canonicalXProfileUrl, channelFromUrl } from '../leadChannel.js';
+import { canonicalInstagramProfileUrl, canonicalXProfileUrl, channelFromUrl } from '../leadChannel.js';
 import { STATUS_LEAD } from './constants.js';
 
 function getNotion() {
@@ -175,6 +175,28 @@ export async function createXLead({ url, name = '' } = {}) {
     Status: { select: { name: STATUS_LEAD } },
     'Processing at': { date: { start: new Date().toISOString() } },
   };
+  const page = await notion.pages.create({ parent: { database_id: databaseId }, properties });
+  return { id: page.id, url: cleanUrl, name: titleName };
+}
+
+export async function createIgLead({ url, name = '', ice = '' } = {}) {
+  const notion = getNotion();
+  const databaseId = getDatabaseId();
+  const cleanUrl = canonicalInstagramProfileUrl(url);
+  if (!cleanUrl) throw new Error(`Invalid Instagram URL: ${url}`);
+  const titleName = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const iceText = String(ice || '').trim().slice(0, 2000);
+  const properties = {
+    Name: { title: titleName ? [{ type: 'text', text: { content: titleName } }] : [] },
+    Link: { url: cleanUrl },
+    Status: { select: { name: STATUS_LEAD } },
+    'Processing at': { date: { start: new Date().toISOString() } },
+  };
+  if (iceText) {
+    properties['Ice-breaker'] = {
+      rich_text: [{ type: 'text', text: { content: iceText.slice(0, 2000) } }],
+    };
+  }
   const page = await notion.pages.create({ parent: { database_id: databaseId }, properties });
   return { id: page.id, url: cleanUrl, name: titleName };
 }

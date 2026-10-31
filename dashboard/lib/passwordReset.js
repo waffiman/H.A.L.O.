@@ -84,7 +84,12 @@ export async function requestPasswordReset(email, { origin = '' } = {}) {
   });
   saveStore(data);
 
-  const base = String(origin || env.PUBLIC_DASHBOARD_URL || 'http://31.70.101.111').replace(/\/$/, '');
+  // Configured origin first: the request Host header is attacker-controlled, and a
+  // spoofed Host would mail the victim a reset link (with a live token) to that host.
+  const configured =
+    env.PUBLIC_DASHBOARD_URL || (env.HALO_DOMAIN ? `https://${env.HALO_DOMAIN}` : '');
+  if (!configured) console.warn('Password reset: PUBLIC_DASHBOARD_URL unset — link uses request Host');
+  const base = String(configured || origin || 'http://31.70.101.111').replace(/\/$/, '');
   const link = `${base}/reset.html?token=${encodeURIComponent(token)}`;
   try {
     await deliverResetLink(clean, link, env);

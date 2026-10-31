@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /** One-shot X enrich (step 2). No browser, no ice, no Brave. */
 import dotenv from 'dotenv';
+import { applyTenantEnv } from '../tenantEnv.js';
 import path from 'path';
 
 dotenv.config({ override: true });
-if (process.env.TENANT_DATA_ROOT) {
-  dotenv.config({ path: path.join(process.env.TENANT_DATA_ROOT, 'tenant.env'), override: true });
-}
+applyTenantEnv();
 
 process.env.X_SEARCH_ONESHOT = '1';
 process.env.CHANNEL_X_ENABLED = '1';

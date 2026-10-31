@@ -23,6 +23,8 @@ export const STATUS_PROPOSAL_1 = STATUS_LEAD;
 
 /** Appended to notes when a Lead😴 is accepted / already connected and may be enriched + iced. */
 export const LEAD_READY_MARKER = 'ready for enrich + ice';
+/** Instagram: ice already sent; waiting for message-request accept (not LinkedIn connect expire). */
+export const IG_MSG_REQUEST_MARKER = 'IG message request pending';
 
 export function leadHasReadyMarker(notesOrLead) {
   const notes =

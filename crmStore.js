@@ -71,6 +71,18 @@ export async function createXLead(fields) {
   return created;
 }
 
+/**
+ * Instagram: ice already sent as message request → Lead😴.
+ * Notes get IG_MSG_REQUEST_MARKER (acceptance / expire watch this).
+ */
+export async function createIgLead(fields) {
+  const a = await adapter();
+  const created = await a.createIgLead(fields);
+  const { IG_MSG_REQUEST_MARKER } = await import('./crm/constants.js');
+  await a.appendNote(created.id, IG_MSG_REQUEST_MARKER);
+  return created;
+}
+
 export async function createLeadSleep(fields) {
   const a = await adapter();
   return a.createLeadSleep(fields);

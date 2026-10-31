@@ -20,6 +20,11 @@ COPY locationTimezone.js ./locationTimezone.js
 COPY dataRoot.js ./dataRoot.js
 COPY sessionHealth.js ./sessionHealth.js
 COPY xSessionHealth.js ./xSessionHealth.js
+COPY igSessionHealth.js ./igSessionHealth.js
+COPY tgSessionHealth.js ./tgSessionHealth.js
+COPY tgSessionRepairWorker.js ./tgSessionRepairWorker.js
+COPY waSessionHealth.js ./waSessionHealth.js
+COPY waSessionRepairWorker.js ./waSessionRepairWorker.js
 COPY leadChannel.js ./leadChannel.js
 # server.js resolves the site at path.join(__dirname, '..', 'marketing', 'dist').
 COPY --from=marketing /build/dist /marketing/dist

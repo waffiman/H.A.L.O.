@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import dotenv from 'dotenv';
+import { applyTenantEnv } from './tenantEnv.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -10,10 +11,9 @@ import { STATUS_LEAD, STATUS_CONVERSATION, isLeadReadyForIcePipeline } from './c
 import { channelFromUrl } from './leadChannel.js';
 
 dotenv.config({ override: true });
-// Tenant one-shots: load cabinet overrides after root .env (WORKSPACE_ID, stage flags, …)
-if (process.env.TENANT_DATA_ROOT) {
-  dotenv.config({ path: path.join(process.env.TENANT_DATA_ROOT, 'tenant.env'), override: true });
-}
+// Tenant one-shots: allowlisted cabinet flags only (tenantEnv.js). WORKSPACE_ID /
+// TENANT_DATA_ROOT come from docker -e and secrets from root .env.
+applyTenantEnv();
 
 /** Re-read .env so dashboard Save is visible without relying on a stale Docker env snapshot.
  *  STAGE_A_ONESHOT=1 preserves CLI/docker overrides across reload (one-shot scripts). */
@@ -52,6 +52,11 @@ function reloadEnv() {
       'CHANNEL_X_ENABLED',
       'X_LEADS_PER_RUN',
       'X_SEARCH_ONESHOT',
+      'CHANNEL_INSTAGRAM_ENABLED',
+      'IG_LEADS_PER_RUN',
+      'IG_ACCEPT_EXPIRE',
+      'IG_ACCEPT_WAIT_DAYS',
+      'IG_TARGET_HANDLES',
       'CONNECT_ACCEPT_EXPIRE',
       'GEMINI_API_KEY',
       'GEMINI_MODEL',
@@ -64,9 +69,7 @@ function reloadEnv() {
     }
   }
   dotenv.config({ override: true });
-  if (process.env.TENANT_DATA_ROOT) {
-    dotenv.config({ path: path.join(process.env.TENANT_DATA_ROOT, 'tenant.env'), override: true });
-  }
+  applyTenantEnv();
   Object.assign(process.env, preserve);
 }
 
@@ -175,12 +178,16 @@ async function persistSessionCookies(context) {
   }
 }
 
+/** Count of failed CRM list reads; a run with failures must not look "complete". */
+let crmReadErrors = 0;
+
 async function getLeads(statusName) {
   try {
     const leads = await crm.listByStatus(statusName);
     console.log(`CRM query for "${statusName}" returned ${leads.length} results.`);
     return leads;
   } catch (e) {
+    crmReadErrors++;
     console.error('getLeads CRM error:', e.message || e);
     return [];
   }
@@ -2050,10 +2057,13 @@ async function runStageA() {
     console.log('Stage A skipped (OUTREACH_PAUSED / SKIP_STAGE_A).');
     return;
   }
+  const crmErrorsAtStart = crmReadErrors;
   const xChannelOn = process.env.CHANNEL_X_ENABLED === '1';
+  const igChannelOn = process.env.CHANNEL_INSTAGRAM_ENABLED === '1';
   if (process.env.CHANNEL_LINKEDIN_ENABLED === '0') {
     console.log('Stage A LinkedIn skipped (CHANNEL_LINKEDIN_ENABLED=0).');
     if (xChannelOn) await runXLeadSearchFromStageA();
+    if (igChannelOn) await runIgOutboundFromStageA();
     return;
   }
   console.log('=== STAGE A: Acquisition (per-lead: sync → enrich → ice) ===');
@@ -2212,7 +2222,7 @@ async function runStageA() {
         phase1NamesOk.push(lead.name);
         await appendPageNote(
           lead.id,
-          `mode=ice_breaker | ice sent → Conversation 💬 | full message:\n${String(sendLead.msg || '')}`
+          `channel=linkedin | mode=ice_breaker | ice sent → Conversation 💬 | full message:\n${String(sendLead.msg || '')}`
         ).catch((e) => console.error('page note:', e.message));
       } catch (notionErr) {
         console.error('Notion status update:', notionErr.message);
@@ -2282,6 +2292,7 @@ async function runStageA() {
       const readyIds = new Set(acceptedPromotedIds);
       leftoverIceReadyLeft = (await getLeads(STATUS_LEAD))
         .filter(matchesTarget)
+        .filter((l) => channelFromUrl(l.url) === 'linkedin')
         .filter((l) =>
           isLeadReadyForIcePipeline(l, {
             promotedIds: readyIds,
@@ -2295,6 +2306,7 @@ async function runStageA() {
       const readyIds = new Set(acceptedPromotedIds);
       const backlog = (await getLeads(STATUS_LEAD))
         .filter(matchesTarget)
+        .filter((l) => channelFromUrl(l.url) === 'linkedin')
         .filter((l) =>
           isLeadReadyForIcePipeline(l, {
             promotedIds: readyIds,
@@ -2315,11 +2327,43 @@ async function runStageA() {
           });
         } catch (_) {}
       }
+
+      // Enrich every leftover that lacks ice in ONE browser pause, then send in one
+      // browser lifetime. Per-lead pause/resume meant a profile wipe + cold Chromium
+      // launch per lead — the repeated-lifetime pattern that burns li_at (OVERVIEW §7).
+      const enrichFailed = new Set();
+      if (process.env.SKIP_ENRICH !== '1') {
+        const slotsLeft = sendCap - phase1DmOk;
+        let slots = 0;
+        const toEnrich = [];
+        for (const lead of backlog) {
+          if (slots >= slotsLeft) break;
+          if (channelFromUrl(lead.url) === 'x') continue;
+          if (!hasRealIceBreaker(lead.msg)) toEnrich.push(lead);
+          slots++;
+        }
+        if (toEnrich.length && sessionAlive()) {
+          console.log(`Leftover enrich batch: ${toEnrich.length} lead(s), browser closed for the whole batch.`);
+          await pauseBrowserForEnrich();
+          for (const lead of toEnrich) {
+            const enriched = await enrichOneLead(lead);
+            if (!enriched.ok) {
+              console.log(`Leftover enrich failed — leave as Lead😴: ${lead.url}`);
+              enrichFailed.add(lead);
+              continue;
+            }
+            Object.assign(lead, enriched.lead, { msg: enriched.lead.msg });
+          }
+          await resumeBrowserForSend();
+        }
+      }
+
       for (const lead of backlog) {
-        if (channelFromUrl(lead.url) === 'x') {
-          console.log(`Skip X leftover (enrich/ice is a later step): ${lead.url}`);
+        if (channelFromUrl(lead.url) !== 'linkedin') {
+          console.log(`Skip non-LinkedIn leftover (enrich/ice is a later step): ${lead.url}`);
           continue;
         }
+        if (enrichFailed.has(lead)) continue;
         if (phase1DmOk >= sendCap) {
           console.log(`STAGE_A_SEND_MAX=${sendMaxRaw} reached during leftover drain.`);
           break;
@@ -2330,26 +2374,13 @@ async function runStageA() {
           );
           break;
         }
-        let working = lead;
         if (!hasRealIceBreaker(lead.msg)) {
-          if (process.env.SKIP_ENRICH === '1') {
-            console.log(`Skip leftover enrich (SKIP_ENRICH=1): ${lead.url}`);
-            continue;
-          }
-          await pauseBrowserForEnrich();
-          const enriched = await enrichOneLead(lead);
-          if (!enriched.ok) {
-            console.log(`Leftover enrich failed — leave as Lead😴: ${lead.url}`);
-            try {
-              await resumeBrowserForSend();
-            } catch (_) {}
-            continue;
-          }
-          working = { ...lead, ...enriched.lead, msg: enriched.lead.msg };
-          await resumeBrowserForSend();
+          // SKIP_ENRICH=1, or beyond this run's send cap when the batch was built.
+          console.log(`Skip leftover without ice (not enriched this run): ${lead.url}`);
+          continue;
         }
         if (!browser || !page) await resumeBrowserForSend();
-        const sent = await sendIceAndPromote(working);
+        const sent = await sendIceAndPromote(lead);
         if (sent === true) {
           leftoverSentThisRun++;
           leftoverIceReadyLeft = Math.max(0, leftoverIceReadyLeft - 1);
@@ -2365,6 +2396,7 @@ async function runStageA() {
       }
       leftoverIceReadyLeft = (await getLeads(STATUS_LEAD))
         .filter(matchesTarget)
+        .filter((l) => channelFromUrl(l.url) === 'linkedin')
         .filter((l) =>
           isLeadReadyForIcePipeline(l, {
             promotedIds: readyIds,
@@ -2596,6 +2628,7 @@ async function runStageA() {
 
     leftoverIceReadyLeft = (await getLeads(STATUS_LEAD))
       .filter(matchesTarget)
+      .filter((l) => channelFromUrl(l.url) === 'linkedin')
       .filter((l) =>
         isLeadReadyForIcePipeline(l, {
           promotedIds: new Set(acceptedPromotedIds),
@@ -2627,10 +2660,11 @@ async function runStageA() {
     if (
       !sessionAlive() ||
       leftoverIceReadyLeft > 0 ||
+      crmReadErrors > crmErrorsAtStart ||
       (syncPipelineAttempted && imported === 0 && phase1DmOk === 0)
     ) {
       console.log(
-        'Stage A incomplete — not advancing Stage A interval (leftovers, session, or sync found 0 CRM-unknown).'
+        'Stage A incomplete — not advancing Stage A interval (leftovers, session, CRM read error, or sync found 0 CRM-unknown).'
       );
     } else {
       const { markStageARan } = await import('./stageAState.js');
@@ -2640,10 +2674,27 @@ async function runStageA() {
     await closeBrowser(browser);
   }
   if (process.env.CHANNEL_X_ENABLED === '1') await runXLeadSearchFromStageA();
+  if (process.env.CHANNEL_INSTAGRAM_ENABLED === '1') await runIgOutboundFromStageA();
 }
 
-/** X People search after the LinkedIn browser is closed, then Apify enrich. No ice or DM. */
+/**
+ * X after LinkedIn browser closed: drain ice-ready Lead😴 first (LI leftover style),
+ * then People search → enrich → score → ice → DM.
+ */
 async function runXLeadSearchFromStageA() {
+  // Drain backlog before hunting new handles (same idea as LI leftover ice drain).
+  try {
+    const { enrichReadyXLeads } = await import('./xEnrich.js');
+    await enrichReadyXLeads();
+  } catch (e) {
+    console.error('X enrich (pre-search drain):', e?.message || e);
+  }
+  try {
+    const { runXOutboundPhase } = await import('./xOutbound.js');
+    await runXOutboundPhase();
+  } catch (e) {
+    console.error('X outbound (pre-search drain):', e?.message || e);
+  }
   try {
     const { runXLeadSearchPhase } = await import('./xLeadSearch.js');
     await runXLeadSearchPhase();
@@ -2655,6 +2706,22 @@ async function runXLeadSearchFromStageA() {
     await enrichReadyXLeads();
   } catch (e) {
     console.error('X enrich:', e?.message || e);
+  }
+  try {
+    const { runXOutboundPhase } = await import('./xOutbound.js');
+    await runXOutboundPhase();
+  } catch (e) {
+    console.error('X outbound:', e?.message || e);
+  }
+}
+
+/** Instagram: expire/accept message requests, then enrich→score→ice→send→Lead😴. */
+async function runIgOutboundFromStageA() {
+  try {
+    const { runIgOutboundPhase } = await import('./igOutbound.js');
+    await runIgOutboundPhase();
+  } catch (e) {
+    console.error('Instagram outbound:', e?.message || e);
   }
 }
 
@@ -2699,8 +2766,11 @@ async function runStageB() {
   if (targetSlug) console.log(`TARGET_LINKEDIN_URL filter: ${targetSlug}`);
 
   // --- Notion-only preflight (no browser) ---
-  let pending = (await getLeads('Conversation 💬')).filter(matchesTarget);
-  console.log(`Conversation 💬: ${pending.length}`);
+  // Stage B is LinkedIn inbox only — X/IG Conversation rows must not open /messaging.
+  let pending = (await getLeads('Conversation 💬'))
+    .filter(matchesTarget)
+    .filter((l) => channelFromUrl(l.url) === 'linkedin');
+  console.log(`Conversation 💬 (LinkedIn): ${pending.length}`);
   if (pending.length === 0 && targetSlug) {
     console.log('No Conversation 💬 matches for TARGET — Stage B done.');
     return;
@@ -2973,8 +3043,10 @@ async function runStageB() {
     }
 
     if (revivedCount > 0) {
-      pending = (await getLeads('Conversation 💬')).filter(matchesTarget);
-      console.log(`Conversation 💬 after revive: ${pending.length}`);
+      pending = (await getLeads('Conversation 💬'))
+        .filter(matchesTarget)
+        .filter((l) => channelFromUrl(l.url) === 'linkedin');
+      console.log(`Conversation 💬 after revive (LinkedIn): ${pending.length}`);
     }
 
     function collectUnreadP2Leads(leadList) {
@@ -3094,6 +3166,7 @@ async function runStageB() {
                 lead.id,
                 'reply',
                 [
+                  'channel=linkedin',
                   decision.intent,
                   decision.notes_append || decision.reason || '',
                   inboundText ? `inbound full:\n${inboundText}` : '',
@@ -3124,6 +3197,7 @@ async function runStageB() {
               lead.id,
               'reply',
               [
+                'channel=linkedin',
                 `no-send | ${decision.intent} | ${decision.reason || ''}`,
                 inboundText ? `inbound full:\n${inboundText}` : '',
               ]
@@ -3146,7 +3220,9 @@ async function runStageB() {
     } else if (weekendBlock) {
       console.log('Weekend — skipping silence follow-ups until Monday.');
     } else {
-      const p2Fresh = (await getLeads('Conversation 💬')).filter(matchesTarget);
+      const p2Fresh = (await getLeads('Conversation 💬'))
+        .filter(matchesTarget)
+        .filter((l) => channelFromUrl(l.url) === 'linkedin');
       const due = p2Fresh.filter(
         (l) =>
           !inboundIds.has(l.id) &&
@@ -3172,7 +3248,7 @@ async function runStageB() {
             await noteAfterSend(
               lead.id,
               'closing_followup',
-              `no reply ≥${silenceDays} business days since last outbound → Lost (no_reply) | full message:\n${crafted.text}`
+              `channel=linkedin | no reply ≥${silenceDays} business days since last outbound → Lost (no_reply) | full message:\n${crafted.text}`
             ).catch((e) => console.error('note:', e.message));
             await humanRandomDelay(15000, 25000);
           } else {
@@ -3422,11 +3498,13 @@ if (isMainModule) {
   };
 
   (async () => {
-    // Cold start without force_run_once: still run Stage A once so CONNECT_MAX
-    // from the dashboard is honored after container recreate / restart.
+    // Cold start without force_run_once: opt-in only (BOOT_FORCE_STAGE_A=1).
+    // Default off — crash restarts and tenant-orchestrator stop/start used to
+    // fire a full connect batch on every boot, bypassing the Stage A interval.
+    // Dashboard "Save and restart" still forces via force_run_once.json.
     if (
       !forcePlan &&
-      process.env.BOOT_FORCE_STAGE_A !== '0' &&
+      process.env.BOOT_FORCE_STAGE_A === '1' &&
       process.env.OUTREACH_PAUSED !== '1' &&
       process.env.SKIP_STAGE_A !== '1' &&
       process.env.CHANNEL_LINKEDIN_ENABLED !== '0' &&
@@ -3435,7 +3513,7 @@ if (isMainModule) {
       forceImmediateRunA = true;
       process.env.STAGE_A_CONNECT_PRIORITY = '1';
       console.log(
-        'Boot: forcing Stage A once (CONNECT_MAX / connect priority) — set BOOT_FORCE_STAGE_A=0 to disable.'
+        'Boot: forcing Stage A once (BOOT_FORCE_STAGE_A=1, connect priority).'
       );
       await tickStageA();
       reloadEnv();

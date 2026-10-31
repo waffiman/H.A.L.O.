@@ -19,6 +19,7 @@ import {
   get,
   hoursToMs,
   intervalToMs,
+  cleanIntervalUnit,
   normalizeStageBIntervalMs,
   STAGE_B_MIN_INTERVAL_MS,
   isSecretKey,
@@ -43,6 +44,7 @@ import { notionConfigured as notionOnlyConfigured } from './notionProvision.js';
 import { supabaseDashboardUrl } from './supabaseProvision.js';
 import { getSupabaseKeepaliveStatus } from './supabaseKeepalive.js';
 import { getTelegramIntegrationMeta } from './telegramBot.js';
+import { gmailConnectionStatus } from './gmailOAuth.js';
 import { clearXPasscodeRequired, readXPasscodeState } from './xPasscodeState.js';
 import {
   defaultBookingSchedule,
@@ -52,7 +54,16 @@ import {
 import { normalizeSmartTiming } from '../timezoneResolver.js';
 import { markSessionOk } from '../sessionHealth.js';
 import { markXSessionOk } from '../xSessionHealth.js';
-import { isXCookieDomain } from '../leadChannel.js';
+import { IG_COOKIE_NAMES, markIgSessionOk } from '../igSessionHealth.js';
+import {
+  TG_COOKIE_NAMES,
+  isTelegramCookieDomain,
+  markTgSessionOk,
+  normalizeTgStoragePaste,
+} from '../tgSessionHealth.js';
+import { isInstagramCookieDomain, isXCookieDomain } from '../leadChannel.js';
+import { tgSessionStatusView } from './tgSessionRepair.js';
+import { waSessionStatusView } from './waSessionRepair.js';
 
 /** After cookie / Sign-in restore: flip session ok and re-enable stages paused on death. */
 function markCabinetSessionRestored(ws, extra = {}) {
@@ -629,6 +640,249 @@ export function ingestXCookiePaste(raw, workspaceId = waffiWorkspaceId()) {
   };
 }
 
+/** Wipe Instagram Chromium cookie stores — never LinkedIn / X. */
+export function resetIgBrowserSessionsForCookieRepair(workspaceId = waffiWorkspaceId()) {
+  const paths = tenantPaths(workspaceId);
+  const profiles = [paths.igSessionData].filter(Boolean);
+  const cookieRel = [
+    'Default/Cookies',
+    'Default/Cookies-journal',
+    'Default/Network/Cookies',
+    'Default/Network/Cookies-journal',
+  ];
+  let cleared = 0;
+  for (const root of profiles) {
+    for (const rel of cookieRel) {
+      const p = path.join(root, rel);
+      try {
+        if (fs.existsSync(p)) {
+          fs.unlinkSync(p);
+          cleared += 1;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return cleared;
+}
+
+function markCabinetIgSessionRestored(ws, extra = {}) {
+  const paths = tenantPaths(ws);
+  try {
+    markIgSessionOk({ workspaceId: ws, ...extra }, { statusFile: paths.igSessionStatus });
+  } catch (e) {
+    console.log('markCabinetIgSessionRestored:', e.message);
+    try {
+      fs.writeFileSync(
+        paths.igSessionStatus,
+        JSON.stringify(
+          {
+            ok: true,
+            reason: null,
+            needsCookieRepair: false,
+            updatedAt: new Date().toISOString(),
+            workspaceId: ws,
+            ...extra,
+          },
+          null,
+          2
+        )
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+export function readIgSessionStatus(workspaceId = waffiWorkspaceId()) {
+  try {
+    const p = tenantPaths(workspaceId).igSessionStatus;
+    if (!p || !fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function readIgAuthPresent(workspaceId = waffiWorkspaceId()) {
+  try {
+    const cookiesPath = tenantPaths(workspaceId).igCookies;
+    if (!cookiesPath || !fs.existsSync(cookiesPath)) return { present: false, count: 0 };
+    const cookies = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
+    const list = Array.isArray(cookies) ? cookies : [];
+    return {
+      present: list.some((c) => c.name === 'sessionid' && c.value),
+      count: list.length,
+    };
+  } catch {
+    return { present: false, count: 0 };
+  }
+}
+
+/**
+ * Accept EditThisCookie JSON for instagram.com, or raw sessionid.
+ * Writes ig_cookies.json only — never cookies.json / x_cookies.json / li_at.
+ */
+export function ingestIgCookiePaste(raw, workspaceId = waffiWorkspaceId()) {
+  const text = String(raw || '').trim();
+  if (!text) throw new Error('Empty cookie paste');
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  ensureTenantRuntime(ws);
+  const paths = tenantPaths(ws);
+
+  if (text.startsWith('[')) {
+    let arr;
+    try {
+      arr = JSON.parse(text);
+    } catch {
+      throw new Error('Could not parse cookie JSON — paste EditThisCookie export as-is');
+    }
+    if (!Array.isArray(arr) || !arr.length) throw new Error('Cookie JSON is empty');
+
+    const igCookies = arr
+      .filter((c) => isInstagramCookieDomain(c.domain))
+      .filter((c) => !IG_COOKIE_NAMES.size || IG_COOKIE_NAMES.has(c.name) || c.name === 'sessionid')
+      .map(toPlaywrightCookie)
+      .filter(Boolean);
+
+    if (!igCookies.length) throw new Error('No Instagram cookies found in paste');
+    const session = igCookies.find((c) => c.name === 'sessionid');
+    if (!session?.value) throw new Error('sessionid cookie not found in EditThisCookie export');
+
+    fs.writeFileSync(paths.igCookies, JSON.stringify(igCookies, null, 2));
+    const cleared = resetIgBrowserSessionsForCookieRepair(ws);
+    markCabinetIgSessionRestored(ws, {
+      source: 'dashboard_ig_cookie_paste',
+      cookieCount: igCookies.length,
+      profilesCleared: cleared,
+    });
+    return {
+      ok: true,
+      mode: 'editthiscookie',
+      count: igCookies.length,
+      sessionidPresent: true,
+      sessionidPreview: `${String(session.value).slice(0, 6)}…${String(session.value).slice(-4)}`,
+      profilesCleared: cleared,
+      workspaceId: ws,
+    };
+  }
+
+  const value = text;
+  if (value.length < 20) throw new Error('sessionid looks too short');
+  let cookies = [];
+  if (fs.existsSync(paths.igCookies)) {
+    try {
+      cookies = JSON.parse(fs.readFileSync(paths.igCookies, 'utf8'));
+      if (!Array.isArray(cookies)) cookies = [];
+    } catch {
+      cookies = [];
+    }
+  }
+  const rest = cookies.filter((c) => c.name !== 'sessionid');
+  rest.push({
+    name: 'sessionid',
+    value,
+    domain: '.instagram.com',
+    path: '/',
+    expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 180,
+    httpOnly: true,
+    secure: true,
+    sameSite: 'None',
+  });
+  fs.writeFileSync(paths.igCookies, JSON.stringify(rest, null, 2));
+  const cleared = resetIgBrowserSessionsForCookieRepair(ws);
+  markCabinetIgSessionRestored(ws, {
+    source: 'dashboard_ig_sessionid_paste',
+    profilesCleared: cleared,
+  });
+  return {
+    ok: true,
+    mode: 'sessionid',
+    count: rest.length,
+    sessionidPresent: true,
+    profilesCleared: cleared,
+    workspaceId: ws,
+  };
+}
+
+/**
+ * Telegram Web A session paste — localStorage / Playwright storageState preferred.
+ * EditThisCookie arrays are usually empty on web.telegram.org/a (no login cookies).
+ */
+export function ingestTgCookiePaste(raw, workspaceId = waffiWorkspaceId()) {
+  const text = String(raw || '').trim();
+  if (!text) throw new Error('Empty paste');
+  const ws = String(workspaceId || waffiWorkspaceId()).trim() || waffiWorkspaceId();
+  ensureTenantRuntime(ws);
+  const paths = tenantPaths(ws);
+
+  // Object paste → storageState (Web A)
+  if (text.startsWith('{')) {
+    const state = normalizeTgStoragePaste(text);
+    fs.writeFileSync(paths.tgStorageState, JSON.stringify(state, null, 2));
+    if (Array.isArray(state.cookies) && state.cookies.length) {
+      fs.writeFileSync(paths.tgCookies, JSON.stringify(state.cookies, null, 2));
+    }
+    const n = (state.origins || []).reduce((a, o) => a + (o.localStorage?.length || 0), 0);
+    fs.writeFileSync(
+      paths.tgSessionStatus,
+      JSON.stringify(
+        {
+          ok: true,
+          needsCookieRepair: false,
+          source: 'dashboard_tg_storage_paste',
+          storageKeys: n,
+          updatedAt: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+    );
+    return { ok: true, mode: 'storage_state', count: n, authPresent: true, workspaceId: ws };
+  }
+
+  if (!text.startsWith('[')) {
+    throw new Error(
+      'Telegram Web A keeps the session in localStorage, not cookies. Use phone + code, or paste storage JSON ({ ... }).'
+    );
+  }
+  let arr;
+  try {
+    arr = JSON.parse(text);
+  } catch {
+    throw new Error('Could not parse cookie JSON');
+  }
+  if (!Array.isArray(arr) || !arr.length) {
+    throw new Error(
+      'EditThisCookie is empty on Telegram Web A — that is normal. Sign in with phone + code on this page instead.'
+    );
+  }
+  const tgCookies = arr
+    .filter((c) => isTelegramCookieDomain(c.domain) || /telegram/i.test(String(c.domain || '')))
+    .filter((c) => !TG_COOKIE_NAMES.size || TG_COOKIE_NAMES.has(c.name) || String(c.name || '').startsWith('stel_'))
+    .map(toPlaywrightCookie)
+    .filter(Boolean);
+  if (!tgCookies.length) {
+    throw new Error(
+      'No Telegram cookies in paste. Web A login does not use cookies — use phone + code here.'
+    );
+  }
+  const auth = tgCookies.find((c) => c.name === 'stel_token' || c.name === 'stel_ssid');
+  if (!auth?.value) {
+    throw new Error('No stel_token/stel_ssid — for Web A use phone + code (localStorage), not EditThisCookie');
+  }
+  fs.writeFileSync(paths.tgCookies, JSON.stringify(tgCookies, null, 2));
+  markTgSessionOk({ source: 'dashboard_tg_cookie_paste', cookieCount: tgCookies.length });
+  return {
+    ok: true,
+    mode: 'editthiscookie',
+    count: tgCookies.length,
+    authPresent: true,
+    workspaceId: ws,
+  };
+}
+
 export async function countNotionStatuses(workspaceId) {
   const now = Date.now();
   const wsKey = String(workspaceId || '').trim() || '_env_';
@@ -889,6 +1143,10 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
   const xCookies = readXAuthPresent(ws);
   const xSessionOk =
     xSession?.ok === true && !xSession?.needsCookieRepair && xCookies.present;
+  const igSession = readIgSessionStatus(ws);
+  const igCookies = readIgAuthPresent(ws);
+  const igSessionOk =
+    igSession?.ok === true && !igSession?.needsCookieRepair && igCookies.present;
   // Only push TG session alerts for the active request cabinet
   syncSessionNotifications(session, cookies, ws);
   // Read the policy file once — this block used to re-read and re-parse
@@ -921,8 +1179,12 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
     channels: {
       linkedin: env.CHANNEL_LINKEDIN_ENABLED !== '0',
       x: env.CHANNEL_X_ENABLED === '1',
+      instagram: env.CHANNEL_INSTAGRAM_ENABLED === '1',
+      email: env.CHANNEL_EMAIL_ENABLED === '1',
       telegram: env.CHANNEL_TELEGRAM_ENABLED === '1',
+      whatsapp: env.CHANNEL_WHATSAPP_ENABLED === '1',
     },
+    gmail: gmailConnectionStatus(ws, rootEnv),
     deepResearch: env.DEEP_RESEARCH_ENABLED === '1',
     deepResearchTools: [
       {
@@ -963,6 +1225,10 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
     telegram: {
       ...getTelegramIntegrationMeta(env),
       botTokenSet: Boolean((env.TELEGRAM_BOT_TOKEN || '').trim()),
+      ...tgSessionStatusView(ws),
+    },
+    whatsapp: {
+      ...waSessionStatusView(ws),
     },
     googleCalendar: {
       meetUrl: (env.GOOGLE_MEET_URL || env.WAFFI_BOOKING_URL || '').trim(),
@@ -988,9 +1254,25 @@ export async function buildSettingsView(workspaceId = waffiWorkspaceId()) {
         return Number.isFinite(n) ? Math.max(0, Math.min(20, Math.round(n))) : 5;
       })(),
     },
+    instagram: {
+      session: igSession,
+      cookies: igCookies,
+      sessionOk: igSessionOk,
+      leadsPerRun: (() => {
+        const raw = env.IG_LEADS_PER_RUN;
+        if (raw === undefined || raw === null || String(raw).trim() === '') return 3;
+        const n = Number(raw);
+        return Number.isFinite(n) ? Math.max(0, Math.min(20, Math.round(n))) : 3;
+      })(),
+      acceptExpire: env.IG_ACCEPT_EXPIRE !== '0',
+      acceptWaitDays: Number(env.IG_ACCEPT_WAIT_DAYS ?? 21) || 21,
+    },
     xSession,
     xCookies,
     xSessionOk,
+    igSession,
+    igCookies,
+    igSessionOk,
     prompts: {
       playbook: readPrompt('playbook', cp),
       ice_breaker: readPrompt('ice_breaker', cp),
@@ -1288,7 +1570,7 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
     const ms = intervalToMs(body.stageAIntervalValue, body.stageAIntervalUnit);
     if (ms) {
       updates.STAGE_A_INTERVAL_MS = String(ms);
-      updates.STAGE_A_INTERVAL_UNIT = body.stageAIntervalUnit;
+      updates.STAGE_A_INTERVAL_UNIT = cleanIntervalUnit(body.stageAIntervalUnit);
     }
   }
   if (body.stageBIntervalValue != null && body.stageBIntervalUnit) {
@@ -1297,7 +1579,7 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
       updates.STAGE_B_INTERVAL_MS = String(
         normalizeStageBIntervalMs(raw, body.stageBIntervalUnit)
       );
-      updates.STAGE_B_INTERVAL_UNIT = body.stageBIntervalUnit;
+      updates.STAGE_B_INTERVAL_UNIT = cleanIntervalUnit(body.stageBIntervalUnit);
     }
   }
   if (body.silenceBusinessDays != null && body.silenceBusinessDays !== '') {
@@ -1314,13 +1596,27 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
     if (typeof body.channels.x === 'boolean') {
       updates.CHANNEL_X_ENABLED = body.channels.x ? '1' : '0';
     }
+    if (typeof body.channels.instagram === 'boolean') {
+      updates.CHANNEL_INSTAGRAM_ENABLED = body.channels.instagram ? '1' : '0';
+    }
+    if (typeof body.channels.email === 'boolean') {
+      updates.CHANNEL_EMAIL_ENABLED = body.channels.email ? '1' : '0';
+    }
     if (typeof body.channels.telegram === 'boolean') {
       updates.CHANNEL_TELEGRAM_ENABLED = body.channels.telegram ? '1' : '0';
+    }
+    if (typeof body.channels.whatsapp === 'boolean') {
+      updates.CHANNEL_WHATSAPP_ENABLED = body.channels.whatsapp ? '1' : '0';
     }
   }
 
   if (typeof body.deepResearch === 'boolean') {
-    updates.DEEP_RESEARCH_ENABLED = body.deepResearch ? '1' : '0';
+    // Premium: only owner / WAFFi default can toggle DeepResearch for a cabinet.
+    if (!isOwner && ws !== waffiWorkspaceId()) {
+      /* ignore — Starter cabinets cannot enable */
+    } else {
+      updates.DEEP_RESEARCH_ENABLED = body.deepResearch ? '1' : '0';
+    }
   }
 
   if (body.x && typeof body.x === 'object' && body.x.chatPasscode != null) {
@@ -1337,6 +1633,22 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
     const n = Number(body.x.leadsPerRun);
     const capped = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.round(n))) : 5;
     updates.X_LEADS_PER_RUN = String(capped);
+  }
+
+  if (body.instagram && typeof body.instagram === 'object') {
+    const ig = body.instagram;
+    if (ig.leadsPerRun != null && ig.leadsPerRun !== '') {
+      const n = Number(ig.leadsPerRun);
+      const capped = Number.isFinite(n) ? Math.max(0, Math.min(20, Math.round(n))) : 3;
+      updates.IG_LEADS_PER_RUN = String(capped);
+    }
+    if (typeof ig.acceptExpire === 'boolean') {
+      updates.IG_ACCEPT_EXPIRE = ig.acceptExpire ? '1' : '0';
+    }
+    if (ig.acceptWaitDays != null && ig.acceptWaitDays !== '') {
+      const d = Math.max(1, Math.min(Number(ig.acceptWaitDays) || 21, 365));
+      updates.IG_ACCEPT_WAIT_DAYS = String(d);
+    }
   }
 
   if (body.linkedin && typeof body.linkedin === 'object') {
@@ -1439,7 +1751,7 @@ export async function applyDashboardPatch(body = {}, workspaceId = waffiWorkspac
     const ms = intervalToMs(body.brainAnalysisIntervalValue, body.brainAnalysisIntervalUnit);
     if (ms) {
       updates.BRAIN_ANALYSIS_INTERVAL_MS = String(ms);
-      updates.BRAIN_ANALYSIS_INTERVAL_UNIT = body.brainAnalysisIntervalUnit;
+      updates.BRAIN_ANALYSIS_INTERVAL_UNIT = cleanIntervalUnit(body.brainAnalysisIntervalUnit);
     }
   }
 

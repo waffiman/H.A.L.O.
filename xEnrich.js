@@ -1,6 +1,7 @@
 /**
  * Stage A step 2 — enrich an X Lead😴 via apidojo/twitter-user-scraper.
- * Writes name, location, timezone, email, headline, About, extra links, and a profile note. No ice, no score, no DM.
+ * Writes name, location, timezone, email, headline, About, extra links, and a profile note.
+ * Ice / score / DM follow in xOutbound.js (Stage A step 3).
  * Tokens: APIFY_TOKEN_1…20, then APIFY_TOKEN / APIFY_TOKENS. Quota and auth errors
  * move to the next token.
  */
@@ -178,6 +179,30 @@ export async function enrichOneXLead(lead) {
     const { writeBasicEnrichCard, maybeDeepResearch } = await import('./leadCard.js');
     let card = await writeBasicEnrichCard({ ...lead, name: profile.name || lead.name }, profile);
     card = await maybeDeepResearch(card);
+    // LinkedIn-parity: persist ICP score at enrich (outbound may re-score if card grew).
+    try {
+      const { scoreLead } = await import('./leadScoring.js');
+      const { readSalesPolicy } = await import('./brainStore.js');
+      const scored = await scoreLead(
+        {
+          name: card.name || profile.name,
+          headline: card.headline || profile.headline,
+          about: card.about,
+          description: profile.description,
+          company: card.company || '',
+          location: card.location || profile.location || '',
+          link: lead.url,
+          extraLinks: card.extraLinks || [],
+        },
+        readSalesPolicy()
+      );
+      await crm
+        .patchLead(lead.id, { leadScore: scored.score, scoreBreakdown: scored.breakdown })
+        .catch(() => {});
+      console.log(`X enrich score @${handle}: ${scored.score}/10`);
+    } catch (e) {
+      console.warn(`X enrich score skip @${handle}:`, e?.message || e);
+    }
     await crm.appendNote(lead.id, profileNote(profile));
     console.log(
       `X enrich @${handle}: name="${profile.name}"` +

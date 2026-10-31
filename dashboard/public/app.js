@@ -5,6 +5,9 @@ const ICONS = {
   email: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4caf50" d="M45 16.2 35 23.7V40h7c1.7 0 3-1.3 3-3V16.2z"/><path fill="#1e88e5" d="M3 16.2 13 23.7V40H6c-1.7 0-3-1.3-3-3V16.2z"/><path fill="#e53935" d="m35 11.2-11 8.25-11-8.25L12 17l1 6.7L24 32l11-8.3 1-6.5z"/><path fill="#c62828" d="M3 12.3V16.2l10 7.5V11.2L9.9 8.9C9.1 8.3 8.2 8 7.3 8 4.9 8 3 9.9 3 12.3z"/><path fill="#fbc02d" d="M45 12.3V16.2l-10 7.5V11.2l3.1-2.3c.8-.6 1.7-.9 2.6-.9 2.4 0 4.3 1.9 4.3 4.3z"/></svg>',
   x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#E7E9EA" d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64z"/></svg>',
   telegram: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#26A5E4" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>',
+  whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#25D366" d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.87 9.87 0 0 0 12.04 2zm0 1.82c4.46 0 8.09 3.63 8.09 8.09 0 4.46-3.63 8.09-8.09 8.09-1.42 0-2.81-.37-4.02-1.07l-.29-.17-3.12.82.83-3.04-.19-.31a8.04 8.04 0 0 1-1.21-4.32c0-4.46 3.63-8.09 8.09-8.09zm4.58 10.47c-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.92-1.18-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.48-.4-.41-.54-.42h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2 0 1.18.86 2.32.98 2.48.12.16 1.69 2.58 4.1 3.62.57.25 1.02.4 1.37.51.58.18 1.1.16 1.51.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14z"/></svg>',
+  instagram: '<svg viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="igGradNav" cx="0.3" cy="1.07" r="1.2"><stop offset="0" stop-color="#fdf497"/><stop offset="0.45" stop-color="#fd5949"/><stop offset="0.6" stop-color="#d6249f"/><stop offset="0.9" stop-color="#285AEB"/></radialGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="url(#igGradNav)"/><circle cx="12" cy="12" r="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5" fill="#fff"/></svg>',
+  deepResearch: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="M16.2 16.2 21 21" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M8.2 11h5.6M11 8.2v5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".85"/></svg>',
   channels: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.7"/></svg>',
   google: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.3 4.2-4.1 5.6l6.2 5.2C40.2 35.8 44 30.4 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>',
   chrome: '<svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="haloChromeRed" x1="3.2173" y1="15" x2="44.7812" y2="15" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#d93025"/><stop offset="1" stop-color="#ea4335"/></linearGradient><linearGradient id="haloChromeYellow" x1="20.7219" y1="47.6791" x2="41.5039" y2="11.6837" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fcc934"/><stop offset="1" stop-color="#fbbc04"/></linearGradient><linearGradient id="haloChromeGreen" x1="26.5981" y1="46.5015" x2="5.8161" y2="10.506" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1e8e3e"/><stop offset="1" stop-color="#34a853"/></linearGradient></defs><circle cx="24" cy="24" r="12" fill="#fff"/><path d="M24,12H44.7812a23.9939,23.9939,0,0,0-41.5639.0029L13.6079,30l.0093-.0024A11.9852,11.9852,0,0,1,24,12Z" fill="url(#haloChromeRed)"/><circle cx="24" cy="24" r="9.5" fill="#1a73e8"/><path d="M34.3913,30.0029,24.0007,48A23.994,23.994,0,0,0,44.78,12.0031H23.9989l-.0025.0093A11.985,11.985,0,0,1,34.3913,30.0029Z" fill="url(#haloChromeYellow)"/><path d="M13.6086,30.0031,3.218,12.006A23.994,23.994,0,0,0,24.0025,48L34.3931,30.0029l-.0067-.0068a11.9852,11.9852,0,0,1-20.7778.007Z" fill="url(#haloChromeGreen)"/></svg>',
@@ -27,11 +30,84 @@ function haloExtensionInstalled() {
   return document.documentElement.dataset.haloSessionSync === '1';
 }
 
-function extensionPromoCard() {
+function isMobileBrowser() {
+  try {
+    if (typeof navigator === 'undefined') return false;
+    if (/Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '')) {
+      return true;
+    }
+    // iPadOS desktop UA + touch
+    if (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent || '')) return true;
+    if (window.matchMedia?.('(max-width: 820px) and (pointer: coarse)').matches) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+function openHaloExtension(platform) {
+  const p = String(platform || '').trim() || null;
+  try {
+    document.dispatchEvent(new CustomEvent('halo-open-extension', { detail: { platform: p } }));
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.postMessage({ type: 'halo-open-extension', platform: p, source: 'halo-dashboard' }, '*');
+  } catch {
+    /* ignore */
+  }
+}
+
+function parseExtVersion(v) {
+  return String(v || '0')
+    .split('.')
+    .map((n) => parseInt(n, 10) || 0);
+}
+
+function extVersionAtLeast(ver, need) {
+  const a = parseExtVersion(ver);
+  const b = parseExtVersion(need);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] || 0;
+    const y = b[i] || 0;
+    if (x !== y) return x > y;
+  }
+  return true;
+}
+
+function bindExtensionPromo(platform) {
+  const btn = document.getElementById('halo-ext-open');
+  if (!btn) return;
+  btn.onclick = () => {
+    const ver = document.documentElement.dataset.haloExtVersion || '';
+    if (ver && !extVersionAtLeast(ver, '1.3.8')) {
+      toast(
+        `Dashboard sees HALO v${ver}. Upload 1.3.8 zip to the same Chrome Web Store listing (in-place update), or Reload the unpacked build until Version is 1.3.8.`,
+        true
+      );
+      return;
+    }
+    openHaloExtension(platform);
+    toast('Look for the HALO icon (green dot) in the toolbar — or a small window top-right. Pin it via the puzzle menu.');
+  };
+}
+
+function extensionPromoCard(opts = {}) {
+  // Chrome extensions cannot be installed from phone browsers.
+  if (isMobileBrowser()) return '';
   const installed = haloExtensionInstalled();
   const store = String(HALO_CHROME_STORE_URL || '').trim();
+  const platform = String(opts.platform || '').trim();
+  const ver = document.documentElement.dataset.haloExtVersion || '';
+  const stale = installed && ver && !extVersionAtLeast(ver, '1.3.8');
   const cta = installed
-    ? '<p class="li-ext-thanks">Thanks for installing HALO Session Sync.</p>'
+    ? `<div class="li-ext-actions">
+        <button type="button" class="btn primary" id="halo-ext-open"${platform ? ` data-ext-platform="${escapeAttr(platform)}"` : ''}>Open extension</button>
+        <p class="li-ext-thanks muted">${stale
+          ? `Detected v${escapeHtml(ver)} — Instagram needs 1.3.8. Update the same Chrome Web Store listing (upload new zip — overwrites in place), then check Version on chrome://extensions.`
+          : `Installed${ver ? ` · v${escapeHtml(ver)}` : ''}. Chrome may open a top-right window (toolbar popup is blocked from web pages).`}</p>
+      </div>`
     : store
       ? `<a class="g-store-btn" href="${escapeAttr(store)}" target="_blank" rel="noopener noreferrer">${ICONS.chrome}<span>Add to Chrome</span></a>`
       : `<a class="g-store-btn" href="https://chromewebstore.google.com/search/HALO%20Session%20Sync" target="_blank" rel="noopener noreferrer">${ICONS.chrome}<span>Add to Chrome</span></a>`;
@@ -41,7 +117,9 @@ function extensionPromoCard() {
       <div>
         <h3>HALO Session Sync</h3>
         <p class="muted card-lead">${installed
-          ? 'This browser already has the extension. Open it, sign in, and sync this channel.'
+          ? stale
+            ? 'An older HALO build is still active in this browser. Disable it before syncing Instagram.'
+            : 'Extension detected. Open it (or click the toolbar icon) to sync this channel.'
           : 'Sync this channel from Chrome in one click. Password sign-in stays available.'}</p>
       </div>
     </div>
@@ -55,7 +133,6 @@ const CHANNEL_DEFS = [
     label: 'LinkedIn',
     kind: 'full',
     kindLabel: 'Find + contact',
-    blurb: 'Prospect search, invites, enrich, and DMs.',
     ready: true,
   },
   {
@@ -63,7 +140,13 @@ const CHANNEL_DEFS = [
     label: 'X',
     kind: 'full',
     kindLabel: 'Find + contact',
-    blurb: 'People search, follow, enrich, and chat.',
+    ready: true,
+  },
+  {
+    id: 'instagram',
+    label: 'Instagram',
+    kind: 'full',
+    kindLabel: 'Find + contact',
     ready: true,
   },
   {
@@ -71,16 +154,21 @@ const CHANNEL_DEFS = [
     label: 'Email',
     kind: 'contact',
     kindLabel: 'Contact only',
-    blurb: 'Direct outreach by email (coming soon).',
-    ready: false,
+    ready: true,
   },
   {
     id: 'telegram',
     label: 'Telegram',
     kind: 'contact',
     kindLabel: 'Contact only',
-    blurb: 'Direct Telegram messages (coming soon).',
-    ready: false,
+    ready: true,
+  },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    kind: 'contact',
+    kindLabel: 'Contact only',
+    ready: true,
   },
 ];
 
@@ -89,9 +177,11 @@ const NAV = [
   { id: 'crm', label: 'CRM', title: 'Pipeline, leads, and CRM backend' },
   { id: 'channels', label: 'Channels', title: 'All communication channels' },
   { id: 'linkedin', label: 'LinkedIn', title: 'LinkedIn channel settings and session', channel: true },
-  { id: 'email', label: 'Email', title: 'Email outreach channel (coming soon)', channel: true },
+  { id: 'instagram', label: 'Instagram', title: 'Instagram channel session', channel: true },
+  { id: 'email', label: 'Email', title: 'Email channel — connect Gmail', channel: true },
   { id: 'x', label: 'X', title: 'X channel session', channel: true },
-  { id: 'telegram', label: 'Telegram', title: 'Telegram channel (coming soon)', channel: true },
+  { id: 'telegram', label: 'Telegram', title: 'Telegram Web session', channel: true },
+  { id: 'whatsapp', label: 'WhatsApp', title: 'WhatsApp Web session', channel: true },
   { id: 'profile', label: 'Settings', title: 'Account, billing, and integrations' },
   { id: 'brain', label: 'Brain', title: 'Sales Brain — master prompt and strategy analysis' },
   { id: 'faq', label: 'FAQ', title: 'Setup guide and quick answers' },
@@ -99,6 +189,23 @@ const NAV = [
 
 const RECENT_CHANNELS_KEY = 'halo_recent_channels';
 const RECENT_CHANNELS_MAX = 5;
+const CHANNELS_COLLAPSED_KEY = 'halo_channels_collapsed';
+
+function readChannelsCollapsed() {
+  try {
+    return localStorage.getItem(CHANNELS_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeChannelsCollapsed(on) {
+  try {
+    localStorage.setItem(CHANNELS_COLLAPSED_KEY, on ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
 
 function readRecentChannels() {
   try {
@@ -1307,6 +1414,12 @@ async function api(path, opts = {}) {
   return data;
 }
 
+/** Soft green pulse when session live; static gray when not. Replaces Active/Inactive text badges. */
+function sessionStatusDot(ok) {
+  const live = Boolean(ok);
+  return `<span class="session-status-dot${live ? ' is-live' : ''}" title="${live ? 'Session active' : 'Session inactive'}" aria-label="${live ? 'Session active' : 'Session inactive'}"></span>`;
+}
+
 function switchEl(id, checked, title) {
   return `<label class="switch" title="${escapeAttr(title || 'Toggle')}">
     <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} />
@@ -1324,7 +1437,7 @@ function unitSelect(id, unit) {
 
 const NAV_GROUPS = [
   { label: 'Overview', ids: ['dashboard', 'crm'] },
-  { label: 'Channels', ids: ['channels'], recentChannels: true },
+  { label: '', ids: ['channels'], recentChannels: true, hideLabel: true },
   { label: 'Account', ids: ['profile'] },
   { label: 'Help', ids: ['faq'] },
 ];
@@ -2189,6 +2302,46 @@ function bindExtraLinkIcons(row) {
   });
 }
 
+/** Monochrome channel marks for Conversation timestamps (inherit time color). */
+const CHANNEL_MSG_ICONS = {
+  linkedin:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/></svg>',
+  x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64z"/></svg>',
+  instagram:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.35" fill="currentColor"/></svg>',
+  email:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5L4 8V6l8 5 8-5v2z"/></svg>',
+  telegram:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>',
+  whatsapp:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.87 9.87 0 0 0 12.04 2zm0 1.82c4.46 0 8.09 3.63 8.09 8.09 0 4.46-3.63 8.09-8.09 8.09-1.42 0-2.81-.37-4.02-1.07l-.29-.17-3.12.82.83-3.04-.19-.31a8.04 8.04 0 0 1-1.21-4.32c0-4.46 3.63-8.09 8.09-8.09zm4.58 10.47c-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.92-1.18-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.48-.4-.41-.54-.42h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2 0 1.18.86 2.32.98 2.48.12.16 1.69 2.58 4.1 3.62.57.25 1.02.4 1.37.51.58.18 1.1.16 1.51.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14z"/></svg>',
+};
+
+const CHANNEL_MSG_LABELS = {
+  linkedin: 'LinkedIn',
+  x: 'X',
+  instagram: 'Instagram',
+  email: 'Email',
+  telegram: 'Telegram',
+  whatsapp: 'WhatsApp',
+};
+
+function inferNoteChannel(body) {
+  const raw = String(body || '');
+  const tagged = raw.match(/\bchannel=([a-z0-9_]+)\b/i);
+  if (tagged) {
+    const id = tagged[1].toLowerCase();
+    if (CHANNEL_MSG_ICONS[id]) return id;
+  }
+  if (/^X DM sent\b/m.test(raw) || /\bX DM sent\b/i.test(raw)) return 'x';
+  if (/\bIG (?:message|DM|ice)\b/i.test(raw) || /\binstagram\b/i.test(raw.slice(0, 120))) return 'instagram';
+  if (/\btelegram\b/i.test(raw.slice(0, 160))) return 'telegram';
+  if (/\bwhatsapp\b|\bwa\b/i.test(raw.slice(0, 160))) return 'whatsapp';
+  if (/\bemail\b|\bgmail\b/i.test(raw.slice(0, 120))) return 'email';
+  // Historical HALO notes were LinkedIn DMs
+  return 'linkedin';
+}
+
 function parseConversationNotes(notes) {
   const raw = String(notes || '').replace(/\r\n/g, '\n').trim();
   if (!raw) return [];
@@ -2199,6 +2352,7 @@ function parseConversationNotes(notes) {
     if (!header) continue;
     const at = header[1];
     const body = header[2];
+    const channel = inferNoteChannel(body);
     const hits = [];
     const re = /inbound full:|outbound full:|full message:/gi;
     let match;
@@ -2208,7 +2362,12 @@ function parseConversationNotes(notes) {
       const end = i + 1 < hits.length ? hits[i + 1].index : body.length;
       const text = body.slice(start, end).replace(/\s*\|\s*$/, '').trim();
       if (!text) continue;
-      messages.push({ side: hits[i].kind.startsWith('inbound') ? 'in' : 'out', at, text });
+      messages.push({
+        side: hits[i].kind.startsWith('inbound') ? 'in' : 'out',
+        at,
+        text,
+        channel,
+      });
     }
   }
   return messages;
@@ -2217,7 +2376,15 @@ function parseConversationNotes(notes) {
 function chatTimeLabel(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  // Always English — never browser locale (ru etc.)
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
 }
 
 function conversationChatHtml(lead) {
@@ -2232,10 +2399,16 @@ function conversationChatHtml(lead) {
   const bubbles = messages
     .map((msg) => {
       const who = msg.side === 'in' ? name : 'H.A.L.O.';
+      const when = chatTimeLabel(msg.at);
+      const ch = CHANNEL_MSG_ICONS[msg.channel] ? msg.channel : 'linkedin';
+      const chLabel = CHANNEL_MSG_LABELS[ch] || ch;
+      const chIcon = CHANNEL_MSG_ICONS[ch] || CHANNEL_MSG_ICONS.linkedin;
+      const whenHtml = when
+        ? `<span class="halo-msg-when"><span class="halo-msg-channel" title="${escapeAttr(chLabel)}" aria-label="${escapeAttr(chLabel)}">${chIcon}</span><time datetime="${escapeAttr(msg.at || '')}">${escapeHtml(when)}</time></span>`
+        : '';
       return `<div class="halo-msg halo-msg-${msg.side}">
-        <span class="halo-msg-who">${escapeHtml(who)}</span>
+        <div class="halo-msg-meta"><span class="halo-msg-who">${escapeHtml(who)}</span>${whenHtml}</div>
         <div class="halo-msg-bubble">${escapeHtml(msg.text)}</div>
-        <time>${escapeHtml(chatTimeLabel(msg.at))}</time>
       </div>`;
     })
     .join('');
@@ -2996,8 +3169,10 @@ function navProblemDot(title) {
 function navChannelBadge(id) {
   const linkedinProblem = settings?.linkedinSessionOk === false;
   const xPasscodeWarn = settings?.x?.needsPasscode === true;
+  const igProblem = settings?.channels?.instagram && settings?.igSessionOk === false;
   if (id === 'linkedin' && linkedinProblem) return navWarnBadge('LinkedIn session inactive');
   if (id === 'x' && xPasscodeWarn) return navWarnBadge('X chat passcode needed');
+  if (id === 'instagram' && igProblem) return navWarnBadge('Instagram session inactive');
   return '';
 }
 
@@ -3005,10 +3180,12 @@ function renderNav() {
   const byId = Object.fromEntries(NAV.map((n) => [n.id, n]));
   const integrationsProblem = settings?.integrationsHasProblem === true;
   const recent = readRecentChannels();
+  const channelsCollapsed = readChannelsCollapsed();
   navEl.innerHTML = NAV_GROUPS.map((g) => {
     const hubIds = g.ids || [];
     const recentIds = g.recentChannels ? recent : [];
-    const ids = [...hubIds, ...recentIds.filter((id) => !hubIds.includes(id))];
+    const showRecent = !(g.recentChannels && channelsCollapsed);
+    const ids = [...hubIds, ...(showRecent ? recentIds.filter((id) => !hubIds.includes(id)) : [])];
     const items = ids
       .map((id) => byId[id])
       .filter(Boolean)
@@ -3017,15 +3194,33 @@ function renderNav() {
         const profileWarn = n.id === 'profile' && integrationsProblem;
         const warn = channelWarn || profileWarn;
         const badge = navChannelBadge(n.id) || (profileWarn ? navProblemDot('Credentials need attention') : '');
-        const recentClass = recentIds.includes(n.id) ? ' nav-item-recent' : '';
-        return `<button type="button" class="nav-item ${page === n.id ? 'active' : ''}${warn ? ' nav-item-warn' : ''}${recentClass}" data-page="${n.id}" title="${escapeAttr(n.title)}">
-      <span class="nav-ico">${ICONS[n.id] || ICONS.channels || ''}</span><span class="label-text">${n.label}</span>${badge}
-    </button>`;
+        const recentClass = recentIds.includes(n.id) ? ' nav-item-recent nav-item-channel-child' : '';
+        const isHub = n.id === 'channels';
+        // Never nest <button> inside <button> — browser ejects the chevron onto its own row.
+        const inner = `<span class="nav-ico">${ICONS[n.id] || ICONS.channels || ''}</span><span class="label-text">${n.label}</span>${badge}`;
+        if (isHub) {
+          // Chevron to the RIGHT of Channels (same row). Never nest buttons.
+          return `<div class="nav-channels-hub-row">
+      <button type="button" class="nav-item ${page === n.id ? 'active' : ''} nav-item-channels-hub" data-page="${n.id}" title="${escapeAttr(n.title)}">${inner}</button>
+      <button type="button" class="nav-channels-collapse${channelsCollapsed ? ' is-collapsed' : ''}" data-channels-collapse title="${channelsCollapsed ? 'Show recent channels' : 'Hide recent channels'}" aria-label="${channelsCollapsed ? 'Show recent channels' : 'Hide recent channels'}" aria-expanded="${channelsCollapsed ? 'false' : 'true'}"><span class="nav-channels-chevron" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg"><path class="nav-channels-chevron-stem" d="M8 3.25v9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path class="nav-channels-chevron-head" d="M4.4 8.9 8 12.4l3.6-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+    </div>`;
+        }
+        return `<button type="button" class="nav-item ${page === n.id ? 'active' : ''}${warn ? ' nav-item-warn' : ''}${recentClass}" data-page="${n.id}" title="${escapeAttr(n.title)}">${inner}</button>`;
       })
       .join('');
     if (!items) return '';
-    return `<div class="nav-group"><div class="nav-group-label">${g.label}</div>${items}</div>`;
+    const labelHtml =
+      g.hideLabel || !g.label ? '' : `<div class="nav-group-label">${g.label}</div>`;
+    return `<div class="nav-group${g.recentChannels ? ' nav-group-channels' : ''}">${labelHtml}${items}</div>`;
   }).join('');
+  navEl.querySelectorAll('[data-channels-collapse]').forEach((btn) => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      writeChannelsCollapsed(!readChannelsCollapsed());
+      renderNav();
+    };
+  });
   navEl.querySelectorAll('[data-page]').forEach((btn) => {
     btn.onclick = () => {
       page = btn.dataset.page;
@@ -3174,13 +3369,35 @@ function bindSwitchAutosave() {
   const stageB = document.getElementById('stageB');
   const chLi = document.getElementById('ch-linkedin');
   const chX = document.getElementById('ch-x');
+  const chIg = document.getElementById('ch-instagram');
+  const chEmail = document.getElementById('ch-email');
   const chTg = document.getElementById('ch-telegram');
+  const chWa = document.getElementById('ch-whatsapp');
   const deepResearch = document.getElementById('deepResearch');
 
   const persistAndRefresh = async (patch) => {
     await persistSwitches(patch);
-    if (page === 'dashboard' || page === 'linkedin') render();
+    if (
+      page === 'dashboard' ||
+      page === 'linkedin' ||
+      page === 'instagram' ||
+      page === 'x' ||
+      page === 'email' ||
+      page === 'telegram' ||
+      page === 'whatsapp'
+    ) {
+      render();
+    }
   };
+
+  const channelPatch = () => ({
+    linkedin: chLi ? chLi.checked : settings.channels.linkedin,
+    x: chX ? chX.checked : settings.channels.x,
+    instagram: chIg ? chIg.checked : settings.channels.instagram,
+    email: chEmail ? chEmail.checked : settings.channels.email,
+    telegram: chTg ? chTg.checked : settings.channels.telegram,
+    whatsapp: chWa ? chWa.checked : settings.channels?.whatsapp,
+  });
 
   if (master) {
     master.onchange = async () => {
@@ -3196,11 +3413,7 @@ function bindSwitchAutosave() {
         stageAEnabled: on,
         stageBEnabled: on,
         _masterSource: true,
-        channels: {
-          linkedin: chLi ? chLi.checked : settings.channels.linkedin,
-          x: chX ? chX.checked : settings.channels.x,
-          telegram: chTg ? chTg.checked : settings.channels.telegram,
-        },
+        channels: channelPatch(),
       });
     };
   }
@@ -3216,11 +3429,7 @@ function bindSwitchAutosave() {
     await persistAndRefresh({
       stageAEnabled: aOn,
       stageBEnabled: bOn,
-      channels: {
-        linkedin: chLi ? chLi.checked : settings.channels.linkedin,
-        x: chX ? chX.checked : settings.channels.x,
-        telegram: chTg ? chTg.checked : settings.channels.telegram,
-      },
+      channels: channelPatch(),
     });
   };
 
@@ -3228,19 +3437,18 @@ function bindSwitchAutosave() {
   if (stageB) stageB.onchange = onStageSwitch;
 
   const onChannel = async () => {
-    await persistAndRefresh({
-      channels: {
-        linkedin: chLi ? chLi.checked : settings.channels.linkedin,
-        x: chX ? chX.checked : settings.channels.x,
-        telegram: chTg ? chTg.checked : settings.channels.telegram,
-      },
-    });
+    await persistAndRefresh({ channels: channelPatch() });
   };
-  [chLi, chX, chTg].forEach((el) => {
+  [chLi, chX, chIg, chEmail, chTg, chWa].forEach((el) => {
     if (el) el.onchange = onChannel;
   });
   if (deepResearch) {
     deepResearch.onchange = async () => {
+      if (!deepResearchUnlocked()) {
+        deepResearch.checked = false;
+        toast('DeepResearch is a Premium feature', true);
+        return;
+      }
       settings.deepResearch = deepResearch.checked;
       await persistAndRefresh({ deepResearch: deepResearch.checked });
     };
@@ -3282,6 +3490,12 @@ function infoTip(text) {
   </span>`;
 }
 
+function deepResearchUnlocked() {
+  const role = String(haloMe?.role || '').toLowerCase();
+  const ws = String(haloMe?.workspaceId || '').toLowerCase();
+  return role === 'owner' || ws === 'default' || ws === 'waffi';
+}
+
 function deepResearchInfoTip(s) {
   const tools = Array.isArray(s?.deepResearchTools) && s.deepResearchTools.length
     ? s.deepResearchTools
@@ -3292,15 +3506,23 @@ function deepResearchInfoTip(s) {
   const list = tools
     .map(
       (t) =>
-        `<li><strong>${escapeHtml(t.title || t.id || 'Tool')}</strong><span>${escapeHtml(t.blurb || '')}</span></li>`
+        `<li>
+          <span class="deep-tools-li-ico" aria-hidden="true">◆</span>
+          <span><strong>${escapeHtml(t.title || t.id || 'Tool')}</strong><span class="deep-tools-li-blurb">${escapeHtml(t.blurb || '')}</span></span>
+        </li>`
     )
     .join('');
-  return `<span class="info-tip info-tip-panel" tabindex="0">
-    <span class="info-tip-ico" aria-hidden="true">i</span>
+  return `<span class="info-tip info-tip-panel deep-info-tip" tabindex="0">
+    <span class="info-tip-ico deep-info-ico" aria-hidden="true">i</span>
     <span class="info-tip-bubble deep-tools-bubble" role="tooltip">
-      <strong class="deep-tools-title">DeepResearch pack</strong>
+      <span class="deep-tools-head">
+        <span class="deep-tools-mark" aria-hidden="true">${ICONS.deepResearch || ''}</span>
+        <strong class="deep-tools-title">DeepResearch</strong>
+        <span class="deep-premium-pill">Premium</span>
+      </span>
+      <p class="deep-tools-lead">Runs after basic enrich — before score and ice. Never opens the main profile Link.</p>
       <ul class="deep-tools-list">${list}</ul>
-      <p class="deep-tools-note">Never opens the main profile Link. More tools will appear here as they are added.</p>
+      <p class="deep-tools-note">Included on Growth+ plans. Starter cabinets see this tile locked.</p>
     </span>
   </span>`;
 }
@@ -3405,17 +3627,33 @@ function renderDashboard() {
         leadsInputId: 'dashXLeadsPerRun',
         leadsMax: 20,
       })}
-      ${channelTile('telegram', 'Telegram', s.channels.telegram, { comingSoon: true })}
+      ${channelTile('instagram', 'Instagram', s.channels.instagram, {
+        leadsPerCycle: s.instagram?.leadsPerRun ?? 3,
+        leadsPerCycleLabel: 'New IG leads per Stage A',
+        leadsEditable: true,
+        leadsInputId: 'dashIgLeadsPerRun',
+        leadsMax: 20,
+      })}
+      ${channelTile('telegram', 'Telegram', s.channels.telegram)}
+      ${channelTile('whatsapp', 'WhatsApp', s.channels?.whatsapp)}
     </div>
-    <div class="tile" title="After basic enrich, run DeepResearch before lead score and ice">
-      <h3>DeepResearch ${deepResearchInfoTip(s)}</h3>
-      <p class="muted">Off: score and ice follow basic enrich. On: DeepResearch runs first. It does not open the main profile link.</p>
-      <div class="row">${switchEl('deepResearch', !!s.deepResearch, 'Enable DeepResearch after basic enrich')}
-        <span class="muted">${s.deepResearch ? 'On' : 'Off'}</span>
+    <div class="tile deep-research-tile${deepResearchUnlocked() ? '' : ' deep-research-tile--locked'}" title="Premium: DeepResearch after basic enrich">
+      <div class="deep-research-head">
+        <span class="deep-research-ico" aria-hidden="true">${ICONS.deepResearch || ''}</span>
+        <div class="deep-research-titles">
+          <h3>DeepResearch ${deepResearchInfoTip(s)}</h3>
+          <span class="deep-premium-pill">Premium</span>
+        </div>
+      </div>
+      <div class="row deep-research-controls">
+        ${
+          deepResearchUnlocked()
+            ? `${switchEl('deepResearch', !!s.deepResearch, 'Enable DeepResearch after basic enrich')}
+        <span class="muted">${s.deepResearch ? 'On' : 'Off'}</span>`
+            : `<span class="muted">Available on Growth+ · contact WAFFi to unlock</span>`
+        }
       </div>
     </div>
-    <div class="dash-quality-row">${leadQualityCardHtml()}</div>
-
     <div class="card analytics-canvas" id="analytics-canvas">
       <div class="analytics-toolbar">
         <div class="analytics-tabs" role="tablist">
@@ -3482,6 +3720,7 @@ function renderDashboard() {
   bindSwitchAutosave();
   bindConnectInvitesAutosave();
   bindXLeadsAutosave();
+  bindIgLeadsAutosave();
   bindConnectInvitesWarn();
   bindStageBIntervalGuard();
   bindAnalyticsCanvas();
@@ -3710,6 +3949,29 @@ function traceSmoothLine(ctx, pts) {
   }
 }
 
+function analyticsChartTheme() {
+  const light = getHaloTheme() === 'light';
+  return light
+    ? {
+        panel: 'rgba(255, 255, 255, 0.92)',
+        panelStroke: 'rgba(16, 24, 40, 0.08)',
+        grid: 'rgba(16, 24, 40, 0.06)',
+        axis: 'rgba(71, 84, 103, 0.9)',
+        muted: 'rgba(102, 112, 133, 0.95)',
+        endDot: 'rgba(255,255,255,0.95)',
+        barLabel: 'rgba(16, 24, 40, 0.88)',
+      }
+    : {
+        panel: 'rgba(18, 22, 28, 0.72)',
+        panelStroke: 'rgba(255,255,255,0.07)',
+        grid: 'rgba(255,255,255,0.05)',
+        axis: 'rgba(154, 160, 166, 0.85)',
+        muted: 'rgba(154, 160, 166, 0.9)',
+        endDot: 'rgba(255,255,255,0.9)',
+        barLabel: 'rgba(226, 232, 240, 0.95)',
+      };
+}
+
 function drawAnalyticsChart(data) {
   const canvas = document.getElementById('analytics-plot');
   if (!canvas || !data) return;
@@ -3721,6 +3983,7 @@ function drawAnalyticsChart(data) {
   canvas.height = Math.floor(cssH * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssW, cssH);
+  const theme = analyticsChartTheme();
 
   const pad = { l: 48, r: 20, t: 22, b: 40 };
   const w = cssW - pad.l - pad.r;
@@ -3730,15 +3993,15 @@ function drawAnalyticsChart(data) {
 
   // chart panel
   const panelR = 14;
-  ctx.fillStyle = 'rgba(18, 22, 28, 0.72)';
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.fillStyle = theme.panel;
+  ctx.strokeStyle = theme.panelStroke;
   ctx.lineWidth = 1;
   roundRect(ctx, pad.l - 8, pad.t - 10, w + 16, h + 28, panelR);
   ctx.fill();
   ctx.stroke();
 
   // grid + y-axis
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.strokeStyle = theme.grid;
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
     const y = pad.t + (h * i) / 4;
@@ -3749,14 +4012,14 @@ function drawAnalyticsChart(data) {
   }
 
   if (!points.length || !metrics.length) {
-    ctx.fillStyle = '#9aa0a6';
+    ctx.fillStyle = theme.muted;
     ctx.font = '13px ui-sans-serif, system-ui, sans-serif';
     ctx.fillText('No data for this view yet', pad.l + 12, pad.t + h / 2);
     return;
   }
 
   if (data.chartType === 'bars') {
-    drawAnalyticsBars(ctx, { pad, w, h, cssH, points, metrics });
+    drawAnalyticsBars(ctx, { pad, w, h, cssH, points, metrics, theme });
     return;
   }
 
@@ -3774,7 +4037,7 @@ function drawAnalyticsChart(data) {
     maxY = Math.ceil(maxY * 1.12) || 1;
   }
 
-  ctx.fillStyle = 'rgba(154, 160, 166, 0.85)';
+  ctx.fillStyle = theme.axis;
   ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
   for (let i = 0; i <= 4; i++) {
     const val = Math.round(maxY - (maxY * i) / 4);
@@ -3819,13 +4082,13 @@ function drawAnalyticsChart(data) {
     ctx.arc(last.x, last.y, 3.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillStyle = theme.endDot;
     ctx.arc(last.x, last.y, 1.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
   const labelIdx = n === 1 ? [0] : n === 2 ? [0, 1] : [0, Math.floor((n - 1) / 2), n - 1];
-  ctx.fillStyle = 'rgba(154, 160, 166, 0.9)';
+  ctx.fillStyle = theme.muted;
   ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
   const spanMs = Number(data.spanMs || 0);
   const bucket = data.bucket || analyticsState.bucket || 'auto';
@@ -3847,7 +4110,7 @@ function drawAnalyticsChart(data) {
   }
 }
 
-function drawAnalyticsBars(ctx, { pad, w, h, cssH, points, metrics }) {
+function drawAnalyticsBars(ctx, { pad, w, h, cssH, points, metrics, theme = analyticsChartTheme() }) {
   const snapshot = points[0] || {};
   let maxY = 1;
   for (const m of metrics) {
@@ -3856,7 +4119,7 @@ function drawAnalyticsBars(ctx, { pad, w, h, cssH, points, metrics }) {
   }
   maxY = Math.ceil(maxY * 1.15) || 1;
 
-  ctx.fillStyle = 'rgba(154, 160, 166, 0.85)';
+  ctx.fillStyle = theme.axis;
   ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
   for (let i = 0; i <= 4; i++) {
     const val = Math.round(maxY - (maxY * i) / 4);
@@ -3882,7 +4145,7 @@ function drawAnalyticsBars(ctx, { pad, w, h, cssH, points, metrics }) {
     ctx.fillStyle = grad;
     roundRect(ctx, x, y, barW, Math.max(barH, v > 0 ? 2 : 0), 6);
     ctx.fill();
-    ctx.fillStyle = 'rgba(226, 232, 240, 0.95)';
+    ctx.fillStyle = theme.barLabel;
     ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
     ctx.fillText(String(v), x + barW / 2 - 4, y - 6);
     ctx.fillStyle = 'rgba(154, 160, 166, 0.9)';
@@ -5622,40 +5885,85 @@ function channelActiveBadge(id) {
   if (id === 'x') {
     return s.channels?.x ? '<span class="badge">enabled</span>' : '<span class="badge off">off</span>';
   }
+  if (id === 'instagram') {
+    return s.channels?.instagram
+      ? '<span class="badge">enabled</span>'
+      : '<span class="badge off">off</span>';
+  }
+  if (id === 'email') {
+    if (s.gmail?.connected) {
+      return s.channels?.email
+        ? '<span class="badge">enabled</span>'
+        : '<span class="badge">gmail</span>';
+    }
+    return '<span class="badge off">connect</span>';
+  }
+  if (id === 'telegram') {
+    if (s.telegram?.sessionOk) {
+      return s.channels?.telegram
+        ? '<span class="badge">enabled</span>'
+        : '<span class="badge">session</span>';
+    }
+    return '<span class="badge off">connect</span>';
+  }
   return '<span class="badge off">soon</span>';
 }
 
+/** Connection status for Channels hub tiles (session / OAuth — not channel on/off). */
+function channelConnectionStatus(id) {
+  const s = settings || {};
+  if (id === 'linkedin') {
+    const ok = s.session?.ok === true && !s.session?.needsCookieRepair && s.cookies?.present;
+    return { ok, label: ok ? 'Connected' : 'Not connected' };
+  }
+  if (id === 'x') {
+    const ok = s.xSessionOk === true || (s.x?.sessionOk === true && !s.x?.needsCookieRepair);
+    return { ok: Boolean(ok), label: ok ? 'Connected' : 'Not connected' };
+  }
+  if (id === 'instagram') {
+    const ok = s.igSessionOk === true || (s.instagram?.sessionOk === true && !s.instagram?.needsCookieRepair);
+    return { ok: Boolean(ok), label: ok ? 'Connected' : 'Not connected' };
+  }
+  if (id === 'email') {
+    const ok = Boolean(s.gmail?.connected);
+    return { ok, label: ok ? 'Connected' : 'Not connected' };
+  }
+  if (id === 'telegram') {
+    const ok = Boolean(s.telegram?.sessionOk);
+    return { ok, label: ok ? 'Connected' : 'Not connected' };
+  }
+  if (id === 'whatsapp') {
+    const ok = Boolean(s.whatsapp?.sessionOk);
+    return { ok, label: ok ? 'Connected' : 'Not connected' };
+  }
+  return { ok: false, label: 'Soon' };
+}
+
 function renderChannels() {
-  setPageHeader('Channels', 'Find+contact networks and contact-only inboxes');
+  setPageHeader('Channels', '');
   titleEl.title = 'Channels';
-  const full = CHANNEL_DEFS.filter((c) => c.kind === 'full');
-  const contact = CHANNEL_DEFS.filter((c) => c.kind === 'contact');
   const tile = (c) => {
+    const st = channelConnectionStatus(c.id);
     const warn =
       (c.id === 'linkedin' && settings?.linkedinSessionOk === false) ||
-      (c.id === 'x' && settings?.x?.needsPasscode === true);
-    return `<button type="button" class="channel-tile${warn ? ' channel-tile-warn' : ''}" data-open-channel="${c.id}">
+      (c.id === 'x' && settings?.x?.needsPasscode === true) ||
+      (c.id === 'instagram' && settings?.igSessionOk === false && settings?.channels?.instagram);
+    return `<button type="button" class="channel-tile${st.ok ? ' is-connected' : ''}${warn ? ' channel-tile-warn' : ''}${c.ready ? '' : ' channel-tile-soon'}" data-open-channel="${c.id}">
       <span class="channel-tile-ico" aria-hidden="true">${ICONS[c.id] || ''}</span>
-      <span class="channel-tile-body">
-        <span class="channel-tile-top">
-          <strong>${escapeHtml(c.label)}</strong>
-          ${channelActiveBadge(c.id)}
-        </span>
-        <span class="channel-tile-kind">${escapeHtml(c.kindLabel)}</span>
-        <span class="muted channel-tile-blurb">${escapeHtml(c.blurb)}</span>
-      </span>
-      <span class="channel-tile-go" aria-hidden="true">→</span>
+      <strong class="channel-tile-name">${escapeHtml(c.label)}</strong>
+      <span class="channel-tile-status${st.ok ? ' is-on' : ''}">${escapeHtml(st.label)}</span>
     </button>`;
   };
-  view.innerHTML = `<div class="channels-page">
-    <section class="channels-section">
-      <h3 class="channels-section-title">Find + contact</h3>
-      <p class="muted channels-section-lead">Search for leads and message them in the same channel.</p>
-      <div class="channels-grid">${full.map(tile).join('')}</div>
+  const find = CHANNEL_DEFS.filter((c) => c.kind === 'full');
+  const contact = CHANNEL_DEFS.filter((c) => c.kind === 'contact');
+  view.innerHTML = `<div class="channels-page channels-page-minimal">
+    <section class="channels-block" aria-labelledby="channels-find-title">
+      <h2 id="channels-find-title" class="channels-split-title">Find + connect</h2>
+      <div class="channels-grid">${find.map(tile).join('')}</div>
     </section>
-    <section class="channels-section">
-      <h3 class="channels-section-title">Contact only</h3>
-      <p class="muted channels-section-lead">Reach people you already know — no prospecting search.</p>
+    <div class="channels-split" role="separator" aria-hidden="true"></div>
+    <section class="channels-block" aria-labelledby="channels-contact-title">
+      <h2 id="channels-contact-title" class="channels-split-title">Contact only</h2>
       <div class="channels-grid">${contact.map(tile).join('')}</div>
     </section>
   </div>`;
@@ -5680,7 +5988,7 @@ function renderLinkedIn() {
       <div class="li-channel-strip-copy">
         <strong>Channel</strong>
         <span class="muted">Stage A / Stage B outreach</span>
-        ${s.channels.linkedin ? '<span class="badge">active</span>' : '<span class="badge off">off</span>'}
+        ${s.channels.linkedin ? '<span class="badge">on</span>' : '<span class="badge off">off</span>'}
       </div>
       ${switchEl('ch-linkedin', s.channels.linkedin, 'Enable LinkedIn channel')}
     </div>`;
@@ -5690,7 +5998,7 @@ function renderLinkedIn() {
         <div class="li-session-head">
           <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.linkedin}</span>
           <div class="li-session-head-text">
-            <h3>LinkedIn session <span class="badge">Active</span></h3>
+            <h3>LinkedIn session ${sessionStatusDot(true)}</h3>
             <p class="muted card-lead">Server Chromium signed in · ${s.cookies.count} cookies${sess.updatedAt ? ` · verified ${escapeHtml(sess.updatedAt)}` : ''}</p>
           </div>
         </div>
@@ -5700,7 +6008,7 @@ function renderLinkedIn() {
         <div class="li-session-head">
           <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.linkedin}</span>
           <div class="li-session-head-text">
-            <h3>LinkedIn session <span class="badge bad">Inactive</span></h3>
+            <h3>LinkedIn session ${sessionStatusDot(false)}</h3>
             <p class="muted card-lead">Sign in below. Approve the request in your LinkedIn app if asked.</p>
             ${sess.reason ? `<p class="muted" style="font-size:0.78rem;margin-top:6px">Reason: ${escapeHtml(sess.reason)}</p>` : ''}
           </div>
@@ -5748,7 +6056,7 @@ function renderLinkedIn() {
         ${channelStrip}
       </div>`;
 
-  const extensionCard = extensionPromoCard();
+  const extensionCard = extensionPromoCard({ platform: 'linkedin' });
 
   view.innerHTML = `
     <div class="li-page">
@@ -5797,6 +6105,137 @@ function renderLinkedIn() {
   bindConnectAcceptExpireControls();
   bindPortraitProspectingToggle();
   bindLinkedInSessionForm();
+  bindExtensionPromo('linkedin');
+}
+
+function igSessionOkFromSettings(s) {
+  if (s?.instagram?.sessionOk || s?.igSessionOk) return true;
+  const sess = s?.instagram?.session || s?.igSession || {};
+  const cookies = s?.instagram?.cookies || s?.igCookies || {};
+  return sess.ok === true && !sess.needsCookieRepair && cookies.present;
+}
+
+function renderInstagram() {
+  const s = settings;
+  const ig = s.instagram || {};
+  const ok = igSessionOkFromSettings(s);
+  setPageHeader('Instagram', 'Session and message-request outbound');
+  titleEl.title = 'Instagram channel';
+  touchRecentChannel('instagram');
+
+  const channelStrip = `<div class="li-channel-strip">
+      <div class="li-channel-strip-copy">
+        <strong>Channel</strong>
+        <span class="muted">Enrich → score → ice DM → Lead😴 → accept</span>
+        ${s.channels?.instagram ? '<span class="badge">on</span>' : '<span class="badge off">off</span>'}
+      </div>
+      ${switchEl('ch-instagram', !!s.channels?.instagram, 'Enable Instagram channel')}
+    </div>`;
+
+  const sessionCard = ok
+    ? `<div class="card li-session-card li-session-active" title="Instagram session is active">
+        <div class="li-session-head">
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.instagram}</span>
+          <div class="li-session-head-text">
+            <h3>Instagram session ${sessionStatusDot(true)}</h3>
+            <p class="muted card-lead">sessionid linked · ${ig.cookies?.count || 0} cookies${ig.session?.updatedAt ? ` · verified ${escapeHtml(ig.session.updatedAt)}` : ''}</p>
+          </div>
+        </div>
+        ${channelStrip}
+      </div>`
+    : `<div class="card li-session-card" title="Instagram session inactive">
+        <div class="li-session-head">
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.instagram}</span>
+          <div class="li-session-head-text">
+            <h3>Instagram session ${sessionStatusDot(false)}</h3>
+            <p class="muted card-lead">Sync via HALO Session Sync or paste EditThisCookie JSON (needs sessionid).</p>
+          </div>
+        </div>
+        ${channelStrip}
+      </div>`;
+
+  const expireOn = ig.acceptExpire !== false;
+  const stageCard = `<div class="tile tile-stage-a" title="Instagram outbound">
+      <h3>Outbound</h3>
+      <p class="muted stage-a-flow-hint">Per handle: basic enrich (no Apify) → DeepResearch if on → score → one ice DM → <strong>Lead😴</strong>. When the lead accepts the message request → <strong>Conversation 💬</strong>.</p>
+      <div class="li-stage-a-body">
+        <label class="field" title="New Instagram leads per Stage A">
+          New IG leads per Stage A
+          <input type="number" id="igLeadsPerRun" min="0" max="20" step="1" value="${Number(ig.leadsPerRun ?? 3) || 3}" />
+        </label>
+        <div class="li-stage-a-row" style="margin-top:4px">
+          <span class="li-stage-a-label">Expire Lead😴 if not accepted</span>
+          ${switchEl('igAcceptExpire', expireOn, 'Expire Lead😴 if IG message request not accepted')}
+        </div>
+        <label class="field" title="Days without accept before Lost">
+          Days to wait for message accept
+          <input type="number" id="igAcceptWaitDays" min="1" max="365" step="1" value="${Number(ig.acceptWaitDays ?? 21) || 21}" ${expireOn ? '' : 'disabled'} />
+        </label>
+        <p class="muted li-expire-hint">Targets: <code>IG_TARGET_HANDLES</code> or <code>ig_outbound_queue.json</code>. After <strong>N</strong> days without accept → <strong>Lost❌</strong>.</p>
+      </div>
+    </div>`;
+
+  view.innerHTML = `<div class="li-page">
+    ${sessionCard}
+    ${extensionPromoCard({ platform: 'instagram' })}
+    ${stageCard}
+  </div>`;
+  bindSwitchAutosave();
+  bindIgAcceptExpireControls();
+  bindIgLeadsAutosave();
+  bindExtensionPromo('instagram');
+}
+
+function bindIgAcceptExpireControls() {
+  const sw = document.getElementById('igAcceptExpire');
+  const days = document.getElementById('igAcceptWaitDays');
+  if (sw && days) {
+    sw.onchange = () => {
+      days.disabled = !sw.checked;
+    };
+  }
+}
+
+function bindIgCookiePaste() {
+  const ta = document.getElementById('ig-cookie-paste');
+  const btn = document.getElementById('ig-cookie-apply');
+  const statusEl = document.getElementById('ig-cookie-status');
+  if (!ta || !btn) return;
+  btn.onclick = async () => {
+    const text = String(ta.value || '').trim();
+    if (!text) {
+      if (statusEl) statusEl.textContent = 'Paste EditThisCookie JSON or a raw sessionid value.';
+      return;
+    }
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    if (statusEl) statusEl.textContent = 'Saving Instagram cookies…';
+    try {
+      const res = await api('/api/instagram/cookies', {
+        method: 'POST',
+        body: JSON.stringify({ cookiePaste: text }),
+      });
+      const mode = res.mode === 'editthiscookie' ? 'EditThisCookie export' : 'sessionid only';
+      const preview = res.sessionidPreview ? ` (${res.sessionidPreview})` : '';
+      const msg = `Saved ${mode}${preview} · ${res.count || 0} cookie(s). Close Instagram if it is still open.`;
+      if (statusEl) statusEl.textContent = msg;
+      toast(msg);
+      ta.value = '';
+      try {
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        renderInstagram();
+      } catch {
+        /* ignore */
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = err.message;
+      toast(err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+    }
+  };
 }
 
 function xSessionOkFromSettings(s) {
@@ -5819,7 +6258,7 @@ function renderX() {
       <div class="li-channel-strip-copy">
         <strong>Channel</strong>
         <span class="muted">Stage A searches People and inserts Lead😴 when the chat is open. Enrich comes later.</span>
-        ${s.channels.x ? '<span class="badge">active</span>' : '<span class="badge off">off</span>'}
+        ${s.channels.x ? '<span class="badge">on</span>' : '<span class="badge off">off</span>'}
       </div>
       ${switchEl('ch-x', s.channels.x, 'Enable X channel')}
     </div>
@@ -5829,12 +6268,14 @@ function renderX() {
     </label>
     <p class="muted">0 turns search off. First page of People search, follow the profile, then insert Lead😴 when the chat is open. Enrich comes later.</p>`;
 
-  const signInForm = `<form id="x-session-form" class="li-session-form" autocomplete="on">
+  const signInForm = ok
+    ? ''
+    : `<form id="x-session-form" class="li-session-form" autocomplete="on">
           <label class="field" for="x-username">Email or username
             <input id="x-username" name="username" type="text" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required />
           </label>
           <div class="row section-actions">
-            <button type="submit" class="btn primary" id="x-signin-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">${ok ? 'Sign in again' : 'Sign in'}</span></button>
+            <button type="submit" class="btn primary" id="x-signin-btn"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Sign in</span></button>
           </div>
           <p class="muted" id="x-session-status" role="status"></p>
         </form>`;
@@ -5843,9 +6284,9 @@ function renderX() {
         <div class="li-session-head">
           <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.x}</span>
           <div class="li-session-head-text">
-            <h3>X session ${ok ? '<span class="badge">Active</span>' : '<span class="badge bad">Inactive</span>'}</h3>
+            <h3>X session ${sessionStatusDot(ok)}</h3>
             <p class="muted card-lead">${ok
-              ? `Server has auth_token · ${cookies.count || 0} cookies${sess.updatedAt ? ` · verified ${escapeHtml(sess.updatedAt)}` : ''}. Sign in again to replace the session.`
+              ? `Server has auth_token · ${cookies.count || 0} cookies${sess.updatedAt ? ` · verified ${escapeHtml(sess.updatedAt)}` : ''}. Use the extension or cookie paste below to replace the session.`
               : 'Enter email or username. Code, extra username, and captcha open in a popup — same as LinkedIn.'}</p>
             ${sess.reason && !ok ? `<p class="muted" style="font-size:0.78rem;margin-top:6px">Reason: ${escapeHtml(sess.reason)}</p>` : ''}
           </div>
@@ -5870,7 +6311,7 @@ function renderX() {
         <p class="muted" id="x-cookie-status" role="status"></p>
       </details>`;
 
-  const extensionCard = extensionPromoCard();
+  const extensionCard = extensionPromoCard({ platform: 'x' });
   const needsPin = s.x?.needsPasscode === true;
   const pinSet = s.x?.passcodeSet === true;
   const passcodeCard = `<div class="card${needsPin ? ' x-passcode-needed' : ''}" id="x-passcode-card">
@@ -5898,6 +6339,7 @@ function renderX() {
   bindXSessionForm();
   bindXCookiePaste();
   bindXPasscodeForm();
+  bindExtensionPromo('x');
   if (needsPin) openXPasscodePopup();
 }
 
@@ -7239,6 +7681,71 @@ function bindXLeadsAutosave() {
   });
 }
 
+/** Dashboard IG tile ↔ Instagram page leads-per-run. */
+function bindIgLeadsAutosave() {
+  const inputs = [
+    document.getElementById('dashIgLeadsPerRun'),
+    document.getElementById('igLeadsPerRun'),
+  ].filter(Boolean);
+  if (!inputs.length) return;
+
+  const syncPeers = (source, raw) => {
+    inputs.forEach((el) => {
+      if (el === source || document.activeElement === el) return;
+      if (el.value !== raw) el.value = raw;
+    });
+  };
+
+  const normalize = (raw) => {
+    const trimmed = String(raw ?? '').trim();
+    if (trimmed === '') return null;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.min(20, Math.round(n)));
+  };
+
+  const applySaved = (n) => {
+    if (!settings.instagram) settings.instagram = {};
+    settings.instagram.leadsPerRun = n;
+    inputs.forEach((el) => {
+      if (document.activeElement === el) return;
+      const s = String(n);
+      if (el.value !== s) el.value = s;
+    });
+  };
+
+  const commit = async (input) => {
+    let n = normalize(input.value);
+    if (n == null) {
+      const prev = Number(settings.instagram?.leadsPerRun);
+      n = Number.isFinite(prev) ? prev : 3;
+    }
+    input.value = String(n);
+    syncPeers(input, input.value);
+    applySaved(n);
+    try {
+      const data = await api('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({ instagram: { leadsPerRun: n } }),
+      });
+      settings = data.settings;
+      if (settings.notifications) notifications = settings.notifications;
+      const next = Number(settings.instagram?.leadsPerRun);
+      if (Number.isFinite(next)) applySaved(next);
+    } catch (e) {
+      toast(e.message, true);
+    }
+  };
+
+  inputs.forEach((input) => {
+    input.addEventListener('input', () => syncPeers(input, input.value));
+    input.addEventListener('change', () => { void commit(input); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+  });
+}
+
 function bindSyncCapWarn() {
   const input = document.getElementById('syncMaxNew');
   const warn = document.getElementById('syncMaxWarn');
@@ -7954,6 +8461,1076 @@ function renderComing(name) {
   </div>`;
 }
 
+/** Dial codes for Telegram phone login (ISO + name + E.164). Sorted A–Z by name. */
+const TG_COUNTRY_DIALS = [
+  { iso: 'AR', name: 'Argentina', dial: '+54' },
+  { iso: 'AM', name: 'Armenia', dial: '+374' },
+  { iso: 'AU', name: 'Australia', dial: '+61' },
+  { iso: 'AT', name: 'Austria', dial: '+43' },
+  { iso: 'AZ', name: 'Azerbaijan', dial: '+994' },
+  { iso: 'BY', name: 'Belarus', dial: '+375' },
+  { iso: 'BE', name: 'Belgium', dial: '+32' },
+  { iso: 'BR', name: 'Brazil', dial: '+55' },
+  { iso: 'CA', name: 'Canada', dial: '+1' },
+  { iso: 'CZ', name: 'Czechia', dial: '+420' },
+  { iso: 'DK', name: 'Denmark', dial: '+45' },
+  { iso: 'EG', name: 'Egypt', dial: '+20' },
+  { iso: 'EE', name: 'Estonia', dial: '+372' },
+  { iso: 'FI', name: 'Finland', dial: '+358' },
+  { iso: 'FR', name: 'France', dial: '+33' },
+  { iso: 'GE', name: 'Georgia', dial: '+995' },
+  { iso: 'DE', name: 'Germany', dial: '+49' },
+  { iso: 'HK', name: 'Hong Kong', dial: '+852' },
+  { iso: 'IN', name: 'India', dial: '+91' },
+  { iso: 'ID', name: 'Indonesia', dial: '+62' },
+  { iso: 'IE', name: 'Ireland', dial: '+353' },
+  { iso: 'IL', name: 'Israel', dial: '+972' },
+  { iso: 'IT', name: 'Italy', dial: '+39' },
+  { iso: 'JP', name: 'Japan', dial: '+81' },
+  { iso: 'KZ', name: 'Kazakhstan', dial: '+7' },
+  { iso: 'LV', name: 'Latvia', dial: '+371' },
+  { iso: 'LT', name: 'Lithuania', dial: '+370' },
+  { iso: 'MX', name: 'Mexico', dial: '+52' },
+  { iso: 'MD', name: 'Moldova', dial: '+373' },
+  { iso: 'NL', name: 'Netherlands', dial: '+31' },
+  { iso: 'NZ', name: 'New Zealand', dial: '+64' },
+  { iso: 'NG', name: 'Nigeria', dial: '+234' },
+  { iso: 'NO', name: 'Norway', dial: '+47' },
+  { iso: 'PH', name: 'Philippines', dial: '+63' },
+  { iso: 'PL', name: 'Poland', dial: '+48' },
+  { iso: 'PT', name: 'Portugal', dial: '+351' },
+  { iso: 'RO', name: 'Romania', dial: '+40' },
+  { iso: 'RU', name: 'Russia', dial: '+7' },
+  { iso: 'SA', name: 'Saudi Arabia', dial: '+966' },
+  { iso: 'SG', name: 'Singapore', dial: '+65' },
+  { iso: 'SK', name: 'Slovakia', dial: '+421' },
+  { iso: 'ZA', name: 'South Africa', dial: '+27' },
+  { iso: 'KR', name: 'South Korea', dial: '+82' },
+  { iso: 'ES', name: 'Spain', dial: '+34' },
+  { iso: 'SE', name: 'Sweden', dial: '+46' },
+  { iso: 'CH', name: 'Switzerland', dial: '+41' },
+  { iso: 'TW', name: 'Taiwan', dial: '+886' },
+  { iso: 'TH', name: 'Thailand', dial: '+66' },
+  { iso: 'TR', name: 'Turkey', dial: '+90' },
+  { iso: 'UA', name: 'Ukraine', dial: '+380' },
+  { iso: 'AE', name: 'United Arab Emirates', dial: '+971' },
+  { iso: 'GB', name: 'United Kingdom', dial: '+44' },
+  { iso: 'US', name: 'United States', dial: '+1' },
+  { iso: 'UZ', name: 'Uzbekistan', dial: '+998' },
+  { iso: 'VN', name: 'Vietnam', dial: '+84' },
+].slice().sort((a, b) => a.name.localeCompare(b.name, 'en'));
+
+const TG_COUNTRY_KEY = 'halo_tg_country_iso';
+
+function tgFlagUrl(iso) {
+  return `https://flagcdn.com/w40/${String(iso || 'ua').toLowerCase()}.png`;
+}
+
+function readTgCountryIso() {
+  try {
+    const v = localStorage.getItem(TG_COUNTRY_KEY);
+    if (v && TG_COUNTRY_DIALS.some((c) => c.iso === v)) return v;
+  } catch {
+    /* ignore */
+  }
+  return 'UA';
+}
+
+function tgCountryOptionsHtml(selectedIso) {
+  return TG_COUNTRY_DIALS.map((c) => {
+    const sel = c.iso === selectedIso ? ' selected' : '';
+    return `<option value="${escapeAttr(c.iso)}" data-dial="${escapeAttr(c.dial)}"${sel}>${escapeHtml(c.name)} (${c.dial})</option>`;
+  }).join('');
+}
+
+function composeTgE164(iso, nationalRaw) {
+  const row =
+    TG_COUNTRY_DIALS.find((c) => c.iso === iso) ||
+    TG_COUNTRY_DIALS.find((c) => c.iso === 'UA') ||
+    TG_COUNTRY_DIALS[0];
+  let national = String(nationalRaw || '').replace(/\D/g, '');
+  // Drop a leading trunk 0 (common in EU / UA local format).
+  if (national.startsWith('0')) national = national.slice(1);
+  const dialDigits = row.dial.replace(/\D/g, '');
+  // If user pasted a full international number into the national field, keep it.
+  if (national.startsWith(dialDigits) && national.length > dialDigits.length + 4) {
+    return `+${national}`;
+  }
+  return `${row.dial}${national}`;
+}
+
+function renderTelegram() {
+  touchRecentChannel('telegram');
+  const s = settings || {};
+  const tg = s.telegram || {};
+  const ok = Boolean(tg.sessionOk);
+  const repair = tg.repair || {};
+  const authKind = tg.cookies?.kind || (ok ? 'storage' : 'none');
+  const tgActiveLogin = isTgLoginActive(repair.status);
+  setPageHeader('Telegram', 'Contact only — personal Telegram Web session');
+  titleEl.title = 'Telegram channel';
+
+  const channelStrip = `<div class="li-channel-strip">
+      <div class="li-channel-strip-copy">
+        <strong>Channel</strong>
+        <span class="muted">Contact only · no prospecting search</span>
+        ${s.channels?.telegram ? '<span class="badge">on</span>' : '<span class="badge off">off</span>'}
+      </div>
+      ${switchEl('ch-telegram', !!s.channels?.telegram && ok, 'Enable Telegram channel')}
+    </div>`;
+
+  const sessionLead = ok
+    ? `Web A session active (${authKind === 'storage' ? 'localStorage' : authKind})${tg.session?.updatedAt ? ` · ${escapeHtml(tg.session.updatedAt)}` : ''}`
+    : 'Telegram Web does not expose login cookies. Connect with phone + code below — HALO Session Sync cannot sync this channel.';
+
+  const sessionCard = `<div class="card li-session-card${ok ? ' li-session-active' : ''}" title="${ok ? 'Telegram session active' : 'Connect Telegram Web'}">
+        <div class="li-session-head">
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.telegram}</span>
+          <div class="li-session-head-text">
+            <h3>Telegram Web ${sessionStatusDot(ok)}</h3>
+            <p class="muted card-lead">${sessionLead}</p>
+          </div>
+        </div>
+        ${channelStrip}
+      </div>`;
+
+  const countryIso = readTgCountryIso();
+  const loginBusy = tgActiveLogin;
+  const awaitingCodeUi = isTgCodePhase(repair.status);
+  const requestingCode = loginBusy && !awaitingCodeUi;
+  const startLabel = requestingCode
+    ? 'Requesting code…'
+    : awaitingCodeUi
+      ? 'Code sent'
+      : 'Continue';
+  const loginCard = ok
+    ? ''
+    : `<div class="card tg-login-card">
+        <h3>Sign in with phone</h3>
+        <p class="muted card-lead">Pick your country, then enter the number without the country code. HALO opens <code>web.telegram.org/a</code> and asks for the login code in a popup only after Telegram sends it.</p>
+        <div class="tg-phone-row">
+          <label class="field tg-cc-field">Country
+            <div class="tg-cc-wrap">
+              <img id="tg-flag-img" class="tg-flag-img" src="${escapeAttr(tgFlagUrl(countryIso))}" width="20" height="15" alt="" decoding="async" />
+              <select id="tg-country" ${loginBusy ? 'disabled' : ''}>${tgCountryOptionsHtml(countryIso)}</select>
+            </div>
+          </label>
+          <label class="field tg-num-field">Phone number
+            <input type="tel" id="tg-phone-national" inputmode="numeric" autocomplete="tel-national" placeholder="50 123 4567" value="" ${loginBusy ? 'disabled' : ''} />
+          </label>
+        </div>
+        <p class="muted tg-phone-preview" id="tg-phone-preview" aria-live="polite"></p>
+        <div class="row section-actions">
+          <button type="button" class="btn primary${requestingCode ? ' is-loading' : ''}" id="tg-phone-start" ${loginBusy ? 'disabled' : ''}>
+            <span class="btn-spinner" aria-hidden="true"></span>
+            <span class="btn-label">${startLabel}</span>
+          </button>
+          ${loginBusy ? '<button type="button" class="btn ghost" id="tg-login-cancel-inline">Cancel</button>' : ''}
+        </div>
+        ${repair.error ? `<p class="muted" style="color:var(--danger)">${escapeHtml(repair.error)}</p>` : ''}
+        <p class="muted" id="tg-login-status" role="status">${requestingCode ? escapeHtml(tgStatusLabel(repair.status)) : ''}</p>
+      </div>`;
+
+  const advancedCard = `<details class="card tg-advanced-card">
+      <summary>Advanced — paste Web A storage (not cookies)</summary>
+      <p class="muted card-lead">EditThisCookie on <code>web.telegram.org</code> is empty by design (GramJS keeps auth in <strong>localStorage</strong>). Prefer phone + code. Fallback only: DevTools → Application → Local Storage → export JSON, or Playwright <code>storageState</code>.</p>
+      <textarea id="tg-cookie-paste" placeholder='{"dc2_auth_key":"..."} or {"cookies":[],"origins":[{"origin":"https://web.telegram.org","localStorage":[...]}]}'></textarea>
+      <div class="row section-actions">
+        <button type="button" class="btn primary" id="tg-cookie-apply">Save Telegram session</button>
+      </div>
+      <p class="muted" id="tg-cookie-status" role="status"></p>
+    </details>`;
+
+  view.innerHTML = `<div class="li-page tg-page">${sessionCard}${loginCard}${ok ? '' : advancedCard}</div>`;
+  bindSwitchAutosave();
+  bindTelegramLogin();
+  // Modal only after Telegram confirmed the login-code step (awaiting_code+).
+  if (awaitingCodeUi && !ok && !tgCodeModalDismissed) {
+    openTgCodeModal({
+      phoneMasked: repair.phoneMasked || '',
+      status: repair.status || 'awaiting_code',
+      error: repair.error || '',
+    });
+    pollTelegramRepair();
+  } else if (requestingCode && !ok) {
+    hideTgCodeModal();
+    pollTelegramRepair();
+  } else if (!loginBusy) {
+    hideTgCodeModal();
+    if (tgRepairPoll) {
+      clearInterval(tgRepairPoll);
+      tgRepairPoll = null;
+    }
+  }
+}
+
+const TG_LOGIN_ACTIVE = new Set([
+  'starting',
+  'worker_spawned',
+  'opening_web',
+  'enter_phone',
+  'awaiting_code',
+  'code_submitted',
+  'entering_code',
+]);
+
+/** Statuses where Telegram has requested a code (safe to show the code modal). */
+const TG_CODE_PHASE = new Set(['awaiting_code', 'code_submitted', 'entering_code']);
+
+function isTgLoginActive(status) {
+  return TG_LOGIN_ACTIVE.has(String(status || ''));
+}
+
+function isTgCodePhase(status) {
+  return TG_CODE_PHASE.has(String(status || ''));
+}
+
+function ensureTgCodeModal() {
+  let modal = document.getElementById('tg-code-modal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'tg-code-modal';
+  modal.className = 'tg-code-modal hidden';
+  modal.setAttribute('aria-hidden', 'true');
+  modal.innerHTML = `
+    <div class="tg-code-modal-backdrop" data-tg-modal-close></div>
+    <div class="tg-code-modal-panel" role="dialog" aria-modal="true" aria-labelledby="tg-code-modal-title">
+      <header class="tg-code-modal-head">
+        <strong id="tg-code-modal-title">Telegram login code</strong>
+        <button type="button" class="btn ghost tg-code-modal-x" data-tg-modal-close aria-label="Close">×</button>
+      </header>
+      <p class="muted tg-code-modal-lead" id="tg-code-modal-lead">Enter the code Telegram sent you.</p>
+      <p class="muted tg-code-modal-status" id="tg-code-modal-status" role="status"></p>
+      <label class="field">Code from Telegram
+        <input type="text" id="tg-code-modal-input" inputmode="numeric" autocomplete="one-time-code" placeholder="12345" />
+      </label>
+      <p class="muted" id="tg-code-modal-error" style="color:var(--danger)"></p>
+      <div class="row section-actions tg-code-modal-actions">
+        <button type="button" class="btn primary" id="tg-code-modal-submit">Submit code</button>
+        <button type="button" class="btn ghost" id="tg-code-modal-cancel">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelectorAll('[data-tg-modal-close]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      // Closing the popup cancels the in-flight login so it does not reopen on poll/re-render.
+      try {
+        await api('/api/telegram/session/cancel', { method: 'POST', body: '{}' });
+      } catch {
+        /* ignore */
+      }
+      hideTgCodeModal();
+      try {
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+      } catch {
+        /* ignore */
+      }
+      if (page === 'telegram') renderTelegram();
+    });
+  });
+  const submit = modal.querySelector('#tg-code-modal-submit');
+  const cancel = modal.querySelector('#tg-code-modal-cancel');
+  const input = modal.querySelector('#tg-code-modal-input');
+  if (submit) {
+    submit.onclick = async () => {
+      const code = String(input?.value || '').trim();
+      if (code.replace(/\D/g, '').length < 4) {
+        const err = document.getElementById('tg-code-modal-error');
+        if (err) err.textContent = 'Enter the code from Telegram';
+        return;
+      }
+      submit.disabled = true;
+      try {
+        await api('/api/telegram/session/code', {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        });
+        updateTgCodeModal({ status: 'code_submitted', error: '' });
+        toast('Code submitted — finishing login…');
+        pollTelegramRepair();
+      } catch (e) {
+        const err = document.getElementById('tg-code-modal-error');
+        if (err) err.textContent = e.message;
+        toast(e.message, true);
+        submit.disabled = false;
+      }
+    };
+  }
+  if (cancel) {
+    cancel.onclick = async () => {
+      try {
+        await api('/api/telegram/session/cancel', { method: 'POST', body: '{}' });
+        hideTgCodeModal();
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        renderTelegram();
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+  }
+  if (input) {
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') submit?.click();
+    });
+  }
+  return modal;
+}
+
+function tgStatusLabel(status) {
+  const map = {
+    starting: 'Starting…',
+    worker_spawned: 'Starting Telegram Web…',
+    opening_web: 'Opening Telegram Web…',
+    enter_phone: 'Submitting your phone number…',
+    awaiting_code: 'Enter the code from your Telegram app',
+    code_submitted: 'Code received — signing in…',
+    entering_code: 'Signing in…',
+    done: 'Connected',
+    error: 'Something went wrong',
+    needs_2fa: 'Two-step password required',
+    cancelled: 'Cancelled',
+  };
+  return map[status] || status || '…';
+}
+
+let tgCodeModalDismissed = false;
+
+function openTgCodeModal({ phoneMasked = '', status = 'starting', error = '' } = {}) {
+  tgCodeModalDismissed = false;
+  const modal = ensureTgCodeModal();
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  updateTgCodeModal({ phoneMasked, status, error });
+  const input = document.getElementById('tg-code-modal-input');
+  if (input && (status === 'awaiting_code' || status === 'enter_phone')) {
+    setTimeout(() => input.focus(), 50);
+  }
+}
+
+function updateTgCodeModal({ phoneMasked, status, error } = {}) {
+  const lead = document.getElementById('tg-code-modal-lead');
+  const statusEl = document.getElementById('tg-code-modal-status');
+  const errEl = document.getElementById('tg-code-modal-error');
+  const input = document.getElementById('tg-code-modal-input');
+  const submit = document.getElementById('tg-code-modal-submit');
+  if (lead) {
+    lead.textContent = phoneMasked
+      ? `Code sent to ${phoneMasked}. Check the Telegram app (or SMS).`
+      : 'Code sent. Check the Telegram app (or SMS).';
+  }
+  if (statusEl) statusEl.textContent = tgStatusLabel(status);
+  if (errEl) errEl.textContent = error || '';
+  const canType = status === 'awaiting_code';
+  if (input) input.disabled = !canType;
+  if (submit) {
+    submit.disabled = !canType;
+  }
+}
+
+function hideTgCodeModal({ soft = false } = {}) {
+  const modal = document.getElementById('tg-code-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  if (soft) tgCodeModalDismissed = true;
+  if (!soft) {
+    tgCodeModalDismissed = false;
+    const input = document.getElementById('tg-code-modal-input');
+    if (input) input.value = '';
+  }
+}
+
+function bindTelegramPhonePreview() {
+  const sel = document.getElementById('tg-country');
+  const national = document.getElementById('tg-phone-national');
+  const preview = document.getElementById('tg-phone-preview');
+  const flag = document.getElementById('tg-flag-img');
+  if (!sel || !national || !preview) return;
+  const paint = () => {
+    const iso = sel.value || 'UA';
+    try {
+      localStorage.setItem(TG_COUNTRY_KEY, iso);
+    } catch {
+      /* ignore */
+    }
+    if (flag) {
+      flag.src = tgFlagUrl(iso);
+      flag.alt = '';
+    }
+    const e164 = composeTgE164(iso, national.value);
+    const digits = e164.replace(/\D/g, '');
+    preview.textContent = digits.length >= 8 ? `Will sign in as ${e164}` : 'Enter your phone number';
+  };
+  sel.onchange = paint;
+  national.oninput = paint;
+  paint();
+}
+
+function bindTelegramLogin() {
+  bindTelegramPhonePreview();
+  const statusEl = document.getElementById('tg-login-status');
+  const startBtn = document.getElementById('tg-phone-start');
+  if (startBtn) {
+    startBtn.onclick = async () => {
+      const iso = document.getElementById('tg-country')?.value || 'UA';
+      const national = document.getElementById('tg-phone-national')?.value || '';
+      const phone = composeTgE164(iso, national);
+      if (phone.replace(/\D/g, '').length < 8) {
+        if (statusEl) statusEl.textContent = 'Enter a valid phone number';
+        toast('Enter a valid phone number', true);
+        return;
+      }
+      startBtn.disabled = true;
+      startBtn.classList.add('is-loading');
+      const label = startBtn.querySelector('.btn-label');
+      if (label) label.textContent = 'Requesting code…';
+      if (statusEl) statusEl.textContent = 'Starting Telegram Web…';
+      tgCodeModalDismissed = false;
+      try {
+        await api('/api/telegram/session/start', {
+          method: 'POST',
+          body: JSON.stringify({ phone }),
+        });
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        // Keep spinner on Continue until poll sees awaiting_code — no modal yet.
+        pollTelegramRepair();
+        renderTelegram();
+      } catch (e) {
+        if (statusEl) statusEl.textContent = e.message;
+        toast(e.message, true);
+        startBtn.disabled = false;
+        startBtn.classList.remove('is-loading');
+        if (label) label.textContent = 'Continue';
+      }
+    };
+  }
+  const cancelInline = document.getElementById('tg-login-cancel-inline');
+  if (cancelInline) {
+    cancelInline.onclick = async () => {
+      try {
+        await api('/api/telegram/session/cancel', { method: 'POST', body: '{}' });
+        hideTgCodeModal();
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        renderTelegram();
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+  }
+  const cookieBtn = document.getElementById('tg-cookie-apply');
+  const ta = document.getElementById('tg-cookie-paste');
+  const cookieStatus = document.getElementById('tg-cookie-status');
+  if (cookieBtn && ta) {
+    cookieBtn.onclick = async () => {
+      const text = String(ta.value || '').trim();
+      if (!text) {
+        if (cookieStatus) cookieStatus.textContent = 'Paste Web A localStorage / storageState JSON first (not EditThisCookie).';
+        return;
+      }
+      cookieBtn.disabled = true;
+      try {
+        const res = await api('/api/telegram/cookies', {
+          method: 'POST',
+          body: JSON.stringify({ cookiePaste: text }),
+        });
+        const msg = `Saved Telegram Web session (${res.count || 0} auth key(s)).`;
+        if (cookieStatus) cookieStatus.textContent = msg;
+        toast(msg);
+        ta.value = '';
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        renderTelegram();
+      } catch (e) {
+        if (cookieStatus) cookieStatus.textContent = e.message;
+        toast(e.message, true);
+      } finally {
+        cookieBtn.disabled = false;
+      }
+    };
+  }
+}
+
+let tgRepairPoll = null;
+let tgRepairLastStatus = '';
+function pollTelegramRepair() {
+  if (tgRepairPoll) clearInterval(tgRepairPoll);
+  let n = 0;
+  tgRepairPoll = setInterval(async () => {
+    n += 1;
+    if (n > 120) {
+      clearInterval(tgRepairPoll);
+      tgRepairPoll = null;
+      return;
+    }
+    try {
+      const data = await api('/api/telegram/session');
+      const st = data.repair?.status;
+      const err = data.repair?.error || '';
+      const masked = data.repair?.phoneMasked || '';
+      const statusEl = document.getElementById('tg-login-status');
+      if (statusEl && isTgLoginActive(st) && !isTgCodePhase(st)) {
+        statusEl.textContent = tgStatusLabel(st);
+      }
+      const modalEl = document.getElementById('tg-code-modal');
+      const modalOpen = modalEl && !modalEl.classList.contains('hidden');
+      // Open code popup only when Telegram has requested a code.
+      if (isTgCodePhase(st) && !tgCodeModalDismissed) {
+        if (!modalOpen) {
+          openTgCodeModal({ phoneMasked: masked, status: st, error: err });
+          if (page === 'telegram' && st !== tgRepairLastStatus) {
+            tgRepairLastStatus = st;
+            const s = await api('/api/settings');
+            settings = s.settings || settings;
+            renderTelegram();
+          }
+        } else {
+          updateTgCodeModal({ phoneMasked: masked, status: st, error: err });
+        }
+      }
+      if (data.sessionOk || st === 'done') {
+        clearInterval(tgRepairPoll);
+        tgRepairPoll = null;
+        hideTgCodeModal();
+        const s = await api('/api/settings');
+        settings = s.settings || settings;
+        toast('Telegram Web connected');
+        if (page === 'telegram') renderTelegram();
+        return;
+      }
+      if (st === 'error' || st === 'needs_2fa' || st === 'cancelled' || st === 'idle' || !isTgLoginActive(st)) {
+        clearInterval(tgRepairPoll);
+        tgRepairPoll = null;
+        hideTgCodeModal();
+        const s = await api('/api/settings');
+        settings = s.settings || settings;
+        if (page === 'telegram') renderTelegram();
+        if (st === 'error' || st === 'needs_2fa') {
+          toast(err || (st === 'needs_2fa' ? 'Two-step password required' : 'Telegram login failed'), true);
+        }
+      } else {
+        tgRepairLastStatus = st || tgRepairLastStatus;
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 2000);
+}
+
+const WA_LOGIN_ACTIVE = new Set([
+  'starting',
+  'worker_spawned',
+  'opening_web',
+  'awaiting_qr',
+  'enter_phone',
+  'awaiting_code',
+  'linking',
+  'code_submitted',
+  'entering_code',
+]);
+const WA_MODAL_PHASE = new Set([
+  'awaiting_qr',
+  'awaiting_code',
+  'enter_phone',
+  'linking',
+  'code_submitted',
+  'entering_code',
+]);
+
+function isWaLoginActive(status) {
+  return WA_LOGIN_ACTIVE.has(String(status || ''));
+}
+
+function isWaModalPhase(status) {
+  return WA_MODAL_PHASE.has(String(status || ''));
+}
+
+/** WhatsApp Web — QR first in modal; optional switch to phone linking code. */
+function renderWhatsApp() {
+  touchRecentChannel('whatsapp');
+  const s = settings || {};
+  const wa = s.whatsapp || {};
+  const ok = Boolean(wa.sessionOk);
+  const repair = wa.repair || {};
+  const loginBusy = isWaLoginActive(repair.status);
+  const modalPhase = isWaModalPhase(repair.status);
+  const requestingCode = loginBusy && !modalPhase;
+  const countryIso = readTgCountryIso();
+  const startLabel = requestingCode
+    ? 'Opening WhatsApp…'
+    : repair.status === 'awaiting_qr'
+      ? 'Scan QR'
+      : repair.status === 'awaiting_code' || repair.status === 'enter_phone'
+        ? 'Linking…'
+        : 'Continue';
+  setPageHeader('WhatsApp', 'Contact only — personal WhatsApp Web session');
+  titleEl.title = 'WhatsApp channel';
+
+  const channelStrip = `<div class="li-channel-strip">
+      <div class="li-channel-strip-copy">
+        <strong>Channel</strong>
+        <span class="muted">Contact only · no prospecting search</span>
+        ${s.channels?.whatsapp ? '<span class="badge">on</span>' : '<span class="badge off">off</span>'}
+      </div>
+      ${switchEl('ch-whatsapp', !!s.channels?.whatsapp && ok, 'Enable WhatsApp channel')}
+    </div>`;
+
+  const sessionCard = `<div class="card li-session-card${ok ? ' li-session-active' : ''}">
+        <div class="li-session-head">
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.whatsapp}</span>
+          <div class="li-session-head-text">
+            <h3>WhatsApp Web ${sessionStatusDot(ok)}</h3>
+            <p class="muted card-lead">${ok ? `Session active${wa.session?.updatedAt ? ` · ${escapeHtml(wa.session.updatedAt)}` : ''}` : 'Continue opens a popup with the WhatsApp Web QR. You can scan it, or switch to a phone linking code in the same popup.'}</p>
+          </div>
+        </div>
+        ${channelStrip}
+      </div>`;
+
+  const loginCard = ok
+    ? ''
+    : `<div class="card tg-login-card">
+        <h3>Sign in</h3>
+        <p class="muted card-lead">Enter your WhatsApp number (needed if you use the linking-code option). Continue shows a QR first — scan it in the app, or tap <strong>Show linking code</strong> in the popup.</p>
+        <div class="tg-phone-row">
+          <label class="field tg-cc-field">Country
+            <div class="tg-cc-wrap">
+              <img id="wa-flag-img" class="tg-flag-img" src="${escapeAttr(tgFlagUrl(countryIso))}" width="20" height="15" alt="" decoding="async" />
+              <select id="wa-country" ${loginBusy ? 'disabled' : ''}>${tgCountryOptionsHtml(countryIso)}</select>
+            </div>
+          </label>
+          <label class="field tg-num-field">Phone number
+            <input type="tel" id="wa-phone-national" inputmode="numeric" autocomplete="tel-national" placeholder="50 123 4567" ${loginBusy ? 'disabled' : ''} />
+          </label>
+        </div>
+        <p class="muted tg-phone-preview" id="wa-phone-preview"></p>
+        <div class="row section-actions">
+          <button type="button" class="btn primary${requestingCode ? ' is-loading' : ''}" id="wa-phone-start" ${loginBusy ? 'disabled' : ''}>
+            <span class="btn-spinner" aria-hidden="true"></span>
+            <span class="btn-label">${startLabel}</span>
+          </button>
+          ${loginBusy ? '<button type="button" class="btn ghost" id="wa-login-cancel-inline">Cancel</button>' : ''}
+        </div>
+        ${repair.error ? `<p class="muted" style="color:var(--danger)">${escapeHtml(repair.error)}</p>` : ''}
+        <p class="muted" id="wa-login-status" role="status">${requestingCode ? escapeHtml(waStatusLabel(repair.status)) : ''}</p>
+      </div>`;
+
+  view.innerHTML = `<div class="li-page tg-page">${sessionCard}${loginCard}</div>`;
+  bindSwitchAutosave();
+  bindWhatsAppLogin();
+  if (modalPhase && !ok && !waCodeModalDismissed) {
+    openWaCodeModal({
+      phoneMasked: repair.phoneMasked || '',
+      linkCode: repair.linkCode || '',
+      qrDataUrl: repair.qrDataUrl || '',
+      status: repair.status,
+      error: repair.error || '',
+    });
+    pollWhatsAppRepair();
+  } else if (requestingCode && !ok) {
+    hideWaCodeModal();
+    pollWhatsAppRepair();
+  } else if (!loginBusy) {
+    hideWaCodeModal();
+    if (waRepairPoll) {
+      clearInterval(waRepairPoll);
+      waRepairPoll = null;
+    }
+  }
+}
+
+function waStatusLabel(status) {
+  const map = {
+    starting: 'Starting…',
+    worker_spawned: 'Starting WhatsApp Web…',
+    opening_web: 'Opening WhatsApp Web…',
+    awaiting_qr: 'Scan the QR with WhatsApp on your phone',
+    enter_phone: 'Switching to phone linking code…',
+    awaiting_code: 'Enter this code in WhatsApp on your phone',
+    linking: 'Finishing link — keep WhatsApp open on your phone…',
+    code_submitted: 'Waiting for phone confirm…',
+    entering_code: 'Finishing link…',
+    done: 'Connected',
+    error: 'Something went wrong',
+    cancelled: 'Cancelled',
+  };
+  return map[status] || status || '…';
+}
+
+let waCodeModalDismissed = false;
+let waRepairPoll = null;
+let waRepairLastStatus = '';
+
+function ensureWaCodeModal() {
+  let modal = document.getElementById('wa-code-modal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'wa-code-modal';
+  modal.className = 'tg-code-modal hidden';
+  modal.innerHTML = `
+    <div class="tg-code-modal-backdrop" data-wa-modal-close></div>
+    <div class="tg-code-modal-panel wa-link-modal-panel" role="dialog" aria-modal="true">
+      <header class="tg-code-modal-head">
+        <strong id="wa-code-modal-title">Link WhatsApp</strong>
+        <button type="button" class="btn ghost tg-code-modal-x" data-wa-modal-close aria-label="Close">×</button>
+      </header>
+      <p class="muted tg-code-modal-lead" id="wa-code-modal-lead"></p>
+      <div id="wa-modal-qr-panel" class="wa-modal-panel">
+        <img id="wa-code-modal-qr" class="wa-qr-img" alt="WhatsApp QR code" width="260" height="260" />
+        <ol class="wa-link-steps muted">
+          <li>Open WhatsApp on your phone</li>
+          <li><strong>Linked devices</strong> → <strong>Link a device</strong></li>
+          <li>Scan this QR code</li>
+        </ol>
+        <div class="row section-actions">
+          <button type="button" class="btn primary" id="wa-show-phone-code">Show linking code</button>
+        </div>
+      </div>
+      <div id="wa-modal-code-panel" class="wa-modal-panel hidden">
+        <p class="wa-link-code" id="wa-code-modal-code" aria-live="polite">····-····</p>
+        <ol class="wa-link-steps muted">
+          <li>Open WhatsApp on your phone</li>
+          <li>Tap the notification, or <strong>Linked devices</strong> → <strong>Link a device</strong> → <strong>Link with phone number instead</strong></li>
+          <li>Enter the code above</li>
+        </ol>
+      </div>
+      <p class="muted tg-code-modal-status" id="wa-code-modal-status"></p>
+      <p class="muted" id="wa-code-modal-error" style="color:var(--danger)"></p>
+      <div class="row section-actions">
+        <button type="button" class="btn ghost" id="wa-code-modal-cancel">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelectorAll('[data-wa-modal-close]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      try {
+        await api('/api/whatsapp/session/cancel', { method: 'POST', body: '{}' });
+      } catch {
+        /* ignore */
+      }
+      hideWaCodeModal();
+      try {
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+      } catch {
+        /* ignore */
+      }
+      if (page === 'whatsapp') renderWhatsApp();
+    });
+  });
+  modal.querySelector('#wa-show-phone-code').onclick = async () => {
+    const btn = document.getElementById('wa-show-phone-code');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Switching…';
+    }
+    try {
+      await api('/api/whatsapp/session/prefer-phone-code', { method: 'POST', body: '{}' });
+      toast('Switching to phone linking code…');
+      document.getElementById('wa-code-modal-status').textContent = waStatusLabel('enter_phone');
+      pollWhatsAppRepair();
+    } catch (e) {
+      toast(e.message, true);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Show linking code';
+      }
+    }
+  };
+  modal.querySelector('#wa-code-modal-cancel').onclick = async () => {
+    try {
+      await api('/api/whatsapp/session/cancel', { method: 'POST', body: '{}' });
+      hideWaCodeModal();
+      const data = await api('/api/settings');
+      settings = data.settings || settings;
+      renderWhatsApp();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  };
+  return modal;
+}
+
+function paintWaModalPanels({ status, linkCode, qrDataUrl, phoneMasked, error }) {
+  const st = String(status || '');
+  const showCode = st === 'awaiting_code' || st === 'enter_phone' || Boolean(linkCode);
+  const showLinking = st === 'linking';
+  const qrPanel = document.getElementById('wa-modal-qr-panel');
+  const codePanel = document.getElementById('wa-modal-code-panel');
+  const title = document.getElementById('wa-code-modal-title');
+  const lead = document.getElementById('wa-code-modal-lead');
+  const qrImg = document.getElementById('wa-code-modal-qr');
+  const codeEl = document.getElementById('wa-code-modal-code');
+  if (showLinking) {
+    qrPanel?.classList.add('hidden');
+    codePanel?.classList.remove('hidden');
+    if (title) title.textContent = 'Finishing login…';
+    if (lead) {
+      lead.textContent =
+        'Keep WhatsApp open on your phone until this popup says Connected. Do not leave the Logging In screen early.';
+    }
+    if (codeEl) codeEl.textContent = linkCode || '…';
+  } else if (showCode) {
+    qrPanel?.classList.add('hidden');
+    codePanel?.classList.remove('hidden');
+    if (title) title.textContent = 'Enter this code on your phone';
+    if (lead) {
+      lead.textContent = phoneMasked
+        ? `Linking ${phoneMasked}. Type this code into WhatsApp on your phone.`
+        : 'Type this code into WhatsApp on your phone.';
+    }
+    if (codeEl) codeEl.textContent = linkCode || (st === 'enter_phone' ? '…' : '····-····');
+  } else {
+    codePanel?.classList.add('hidden');
+    qrPanel?.classList.remove('hidden');
+    if (title) title.textContent = 'Scan QR with WhatsApp';
+    if (lead) lead.textContent = 'Scan this QR in WhatsApp → Linked devices. Or use a linking code instead.';
+    if (qrImg && qrDataUrl) {
+      qrImg.src = qrDataUrl;
+      qrImg.classList.remove('hidden');
+    } else if (qrImg && !qrDataUrl) {
+      qrImg.removeAttribute('src');
+    }
+    const switchBtn = document.getElementById('wa-show-phone-code');
+    if (switchBtn && st === 'awaiting_qr') {
+      switchBtn.disabled = false;
+      switchBtn.textContent = 'Show linking code';
+    }
+  }
+  const statusEl = document.getElementById('wa-code-modal-status');
+  if (statusEl) statusEl.textContent = waStatusLabel(st);
+  const errEl = document.getElementById('wa-code-modal-error');
+  if (errEl) errEl.textContent = error || '';
+}
+
+function openWaCodeModal({
+  phoneMasked = '',
+  linkCode = '',
+  qrDataUrl = '',
+  status = 'awaiting_qr',
+  error = '',
+} = {}) {
+  waCodeModalDismissed = false;
+  const modal = ensureWaCodeModal();
+  modal.classList.remove('hidden');
+  paintWaModalPanels({ status, linkCode, qrDataUrl, phoneMasked, error });
+}
+
+function hideWaCodeModal() {
+  const modal = document.getElementById('wa-code-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  waCodeModalDismissed = false;
+}
+
+function bindWhatsAppLogin() {
+  const sel = document.getElementById('wa-country');
+  const national = document.getElementById('wa-phone-national');
+  const preview = document.getElementById('wa-phone-preview');
+  const flag = document.getElementById('wa-flag-img');
+  if (sel && national && preview) {
+    const paint = () => {
+      const iso = sel.value || 'UA';
+      try {
+        localStorage.setItem(TG_COUNTRY_KEY, iso);
+      } catch {
+        /* ignore */
+      }
+      if (flag) flag.src = tgFlagUrl(iso);
+      const e164 = composeTgE164(iso, national.value);
+      preview.textContent =
+        e164.replace(/\D/g, '').length >= 8 ? `Will sign in as ${e164}` : 'Enter your phone number';
+    };
+    sel.onchange = paint;
+    national.oninput = paint;
+    paint();
+  }
+  const startBtn = document.getElementById('wa-phone-start');
+  const statusEl = document.getElementById('wa-login-status');
+  if (startBtn) {
+    startBtn.onclick = async () => {
+      const iso = document.getElementById('wa-country')?.value || 'UA';
+      const phone = composeTgE164(iso, document.getElementById('wa-phone-national')?.value || '');
+      if (phone.replace(/\D/g, '').length < 8) {
+        toast('Enter a valid phone number', true);
+        return;
+      }
+      startBtn.disabled = true;
+      startBtn.classList.add('is-loading');
+      const label = startBtn.querySelector('.btn-label');
+      if (label) label.textContent = 'Requesting code…';
+      if (statusEl) statusEl.textContent = 'Starting WhatsApp Web…';
+      try {
+        await api('/api/whatsapp/session/start', { method: 'POST', body: JSON.stringify({ phone }) });
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        pollWhatsAppRepair();
+        renderWhatsApp();
+      } catch (e) {
+        toast(e.message, true);
+        if (statusEl) statusEl.textContent = e.message;
+        startBtn.disabled = false;
+        startBtn.classList.remove('is-loading');
+        if (label) label.textContent = 'Continue';
+      }
+    };
+  }
+  const cancelInline = document.getElementById('wa-login-cancel-inline');
+  if (cancelInline) {
+    cancelInline.onclick = async () => {
+      try {
+        await api('/api/whatsapp/session/cancel', { method: 'POST', body: '{}' });
+        hideWaCodeModal();
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        renderWhatsApp();
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+  }
+}
+
+function pollWhatsAppRepair() {
+  if (waRepairPoll) clearInterval(waRepairPoll);
+  let n = 0;
+  waRepairPoll = setInterval(async () => {
+    n += 1;
+    if (n > 120) {
+      clearInterval(waRepairPoll);
+      waRepairPoll = null;
+      return;
+    }
+    try {
+      const data = await api('/api/whatsapp/session');
+      const st = data.repair?.status;
+      const err = data.repair?.error || '';
+      const masked = data.repair?.phoneMasked || '';
+      const linkCode = data.repair?.linkCode || '';
+      const qrDataUrl = data.repair?.qrDataUrl || '';
+      const statusEl = document.getElementById('wa-login-status');
+      if (statusEl && isWaLoginActive(st) && !isWaModalPhase(st)) statusEl.textContent = waStatusLabel(st);
+      // Connected first — never keep painting QR after sessionOk/done
+      if (data.sessionOk || st === 'done') {
+        clearInterval(waRepairPoll);
+        waRepairPoll = null;
+        hideWaCodeModal();
+        const s = await api('/api/settings');
+        settings = s.settings || settings;
+        toast('WhatsApp Web connected');
+        if (page === 'whatsapp') renderWhatsApp();
+        return;
+      }
+      const modalEl = document.getElementById('wa-code-modal');
+      const modalOpen = modalEl && !modalEl.classList.contains('hidden');
+      if (isWaModalPhase(st) && !waCodeModalDismissed) {
+        if (!modalOpen) {
+          openWaCodeModal({ phoneMasked: masked, linkCode, qrDataUrl, status: st, error: err });
+          if (page === 'whatsapp' && st !== waRepairLastStatus) {
+            waRepairLastStatus = st;
+            const s = await api('/api/settings');
+            settings = s.settings || settings;
+            renderWhatsApp();
+          }
+        } else {
+          paintWaModalPanels({ status: st, linkCode, qrDataUrl, phoneMasked: masked, error: err });
+        }
+      }
+      if (st === 'error' || st === 'cancelled' || st === 'idle' || !isWaLoginActive(st)) {
+        clearInterval(waRepairPoll);
+        waRepairPoll = null;
+        hideWaCodeModal();
+        const s = await api('/api/settings');
+        settings = s.settings || settings;
+        if (page === 'whatsapp') renderWhatsApp();
+        if (st === 'error') toast(err || 'WhatsApp login failed', true);
+      } else {
+        waRepairLastStatus = st || waRepairLastStatus;
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 2000);
+}
+
+function renderEmail() {
+  touchRecentChannel('email');
+  const s = settings || {};
+  const g = s.gmail || {};
+  const connected = Boolean(g.connected);
+  const oauthOk = g.oauthConfigured !== false;
+  setPageHeader('Email', 'Connect Gmail to send from your Google account');
+  titleEl.title = 'Email channel';
+
+  const channelStrip = `<div class="li-channel-strip">
+      <div class="li-channel-strip-copy">
+        <strong>Channel</strong>
+        <span class="muted">Contact only — Gmail send (outreach pipeline next)</span>
+        ${s.channels?.email ? '<span class="badge">on</span>' : '<span class="badge off">off</span>'}
+      </div>
+      ${switchEl('ch-email', !!s.channels?.email && connected, 'Enable Email channel')}
+    </div>`;
+
+  const sessionCard = connected
+    ? `<div class="card li-session-card li-session-active" title="Gmail connected">
+        <div class="li-session-head">
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.email}</span>
+          <div class="li-session-head-text">
+            <h3>Gmail <span class="badge">Connected</span></h3>
+            <p class="muted card-lead">${escapeHtml(g.email || 'Google account')}${g.connectedAt ? ` · since ${escapeHtml(g.connectedAt)}` : ''}</p>
+          </div>
+        </div>
+        ${channelStrip}
+        <div class="row section-actions" style="margin-top:12px">
+          <button type="button" class="btn ghost" id="btn-gmail-disconnect">Disconnect</button>
+        </div>
+      </div>`
+    : `<div class="card li-session-card" title="Connect Gmail">
+        <div class="li-session-head">
+          <span class="li-brand-icon brand-mark" aria-hidden="true">${ICONS.email}</span>
+          <div class="li-session-head-text">
+            <h3>Gmail <span class="badge off">Not connected</span></h3>
+            <p class="muted card-lead">Sign in with Google on this dashboard. HALO only requests send access (gmail.send) and your email address.</p>
+          </div>
+        </div>
+        ${channelStrip}
+        <div class="row section-actions" style="margin-top:12px">
+          <button type="button" class="btn primary" id="btn-gmail-connect" ${oauthOk ? '' : 'disabled'}>
+            ${ICONS.google || ''} Connect Google
+          </button>
+        </div>
+        ${oauthOk ? '' : '<p class="muted" style="margin-top:8px">Owner must set GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET and PUBLIC_DASHBOARD_URL on the VPS first.</p>'}
+      </div>`;
+
+  view.innerHTML = `<div class="li-page">${sessionCard}</div>`;
+  bindSwitchAutosave();
+
+  const connectBtn = document.getElementById('btn-gmail-connect');
+  if (connectBtn) {
+    connectBtn.onclick = () => {
+      window.location.href = '/api/email/google/start?redirect=1';
+    };
+  }
+  const disconnectBtn = document.getElementById('btn-gmail-disconnect');
+  if (disconnectBtn) {
+    disconnectBtn.onclick = async () => {
+      disconnectBtn.disabled = true;
+      try {
+        await api('/api/email/google/disconnect', { method: 'POST', body: '{}' });
+        const data = await api('/api/settings');
+        settings = data.settings || settings;
+        toast('Gmail disconnected');
+        renderEmail();
+      } catch (e) {
+        toast(e.message || 'Disconnect failed', true);
+        disconnectBtn.disabled = false;
+      }
+    };
+  }
+}
+
 function secretBlockHtml(it) {
   const shown = revealed[it.key];
   const display = shown ? shown : it.secret ? it.masked || (it.set ? '••••••••' : '—') : it.value || '—';
@@ -8423,6 +10000,9 @@ function applyHaloTheme(theme) {
     btn.title = light ? 'Switch to dark theme' : 'Switch to light theme';
     btn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
     btn.innerHTML = light ? THEME_ICON_MOON : THEME_ICON_SUN;
+  }
+  if (analyticsState?.series && document.getElementById('analytics-plot')) {
+    drawAnalyticsChart(analyticsState.series);
   }
 }
 
@@ -9230,10 +10810,14 @@ function collectPatch() {
     if (sw) patch.silenceSkipWeekends = sw.checked;
     const li = document.getElementById('ch-linkedin');
     const chX = document.getElementById('ch-x');
+    const chIg = document.getElementById('ch-instagram');
     const chTg = document.getElementById('ch-telegram');
+    const chWa = document.getElementById('ch-whatsapp');
     if (li) patch.channels.linkedin = li.checked;
     if (chX) patch.channels.x = chX.checked;
+    if (chIg) patch.channels.instagram = chIg.checked;
     if (chTg) patch.channels.telegram = chTg.checked;
+    if (chWa) patch.channels.whatsapp = chWa.checked;
   }
 
   if (page === 'brain') {
@@ -9285,6 +10869,16 @@ function collectPatch() {
       connectMaxPerRun: document.getElementById('connectInvitesPerRun')?.value,
       connectAcceptExpire: document.getElementById('connectAcceptExpire')?.checked,
       connectAcceptWaitDays: document.getElementById('connectAcceptWaitDays')?.value,
+    };
+  }
+
+  if (page === 'instagram') {
+    const ch = document.getElementById('ch-instagram');
+    if (ch) patch.channels.instagram = ch.checked;
+    patch.instagram = {
+      leadsPerRun: document.getElementById('igLeadsPerRun')?.value,
+      acceptExpire: document.getElementById('igAcceptExpire')?.checked,
+      acceptWaitDays: document.getElementById('igAcceptWaitDays')?.value,
     };
   }
 
@@ -9358,8 +10952,29 @@ function setNotifyOpen(open) {
 
 function updateSaveVisibility() {
   if (!topActions) return;
-  const hide = page === 'telegram' || page === 'email' || page === 'faq' || page === 'channels';
+  const hide = page === 'faq' || page === 'channels';
   topActions.classList.toggle('no-save', hide);
+}
+
+function consumeGmailOAuthQuery() {
+  try {
+    const u = new URL(window.location.href);
+    const gmail = u.searchParams.get('gmail');
+    if (!gmail) return;
+    const msg = u.searchParams.get('msg') || '';
+    const email = u.searchParams.get('email') || '';
+    u.searchParams.delete('gmail');
+    u.searchParams.delete('msg');
+    u.searchParams.delete('email');
+    history.replaceState({}, '', u.pathname + u.search + u.hash);
+    if (gmail === 'connected') {
+      toast(email ? `Gmail connected: ${email}` : 'Gmail connected');
+    } else if (gmail === 'error') {
+      toast(msg || 'Google sign-in failed', true);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 function render() {
@@ -9374,14 +10989,12 @@ function render() {
   else if (page === 'crm') renderCrm();
   else if (page === 'channels') renderChannels();
   else if (page === 'linkedin') renderLinkedIn();
-  else if (page === 'email') {
-    touchRecentChannel('email');
-    renderComing('Email');
-  } else if (page === 'x') renderX();
-  else if (page === 'telegram') {
-    touchRecentChannel('telegram');
-    renderComing('Telegram');
-  } else if (page === 'integrations') renderIntegrations();
+  else if (page === 'instagram') renderInstagram();
+  else if (page === 'email') renderEmail();
+  else if (page === 'x') renderX();
+  else if (page === 'telegram') renderTelegram();
+  else if (page === 'whatsapp') renderWhatsApp();
+  else if (page === 'integrations') renderIntegrations();
   else if (page === 'profile') renderProfile();
   else if (page === 'brain') renderBrain();
   else if (page === 'brain-sales') renderBrainSales();
@@ -9390,6 +11003,7 @@ function render() {
 
 async function boot() {
   applyHaloTheme(getHaloTheme());
+  consumeGmailOAuthQuery();
   document.getElementById('btn-save').onclick = () => save({ restart: false });
   document.getElementById('btn-apply').onclick = () => save({ restart: true });
   document.getElementById('btn-bell').onclick = () => setNotifyOpen(!notifyOpen);
@@ -9510,7 +11124,7 @@ async function boot() {
 }
 
 document.addEventListener('halo-session-sync-ready', () => {
-  if (page === 'linkedin' || page === 'x') render();
+  if (page === 'linkedin' || page === 'x' || page === 'instagram') render();
 });
 
 boot();

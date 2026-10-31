@@ -1,7 +1,7 @@
 /**
  * Stage A step 1 — X People search in the logged-in X browser.
- * Inserts Lead😴 only when the unencrypted classic /messages composer is writable
- * (no Premium, not encrypted-only /i/chat). Follow + re-probe before CRM insert.
+ * Inserts Lead😴 when a writable DM composer opens (stranger DM OK — follow not required).
+ * Ice + send happen after enrich via xOutbound.js.
  */
 import fs from 'fs';
 import path from 'path';
@@ -235,42 +235,15 @@ export async function runXLeadSearchPhase() {
         console.log('X lead search stopped — session died during chat check. Cookies left untouched.');
         break;
       }
-      if (!gate.open || !gate.unencrypted) {
+      // Writable composer is enough — many accounts accept stranger DMs without a follow.
+      if (!gate.open) {
         skippedCards += 1;
-        console.log(`X skip @${candidate.handle}: ${gate.reason || 'not_unencrypted'}`);
+        console.log(`X skip @${candidate.handle}: ${gate.reason || 'not_open'}`);
         await pause(4000 + Math.floor(Math.random() * 3000));
         continue;
       }
       const url = canonicalXProfileUrl(candidate.handle);
       try {
-        const { followXProfile } = await import('./xFollow.js');
-        const followed = await followXProfile(candidate.handle, { context });
-        if (!followed.ok) {
-          console.log(`X follow @${candidate.handle} skipped insert: ${followed.reason}`);
-          if (followed.reason === 'auth_wall' || followed.sessionOk === false) {
-            sessionDead = true;
-            break;
-          }
-          skippedCards += 1;
-          await pause(4000 + Math.floor(Math.random() * 3000));
-          continue;
-        }
-        // Re-probe after follow — Premium “must follow you” sometimes flips; encrypted must still lose.
-        await pause(2500);
-        const afterFollow = await chatIsOpen(page, candidate.handle);
-        if (afterFollow.dead) {
-          sessionDead = true;
-          markXSessionDead('auth_wall');
-          break;
-        }
-        if (!afterFollow.open || !afterFollow.unencrypted) {
-          skippedCards += 1;
-          console.log(
-            `X skip @${candidate.handle} after follow: ${afterFollow.reason || 'not_unencrypted'} (not inserted)`
-          );
-          await pause(4000 + Math.floor(Math.random() * 3000));
-          continue;
-        }
         const created = await crm.createXLead({ url, name: candidate.name });
         inserted += 1;
         known.add(candidate.handle.toLowerCase());
@@ -278,14 +251,12 @@ export async function runXLeadSearchPhase() {
           .appendNote(
             created.id,
             [
-              followed.already ? 'X follow — already following' : 'X follow — followed before CRM insert',
-              'X message gate — unencrypted classic composer OK (no Premium)',
+              'X message gate — composer open (follow not required)',
+              gate.unencrypted ? 'classic/unencrypted composer' : `gate=${gate.reason || 'open'}`,
             ].join('\n')
           )
           .catch(() => {});
-        console.log(
-          `X Lead inserted @${candidate.handle} (${created.id}) follow=${followed.already ? 'already' : 'new'} gate=unencrypted`
-        );
+        console.log(`X Lead inserted @${candidate.handle} (${created.id}) gate=${gate.reason || 'open'}`);
       } catch (e) {
         console.error(`X insert @${candidate.handle}:`, e.message);
       }

@@ -3,6 +3,8 @@ import {
   buildSettingsView,
   countNotionStatuses,
   ingestCookiePaste,
+  ingestIgCookiePaste,
+  ingestTgCookiePaste,
   ingestXCookiePaste,
   invalidateNotionCountsCache,
   listNotifications,
@@ -10,6 +12,8 @@ import {
   markNotificationRead,
   notionConfigured,
   notionCrmUrl,
+  readIgAuthPresent,
+  readIgSessionStatus,
   readLiAtPresent,
   readSessionStatus,
   readXAuthPresent,
@@ -44,6 +48,25 @@ import {
 import { getTenantByEmail, countLeadsForWorkspace, assertTrialAllowsNewLead, waffiWorkspaceId } from './lib/tenants.js';
 import { readEnvFile } from './lib/env.js';
 import { allocateWorkspaceId } from './lib/tenantRuntime.js';
+import {
+  beginGmailOAuth,
+  finishGmailOAuth,
+  gmailConnectionStatus,
+  clearGmailOAuth,
+} from './lib/gmailOAuth.js';
+import {
+  startTgWebLogin,
+  submitTgLoginCode,
+  cancelTgWebLogin,
+  tgSessionStatusView,
+} from './lib/tgSessionRepair.js';
+import {
+  startWaWebLogin,
+  submitWaLoginCode,
+  cancelWaWebLogin,
+  requestWaPhoneLinkCode,
+  waSessionStatusView,
+} from './lib/waSessionRepair.js';
 import { browserLockStatus } from './lib/browserQueue.js';
 import {
   createCheckoutSession,
@@ -247,12 +270,36 @@ function isPublicPath(req) {
  */
 const rateBuckets = new Map();
 
+/** Loopback / RFC1918 / Docker bridge peer = a local proxy (cloudflared, docker-proxy). */
+function isLocalPeer(addr = '') {
+  const a = String(addr).replace(/^::ffff:/, '');
+  return (
+    a === '::1' ||
+    /^127\./.test(a) ||
+    /^10\./.test(a) ||
+    /^192\.168\./.test(a) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(a) ||
+    /^f[cd][0-9a-f]{2}:/i.test(a)
+  );
+}
+
+/**
+ * Client IP for rate limiting. Forwarding headers are client-controlled, so they
+ * are trusted only when the direct peer is a local proxy; a request hitting the
+ * public port directly is keyed on its socket address and cannot rotate buckets.
+ */
+function clientIp(req) {
+  const peer = req.socket?.remoteAddress || 'unknown';
+  if (!isLocalPeer(peer)) return peer;
+  const cf = String(req.headers['cf-connecting-ip'] || '').trim();
+  if (cf) return cf;
+  const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return xff || peer;
+}
+
 function rateLimit({ bucket, limit, windowMs }) {
   return (req, res, next) => {
-    const ip =
-      (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
-      req.socket?.remoteAddress ||
-      'unknown';
+    const ip = clientIp(req);
     const key = `${bucket}:${ip}`;
     const now = Date.now();
     let entry = rateBuckets.get(key);
@@ -1277,11 +1324,181 @@ app.post('/api/x/cookies', (req, res) => {
   }
 });
 
+app.post('/api/instagram/cookies', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const raw = req.body?.cookiePaste || req.body?.sessionid || req.body?.text || '';
+    const result = ingestIgCookiePaste(raw, req.tenant.workspaceId);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+/** Gmail OAuth — cabinet connects Google on Email channel page. */
+app.get('/api/email/google/status', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    res.json({ ok: true, ...gmailConnectionStatus(req.tenant.workspaceId, readEnvFile()) });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/email/google/start', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const { url } = beginGmailOAuth(req.tenant.workspaceId, readEnvFile());
+    if (String(req.query.redirect || '') === '1') return res.redirect(url);
+    res.json({ ok: true, url });
+  } catch (e) {
+    const status = /not configured/i.test(e.message || '') ? 503 : 400;
+    if (String(req.query.redirect || '') === '1') {
+      return res.redirect(`/?page=email&gmail=error&msg=${encodeURIComponent(e.message || 'OAuth failed')}`);
+    }
+    res.status(status).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/email/google/callback', async (req, res) => {
+  try {
+    const err = String(req.query.error || '').trim();
+    if (err) {
+      return res.redirect(
+        `/?page=email&gmail=error&msg=${encodeURIComponent(req.query.error_description || err)}`
+      );
+    }
+    const code = String(req.query.code || '').trim();
+    const state = String(req.query.state || '').trim();
+    if (!code || !state) {
+      return res.redirect('/?page=email&gmail=error&msg=' + encodeURIComponent('Missing OAuth code'));
+    }
+    const result = await finishGmailOAuth(code, state, readEnvFile());
+    const email = encodeURIComponent(result.email || '');
+    return res.redirect(`/?page=email&gmail=connected&email=${email}`);
+  } catch (e) {
+    return res.redirect(`/?page=email&gmail=error&msg=${encodeURIComponent(e.message || 'OAuth failed')}`);
+  }
+});
+
+app.post('/api/email/google/disconnect', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    clearGmailOAuth(req.tenant.workspaceId);
+    res.json({ ok: true, ...gmailConnectionStatus(req.tenant.workspaceId, readEnvFile()) });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+/** Telegram Web — phone + code login (personal account) + cookie paste. */
+app.get('/api/telegram/session', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    res.json({ ok: true, ...tgSessionStatusView(req.tenant.workspaceId) });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/telegram/session/start', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const phone = req.body?.phone || req.body?.number || '';
+    const view = startTgWebLogin(phone, req.tenant.workspaceId);
+    res.json({ ok: true, ...view });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/telegram/session/code', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const view = submitTgLoginCode(req.body?.code || '', req.tenant.workspaceId);
+    res.json({ ok: true, ...view });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/telegram/session/cancel', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const view = cancelTgWebLogin(req.tenant.workspaceId);
+    res.json({ ok: true, ...view });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/telegram/cookies', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const raw = req.body?.cookiePaste || req.body?.text || '';
+    const result = ingestTgCookiePaste(raw, req.tenant.workspaceId);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+/** WhatsApp Web — phone + code login (personal account). */
+app.get('/api/whatsapp/session', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    res.json({ ok: true, ...waSessionStatusView(req.tenant.workspaceId) });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/whatsapp/session/start', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const phone = req.body?.phone || req.body?.number || '';
+    const view = startWaWebLogin(phone, req.tenant.workspaceId);
+    res.json({ ok: true, ...view });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/whatsapp/session/code', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const view = submitWaLoginCode(req.body?.code || '', req.tenant.workspaceId);
+    res.json({ ok: true, ...view });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/whatsapp/session/prefer-phone-code', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const view = requestWaPhoneLinkCode(req.tenant.workspaceId);
+    res.json({ ok: true, ...view });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/whatsapp/session/cancel', (req, res) => {
+  try {
+    if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
+    const view = cancelWaWebLogin(req.tenant.workspaceId);
+    res.json({ ok: true, ...view });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
 /**
- * Chrome extension: one-click LinkedIn / X session sync.
+ * Chrome extension: one-click LinkedIn / X / Instagram session sync.
  * Auth: halo_session cookie or Authorization: Bearer <sessionToken>.
- * Body: { platform: 'linkedin'|'x', cookies: EditThisCookie-like array }
- *   or { platform, authToken?, ct0?, liAt? } for raw tokens.
+ * Body: { platform: 'linkedin'|'x'|'instagram', cookies: EditThisCookie-like array }
+ *   or { platform, authToken?, ct0?, liAt?, sessionid? } for raw tokens.
  */
 app.post('/api/extension/sync-session', extensionSyncLimiter, (req, res) => {
   try {
@@ -1348,16 +1565,33 @@ app.post('/api/extension/sync-session', extensionSyncLimiter, (req, res) => {
       });
     }
 
+    if (platform === 'instagram' || platform === 'ig') {
+      let raw = '';
+      if (cookies && cookies.length) {
+        raw = JSON.stringify(cookies);
+      } else {
+        raw = String(req.body?.sessionid || req.body?.cookiePaste || '').trim();
+      }
+      if (!raw) throw new Error('Instagram cookies or sessionid required');
+      const result = ingestIgCookiePaste(raw, ws);
+      return res.json({
+        ok: true,
+        platform: 'instagram',
+        lastSyncedAt,
+        ...result,
+      });
+    }
+
     return res.status(400).json({
       ok: false,
-      error: 'platform must be linkedin or x',
+      error: 'platform must be linkedin, x, or instagram',
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
 });
 
-/** Chrome extension: whether LinkedIn / X sessions are already live for this cabinet. */
+/** Chrome extension: whether LinkedIn / X / Instagram sessions are already live for this cabinet. */
 app.get('/api/extension/session-status', (req, res) => {
   try {
     if (!req.tenant?.workspaceId) return denyUnauthenticated(req, res);
@@ -1366,14 +1600,19 @@ app.get('/api/extension/session-status', (req, res) => {
     const cookies = readLiAtPresent(ws);
     const xSession = readXSessionStatus(ws);
     const xCookies = readXAuthPresent(ws);
+    const igSession = readIgSessionStatus(ws);
+    const igCookies = readIgAuthPresent(ws);
     const linkedinActive =
       session?.ok === true && !session?.needsCookieRepair && Boolean(cookies?.present);
     const xActive =
       xSession?.ok === true && !xSession?.needsCookieRepair && Boolean(xCookies?.present);
+    const igActive =
+      igSession?.ok === true && !igSession?.needsCookieRepair && Boolean(igCookies?.present);
     return res.json({
       ok: true,
       linkedin: { active: linkedinActive, cookiesPresent: Boolean(cookies?.present) },
       x: { active: xActive, cookiesPresent: Boolean(xCookies?.present) },
+      instagram: { active: igActive, cookiesPresent: Boolean(igCookies?.present) },
     });
   } catch (e) {
     return res.status(400).json({ ok: false, error: e.message });

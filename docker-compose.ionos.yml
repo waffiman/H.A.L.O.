@@ -40,15 +40,15 @@ services:
     container_name: outreach-dashboard
     restart: unless-stopped
     ports:
+      # Local only (SSH tunnel / cloudflared). Public traffic goes through caddy (HTTPS).
       - "127.0.0.1:3080:3080"
-      # Public HTTP landing (trycloudflare is blocked by many ISPs / adblockers).
-      - "80:3080"
     env_file:
       - .env
     environment:
       - PORT=3080
       - APP_ROOT=/app-data
       - HOST_APP_ROOT=/root/cold-outreach-agent
+      - HALO_COOKIE_SECURE=1
     volumes:
       - .:/app-data
       # Same tree at host path so `docker compose --project-directory $HOST_APP_ROOT` can see .env inside this container
@@ -57,3 +57,26 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
+
+  # Public HTTPS front door: Let's Encrypt cert for HALO_DOMAIN, 80 → 443 redirect.
+  # Set HALO_DOMAIN in .env (DNS A record → this VPS) before `up -d caddy`.
+  caddy:
+    image: caddy:2.8.4
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - HALO_DOMAIN=${HALO_DOMAIN:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - outreach-dashboard
+
+volumes:
+  caddy_data:
+  caddy_config:

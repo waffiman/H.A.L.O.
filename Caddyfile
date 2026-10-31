@@ -1,0 +1,20 @@
+# Public HTTPS for the H.A.L.O. dashboard (docker-compose.ionos.yml → caddy).
+# Caddy obtains/renews the Let's Encrypt cert for HALO_DOMAIN and redirects
+# http:// → https:// automatically.
+{$HALO_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy outreach-dashboard:3080 {
+		# The dashboard trusts CF-Connecting-IP from local peers (rate limiter).
+		# Caddy is a local peer, so never pass a client-supplied value through.
+		header_up -CF-Connecting-IP
+		# Caddy replaces untrusted X-Forwarded-For with the real client IP.
+	}
+}

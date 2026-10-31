@@ -22,6 +22,12 @@ function premiumBlockedText(text) {
   );
 }
 
+function followRequiredText(text) {
+  return /follow(ing)? (them|this account|each other) to (send|message)|you (need|must|have) to follow|only (people|accounts) (they|this account) follow|message requests? (are )?limited|can.?t message this account until you follow/i.test(
+    String(text || '')
+  );
+}
+
 function encryptedChatText(text) {
   return /encrypted chat|end-to-end encrypted|this conversation is encrypted|chat is encrypted/i.test(
     String(text || '')
@@ -114,12 +120,20 @@ export async function probeXMessageability(page, handle) {
   const byRole = page.getByRole('button', { name: /^message$/i }).first();
   const hasTestId = (await testId.count().catch(() => 0)) > 0;
   const hasRole = (await byRole.count().catch(() => 0)) > 0;
-  if (!hasTestId && !hasRole) return gateFail(page, 'no message button');
+
+  /** @type {import('playwright').Page} */
+  let target = page;
+  if (!hasTestId && !hasRole) {
+    // Stranger DMs often have no profile Message CTA — try classic compose search.
+    const viaCompose = await tryComposeByHandleGate(page, clean);
+    if (viaCompose) return viaCompose;
+    return gateFail(page, 'no message button');
+  }
 
   const popupPromise = page.context().waitForEvent('page', { timeout: 4000 }).catch(() => null);
   await (hasTestId ? testId : byRole).click({ timeout: 8000 }).catch(() => {});
   const popup = await popupPromise;
-  const target = popup || page;
+  target = popup || page;
   await target.waitForTimeout(2200);
   await acceptCookies(target);
 
@@ -173,11 +187,68 @@ export async function probeXMessageability(page, handle) {
   await target.waitForTimeout(1500);
   text = await bodyText(target);
   if (premiumBlockedText(text)) return gateFail(target, 'x_premium_required');
+  if (followRequiredText(text)) return gateFail(target, 'x_follow_required');
   if (await classicComposerVisible(target)) {
     return { open: true, reason: 'composer_retry', unencrypted: true };
   }
   if (/\/i\/chat\//i.test(target.url()) && encryptedChatText(text)) {
     return gateFail(target, 'x_encrypted_only');
   }
+  // Last resort: compose-by-handle (same path sendXDm prefers for strangers).
+  const viaCompose = await tryComposeByHandleGate(page, clean);
+  if (viaCompose) return viaCompose;
   return gateFail(target, 'no_unencrypted_composer');
+}
+
+async function tryComposeByHandleGate(page, handle) {
+  await page.goto('https://x.com/messages/compose', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+  await page.waitForTimeout(1400);
+  await acceptCookies(page);
+  if (isLoginWall(page.url())) return { dead: true, open: false, reason: 'login', unencrypted: false };
+  if (/pin\/recovery/i.test(page.url())) {
+    const unlocked = await unlockChatPasscode(page);
+    if (!unlocked) {
+      if (!xChatPasscodePresent()) markXPasscodeRequired('pin_recovery');
+      return gateFail(page, 'x_chat_passcode');
+    }
+  }
+  let text = await bodyText(page);
+  if (premiumBlockedText(text)) return gateFail(page, 'x_premium_required');
+  if (followRequiredText(text)) return gateFail(page, 'x_follow_required');
+
+  const search = page
+    .locator(
+      '[data-testid="searchPeople"], input[placeholder*="Search"], input[aria-label*="Search"], [role="combobox"]'
+    )
+    .first();
+  if ((await search.count().catch(() => 0)) === 0) return null;
+  await search.click({ timeout: 4000 }).catch(() => {});
+  await search.fill(`@${handle}`).catch(async () => {
+    await page.keyboard.type(`@${handle}`, { delay: 40 });
+  });
+  await page.waitForTimeout(1600);
+  const hit = page
+    .locator(`[data-testid="TypeaheadUser"] >> text=@${handle}`)
+    .or(page.getByRole('option', { name: new RegExp(`@?${handle}`, 'i') }))
+    .or(page.locator(`text=@${handle}`))
+    .first();
+  if ((await hit.count().catch(() => 0)) > 0) {
+    await hit.click({ timeout: 5000 }).catch(() => {});
+  } else {
+    await page.keyboard.press('Enter').catch(() => {});
+  }
+  await page.waitForTimeout(1800);
+  const next = page.getByRole('button', { name: /^next$/i }).first();
+  if ((await next.count().catch(() => 0)) > 0) {
+    await next.click({ timeout: 4000 }).catch(() => {});
+    await page.waitForTimeout(1200);
+  }
+  text = await bodyText(page);
+  if (premiumBlockedText(text)) return gateFail(page, 'x_premium_required');
+  if (followRequiredText(text)) return gateFail(page, 'x_follow_required');
+  if (CLOSED_INBOX_RE.test(text)) return gateFail(page, 'closed inbox');
+  if (await classicComposerVisible(page)) {
+    return { open: true, reason: 'compose_by_handle', unencrypted: true };
+  }
+  return null;
 }

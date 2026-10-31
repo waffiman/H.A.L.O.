@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /** One-shot X People search (step 1). Does not run LinkedIn Stage A or the scheduler. */
 import dotenv from 'dotenv';
+import { applyTenantEnv } from '../tenantEnv.js';
 import path from 'path';
 
 dotenv.config({ override: true });
-if (process.env.TENANT_DATA_ROOT) {
-  dotenv.config({ path: path.join(process.env.TENANT_DATA_ROOT, 'tenant.env'), override: true });
-}
+applyTenantEnv();
 
 process.env.X_SEARCH_ONESHOT = '1';
 process.env.CHANNEL_X_ENABLED = '1';

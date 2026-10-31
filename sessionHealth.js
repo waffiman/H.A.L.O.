@@ -53,6 +53,11 @@ function parseEnvFile(envPath) {
 export function patchEnvFile(updates = {}, envPath = defaultEnvPath()) {
   const keys = Object.keys(updates || {});
   if (!keys.length) return;
+  for (const key of keys) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || /[\r\n\0]/.test(String(updates[key]))) {
+      throw new Error(`patchEnvFile: unsafe entry ${key.slice(0, 40)}`);
+    }
+  }
   let text = '';
   try {
     text = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';

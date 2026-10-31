@@ -2,7 +2,7 @@
  * Supabase CRM adapter — PostgREST fetch (Node 20 safe).
  */
 import { profileSlugFromUrl, canonicalProfileUrl } from '../connectionsSync.js';
-import { canonicalXProfileUrl, channelFromUrl } from '../leadChannel.js';
+import { canonicalInstagramProfileUrl, canonicalXProfileUrl, channelFromUrl } from '../leadChannel.js';
 import { normalizeExtraLinks } from '../leadLinks.js';
 import { STATUS_LEAD } from './constants.js';
 import { restDelete, restFetchAll, restInsert, restSelect, restUpdate, workspaceId } from './supabaseRest.js';
@@ -154,6 +154,23 @@ export async function createXLead({ url, name = '' } = {}) {
     status: STATUS_LEAD,
     ice_breaker: '',
     notes: '',
+    processing_at: new Date().toISOString(),
+  });
+  return { id: row.id, url: cleanUrl, name: titleName };
+}
+
+export async function createIgLead({ url, name = '', ice = '', about = '' } = {}) {
+  const cleanUrl = canonicalInstagramProfileUrl(url);
+  if (!cleanUrl) throw new Error(`Invalid Instagram URL: ${url}`);
+  const titleName = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const iceText = String(ice || '').trim().slice(0, 2000);
+  const row = await restInsert('leads', {
+    workspace_id: workspaceId(),
+    name: titleName,
+    link: cleanUrl,
+    status: STATUS_LEAD,
+    ice_breaker: iceText,
+    notes: String(about || '').trim().slice(0, 4000),
     processing_at: new Date().toISOString(),
   });
   return { id: row.id, url: cleanUrl, name: titleName };

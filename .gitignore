@@ -145,3 +145,34 @@ backup_vps_sync_*/
 
 dashboard/timezoneResolver.js
 dashboard/locationTimezone.js
+
+# Runtime state that lives on the VPS (synced 2026-10-31) — never commit.
+# Session tokens / jars for every channel
+*_storage_state.json
+*_cookies*.json
+*_session_status.json
+*_session_repair.json
+*_session_repair_input.jsonl
+*_passcode_state.json
+# PII / auth flows
+email_verifications.json
+notifications.json
+analytics_history.json
+connect_sent_slugs.json
+connect_run_status.json
+connections_sync_state.json
+last_stage_a_oneshot.json
+supabase_keepalive_state.json
+brain_llm_health.json
+brain/analysis_state.json
+backups/
+# Debug captures (screenshots contain lead names/profiles)
+/*.png
+/*_probe*.json
+/*_probe*.mjs
+/tg_ui_probe_tmp.mjs
+/fb_send_once.json
+/tg_send_probe.json
+/login_debug_*.html
+/N8N_PUBLIC_URL.txt
+/dashboard-public-url.txt

@@ -11,7 +11,7 @@ invariant in the system.
 flowchart TD
   Boot(["container start"]) --> Flag{"force_run_once.json?<br/>(dashboard Save and restart)"}
   Flag -->|yes| Once["consumeForceRunOnceFlag<br/>run enabled stages once: A then B<br/>Stage A with CONNECT_PRIORITY"]
-  Flag -->|no| Cold{"cold recreate, LinkedIn +<br/>outbound connect on,<br/>BOOT_FORCE_STAGE_A≠0?"}
+  Flag -->|no| Cold{"cold recreate, LinkedIn +<br/>outbound connect on,<br/>BOOT_FORCE_STAGE_A=1 (opt-in)?"}
   Cold -->|yes| ForceA["force one Stage A"]
   Cold -->|no| Loops
   Once --> Loops

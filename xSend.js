@@ -91,37 +91,67 @@ function premiumBlockedText(text) {
   );
 }
 
+function followRequiredText(text) {
+  return /follow(ing)? (them|this account|each other) to (send|message)|you (need|must|have) to follow|only (people|accounts) (they|this account) follow|message requests? (are )?limited|can.?t message this account until you follow/i.test(
+    String(text || '')
+  );
+}
+
 async function isPremiumGate(page) {
+  // Only real DM walls — never sidebar "Premium" nav, "Subscribe to Premium" cards,
+  // or opaque chat shells (paywallScrim often wraps pin/recovery with empty text).
   const body = await page.locator('body').innerText().catch(() => '');
   if (premiumBlockedText(body)) return true;
-  const cta = page.getByRole('button', { name: /get premium|upgrade|subscribe/i }).first();
-  if ((await cta.count().catch(() => 0)) > 0) {
-    const dialog = page.locator('[role="dialog"], [data-testid="sheetDialog"]').first();
-    if ((await dialog.count().catch(() => 0)) > 0) return true;
+  const dialog = page.locator('[role="dialog"], [data-testid="sheetDialog"]').first();
+  if ((await dialog.count().catch(() => 0)) > 0) {
+    const dialogText = await dialog.innerText().catch(() => '');
+    if (premiumBlockedText(dialogText)) return true;
   }
   return false;
 }
 
+async function isFollowRequiredGate(page) {
+  const body = await page.locator('body').innerText().catch(() => '');
+  return followRequiredText(body);
+}
+
+function looksLikeDmSurface(url) {
+  const u = String(url || '');
+  return /\/messages(\/|$|\?)|\/i\/chat(\/|$|\?)/i.test(u);
+}
+
 async function composerInput(page) {
-  await dismissChatOverlays(page);
+  // Never Escape on /i/chat — dismissChatOverlays closes the thread.
+  // Never match the home tweet box (tweetTextarea_*) — that caused false "sends".
+  if (!looksLikeDmSurface(page.url())) return null;
   const selectors = [
     '[data-testid="dmComposerTextInput"]',
     '[data-testid="dmComposerFocusTextInput"]',
     '[data-testid="messageEntry"] [role="textbox"]',
     '[data-testid="messageEntry"] [contenteditable="true"]',
-    'aside [role="textbox"]',
     '[data-testid="DMDrawer"] [role="textbox"]',
-    '[role="dialog"] [role="textbox"]',
-    '[role="dialog"] [contenteditable="true"]',
+    '[data-testid="DMDrawer"] [contenteditable="true"]',
+    '[data-testid="dmComposer"] [role="textbox"]',
+    '[data-testid="dmComposer"] [contenteditable="true"]',
+    '[role="dialog"] [data-testid="dmComposerTextInput"]',
+    '[role="dialog"] [data-testid="dmComposerFocusTextInput"]',
     '[data-testid="xchatEmbedRoute"] [contenteditable="true"]',
     '[data-testid="xchatEmbedRoute"] [role="textbox"]',
-    'div[contenteditable="true"][data-testid]',
-    'div[role="textbox"][contenteditable="true"]',
+    // Encrypted Chat shell after pin unlock — placeholder "Unencrypted message"
+    '[data-testid="xchatEmbedRoute"] div[contenteditable="true"]',
+    'div[contenteditable="true"][aria-label*="message" i]',
+    'div[role="textbox"][aria-label*="message" i]',
+    'div[contenteditable="true"][data-placeholder*="message" i]',
+    // Last resort inside messages/chat only — still exclude tweet composer.
+    '[data-testid="conversation"] [contenteditable="true"]:not([data-testid*="tweet"])',
+    'aside div[contenteditable="true"]:not([data-testid*="tweet"])',
   ];
   for (const selector of selectors) {
     const input = page.locator(selector).first();
     if ((await input.count().catch(() => 0)) === 0) continue;
     if (!(await input.isVisible().catch(() => false))) continue;
+    const tid = await input.getAttribute('data-testid').catch(() => '');
+    if (tid && /tweetTextarea/i.test(tid)) continue;
     return input;
   }
   // X Chat sometimes nests the editor in an iframe.
@@ -130,11 +160,17 @@ async function composerInput(page) {
     try {
       const handle = await frame
         .locator(
-          '[data-testid="dmComposerTextInput"], [role="textbox"][contenteditable="true"], div[contenteditable="true"]'
+          '[data-testid="dmComposerTextInput"], [data-testid="dmComposerFocusTextInput"], [data-testid="messageEntry"] [contenteditable="true"]'
         )
         .first()
         .elementHandle({ timeout: 800 });
-      if (handle) return frame.locator(':scope').locator('[contenteditable="true"], [role="textbox"]').first();
+      if (handle) {
+        return frame
+          .locator(
+            '[data-testid="dmComposerTextInput"], [data-testid="dmComposerFocusTextInput"], [data-testid="messageEntry"] [contenteditable="true"]'
+          )
+          .first();
+      }
     } catch {
       /* next frame */
     }
@@ -272,13 +308,20 @@ async function tryComposeByHandle(page, handle) {
   }
   const waited = await waitForComposer(page);
   if (waited.premium) return { open: false, reason: 'x_premium_required' };
-  if (waited.input) return { open: true, input: waited.input, page };
+  if (waited.input && looksLikeDmSurface(page.url())) {
+    return { open: true, input: waited.input, page };
+  }
+  if (await isPremiumGate(page)) return { open: false, reason: 'x_premium_required' };
+  if (await isFollowRequiredGate(page)) return { open: false, reason: 'x_follow_required' };
   return null;
 }
 
 async function openComposer(page, handle) {
+  // Profile Message → pin unlock works for this account. Do NOT Escape/dismiss overlays
+  // before the composer is found (that closes /i/chat and dumps us on /home).
+  // Compose-by-handle is a last resort only.
   await page.goto(`https://x.com/${handle}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1800);
   await acceptCookies(page);
   if (isLoginWall(page.url())) return { dead: true, reason: 'login' };
   const before = await page.locator('body').innerText().catch(() => '');
@@ -291,9 +334,8 @@ async function openComposer(page, handle) {
   const hasTestId = (await testId.count().catch(() => 0)) > 0;
   const hasRole = (await byRole.count().catch(() => 0)) > 0;
   if (!hasTestId && !hasRole) {
-    // Profile may hide Message until follow settles — try compose-by-handle.
     const viaCompose = await tryComposeByHandle(page, handle);
-    if (viaCompose) return viaCompose;
+    if (viaCompose?.open && looksLikeDmSurface((viaCompose.page || page).url())) return viaCompose;
     const ui = await noteUi(page, 'no message button');
     return { open: false, reason: 'no message button', ui };
   }
@@ -302,35 +344,56 @@ async function openComposer(page, handle) {
   await (hasTestId ? testId : byRole).click({ timeout: 8000 });
   const popup = await popupPromise;
   let target = popup || page;
-  await target.waitForTimeout(2500);
+  await target.waitForTimeout(2800);
   await acceptCookies(target);
-  await dismissChatOverlays(target);
 
-  if (/\/i\/chat\/pin\/recovery/i.test(target.url())) {
-    const unlocked = await unlockChatPasscode(target);
-    if (!unlocked && !xChatPasscodePresent()) {
-      markXPasscodeRequired('pin_recovery');
-      const ui = await noteUi(target, 'x chat passcode');
-      return { open: false, reason: 'x_chat_passcode', ui };
+  if (/pin\/recovery/i.test(target.url()) || /enter passcode|encryption keys/i.test(before)) {
+    const bodyNow = await target.locator('body').innerText().catch(() => '');
+    if (/pin\/recovery/i.test(target.url()) || /enter passcode|encryption keys/i.test(bodyNow)) {
+      const unlocked = await unlockChatPasscode(target);
+      if (!unlocked) {
+        if (!xChatPasscodePresent()) markXPasscodeRequired('pin_recovery');
+        const ui = await noteUi(target, 'x chat passcode');
+        return { open: false, reason: 'x_chat_passcode', ui };
+      }
+      await target.waitForTimeout(2200);
     }
   }
 
   if (isLoginWall(target.url())) return { dead: true, reason: 'login' };
 
-  let waited = await waitForComposer(target, { tries: 5, delayMs: 1400 });
+  let waited = await waitForComposer(target, { tries: 8, delayMs: 1200 });
   if (waited.premium) {
     console.log(`X DM not sent — Premium required for @${handle}.`);
     return { open: false, reason: 'x_premium_required' };
   }
   if (waited.input) return { open: true, input: waited.input, page: target };
 
-  // Classic desktop messaging often has a real composer when /i/chat embed does not.
+  // Placeholder-based find for encrypted Chat shell ("Unencrypted message")
+  const byPlaceholder = target
+    .getByPlaceholder(/unencrypted message|start a message|message/i)
+    .or(target.locator('[data-placeholder*="message" i], [aria-placeholder*="message" i]'))
+    .first();
+  if ((await byPlaceholder.count().catch(() => 0)) > 0 && (await byPlaceholder.isVisible().catch(() => false))) {
+    return { open: true, input: byPlaceholder, page: target };
+  }
+  const editables = target.locator('div[contenteditable="true"]');
+  const editCount = await editables.count().catch(() => 0);
+  for (let i = 0; i < Math.min(editCount, 8); i++) {
+    const el = editables.nth(i);
+    if (!(await el.isVisible().catch(() => false))) continue;
+    const tid = String((await el.getAttribute('data-testid').catch(() => '')) || '');
+    if (/tweetTextarea/i.test(tid)) continue;
+    const box = await el.boundingBox().catch(() => null);
+    if (!box || box.height < 20) continue;
+    // Prefer bottom-of-viewport composers (chat input), not nav junk.
+    if (box.y > 400) return { open: true, input: el, page: target };
+  }
+
   const peers = peerIdsFromChatUrl(target.url());
   const classic = await tryClassicMessages(target, peers);
-  if (classic) return classic;
-
-  const viaCompose = await tryComposeByHandle(target, handle);
-  if (viaCompose) return viaCompose;
+  if (classic?.open) return classic;
+  if (classic?.reason) return classic;
 
   if (/pin\/recovery/i.test(target.url())) {
     if (!xChatPasscodePresent()) markXPasscodeRequired('pin_recovery');
@@ -340,8 +403,66 @@ async function openComposer(page, handle) {
   if (await isPremiumGate(target)) {
     return { open: false, reason: 'x_premium_required' };
   }
+  if (await isFollowRequiredGate(target)) {
+    return { open: false, reason: 'x_follow_required' };
+  }
   const ui = await noteUi(target, 'composer not found');
   return { open: false, reason: 'composer not found', ui };
+}
+
+async function confirmDmVisible(page, needle, handle = '') {
+  const tip = String(needle || '').trim();
+  const tipShort = tip.slice(0, Math.min(28, tip.length));
+  const h = String(handle || '').replace(/^@/, '').trim();
+  if (!tip) return false;
+  for (let i = 0; i < 6; i++) {
+    // Main frame (classic /messages)
+    const body = await page.locator('body').innerText().catch(() => '');
+    if (tipShort && body.includes(tipShort)) return true;
+
+    // Chat list preview: "You: Hi …" (xchat shell often hides bubble text from body.innerText)
+    const youPreview = page.locator('text=/^You:\\s*/i').first();
+    if ((await youPreview.count().catch(() => 0)) > 0) {
+      const t = await youPreview.innerText().catch(() => '');
+      if (tipShort && t.includes(tipShort.slice(0, 16))) return true;
+      if (h && /You:/i.test(t)) {
+        // Same thread open on /i/chat/<me>-<them> after our send is strong signal.
+        if (/\/i\/chat\//i.test(page.url())) return true;
+      }
+    }
+
+    const hit = page
+      .locator(`[data-testid="messageEntry"] :text("${tipShort.replace(/"/g, '').slice(0, 20)}")`)
+      .or(page.getByText(tipShort.slice(0, 20), { exact: false }))
+      .first();
+    if ((await hit.count().catch(() => 0)) > 0 && (await hit.isVisible().catch(() => false))) {
+      return true;
+    }
+
+    // Frames / opaque xchat embed
+    for (const frame of page.frames()) {
+      try {
+        const ft = await frame.locator('body').innerText({ timeout: 800 }).catch(() => '');
+        if (tipShort && ft.includes(tipShort)) return true;
+        if (/You:\s*Hi /i.test(ft) && /\/i\/chat\//i.test(page.url())) return true;
+      } catch {
+        /* next */
+      }
+    }
+    await page.waitForTimeout(900);
+  }
+  // Last resort: still on the peer chat URL after a typed draft + Send click.
+  if (/\/i\/chat\/\d+/i.test(page.url()) && tipShort) {
+    const shotOk = await page
+      .screenshot({ path: path.join(dataRoot(), 'scripts', '_x_dm_shot.png'), fullPage: false })
+      .then(() => true)
+      .catch(() => false);
+    if (shotOk) {
+      console.log('X DM confirm: soft-ok via /i/chat URL after send (embed text not readable)');
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -359,9 +480,17 @@ export async function sendXDm(handle, text) {
     return { ok: false, reason: 'x_chat_passcode', sessionOk: true };
   }
 
-  fs.mkdirSync(sessionDir(), { recursive: true });
-  const context = await chromium.launchPersistentContext(sessionDir(), {
+  // Fresh profile each send — stale chat-drawer state was dumping us on /home.
+  const dir = sessionDir();
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  const context = await chromium.launchPersistentContext(dir, {
     headless: true,
+    viewport: { width: 1280, height: 900 },
     args: [
       '--disable-blink-features=AutomationControlled',
       '--no-sandbox',
@@ -388,21 +517,54 @@ export async function sendXDm(handle, text) {
       return { ok: false, reason: gate.reason, sessionOk: true };
     }
     const box = gate.page || page;
-    await dismissChatOverlays(box);
+    // Do not Escape here — closes /i/chat. Only clear obvious cookie banners.
+    await acceptCookies(box);
     try {
       await gate.input.click({ timeout: 4000, force: true });
     } catch {
       await gate.input.focus({ timeout: 3000 }).catch(() => {});
     }
-    await box.keyboard.type(message, { delay: 15 });
-    await dismissChatOverlays(box);
-    const send = box.locator('[data-testid="dmComposerSendButton"]').first();
+    // contenteditable: insertText is more reliable than keyboard.type on X Chat.
+    const typed = await gate.input
+      .evaluate((el, text) => {
+        el.focus();
+        try {
+          document.execCommand('selectAll', false, null);
+          return document.execCommand('insertText', false, text);
+        } catch {
+          el.textContent = text;
+          el.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
+          return Boolean(el.textContent);
+        }
+      }, message)
+      .catch(() => false);
+    if (!typed) {
+      await box.keyboard.type(message, { delay: 12 });
+    }
+    await box.waitForTimeout(500);
+    // Must see the draft in the composer before clicking Send — otherwise Enter hits junk UI.
+    const draftNeedle = message.slice(0, Math.min(32, message.length));
+    const draftOk =
+      (await gate.input
+        .evaluate((el, tip) => String(el.innerText || el.textContent || '').includes(tip), draftNeedle)
+        .catch(() => false)) ||
+      (await box.locator('body').innerText().catch(() => '')).includes(draftNeedle);
+    if (!draftOk) {
+      await noteUi(box, 'draft not in composer');
+      console.log(`X DM @${cleanHandle} not sent: draft_missing`);
+      return { ok: false, reason: 'draft_missing', sessionOk: true };
+    }
+    const send = box
+      .locator('[data-testid="dmComposerSendButton"], [data-testid="xChatSendButton"], button[aria-label*="Send" i]')
+      .first();
     if ((await send.count().catch(() => 0)) > 0) {
       await send.click({ timeout: 8000, force: true }).catch(async () => {
         await box.keyboard.press('Enter');
       });
-    } else await box.keyboard.press('Enter');
-    await box.waitForTimeout(2500);
+    } else {
+      await box.keyboard.press('Enter');
+    }
+    await box.waitForTimeout(3500);
     if (isLoginWall(box.url())) {
       sessionDead = true;
       markXSessionDead('auth_wall');
@@ -410,12 +572,28 @@ export async function sendXDm(handle, text) {
       return { ok: false, reason: 'auth_wall_after_send', sessionOk: false };
     }
     if (await isPremiumGate(box)) {
+      await noteUi(box, 'premium after send');
       return { ok: false, reason: 'x_premium_required', sessionOk: true };
     }
-    const body = await box.locator('body').innerText().catch(() => '');
-    const visible = body.includes(message.slice(0, 40));
-    console.log(`X DM @${cleanHandle} sent. visible=${visible}`);
-    return { ok: true, reason: visible ? 'visible' : 'sent_unconfirmed', sessionOk: true };
+    if (await isFollowRequiredGate(box)) {
+      await noteUi(box, 'follow required after send');
+      return { ok: false, reason: 'x_follow_required', sessionOk: true };
+    }
+    const needle = message.slice(0, Math.min(48, message.length));
+    const confirmed = await confirmDmVisible(box, needle, cleanHandle);
+    console.log(`X DM @${cleanHandle} sent. confirmed=${confirmed}`);
+    // Never promote CRM on unconfirmed — prior runs claimed ok while nothing landed in the app.
+    // xchat embed often hides bubble text from body.innerText; soft-ok is OK only after
+    // draftOk + Send while still on /i/chat/<peer> (see confirmDmVisible).
+    if (!confirmed) {
+      await noteUi(box, 'send unconfirmed');
+      return { ok: false, reason: 'sent_unconfirmed', sessionOk: true };
+    }
+    return {
+      ok: true,
+      reason: /\/i\/chat\//i.test(box.url()) ? 'visible_xchat' : 'visible',
+      sessionOk: true,
+    };
   } finally {
     if (!sessionDead) {
       const live = await persistIfLive(context).catch(() => false);

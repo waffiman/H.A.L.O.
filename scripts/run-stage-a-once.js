@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 /** One-shot Stage A pipeline only — does not start the scheduler / Stage B. */
 import dotenv from 'dotenv';
+import { applyTenantEnv } from '../tenantEnv.js';
 import path from 'path';
 dotenv.config({ override: true });
-if (process.env.TENANT_DATA_ROOT) {
-  dotenv.config({ path: path.join(process.env.TENANT_DATA_ROOT, 'tenant.env'), override: true });
-}
+applyTenantEnv();
 
 process.env.STAGE_A_ONESHOT = '1';
 process.env.OUTREACH_PAUSED = '0';

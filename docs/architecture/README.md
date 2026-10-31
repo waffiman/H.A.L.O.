@@ -86,7 +86,10 @@ flowchart TB
     A["/app ← repo tree (live code)<br/>/app/session_data ← session_data/<br/>anonymous /app/node_modules"]:::li
   end
   subgraph C2["container outreach-dashboard"]
-    D["/app-data ← repo tree (APP_ROOT)<br/>/marketing/dist (Vite build stage)<br/>127.0.0.1:3080"]
+    D["/app-data ← repo tree (APP_ROOT)<br/>/marketing/dist (Vite build stage)<br/>127.0.0.1:3080 (local only)"]
+  end
+  subgraph C4["container caddy"]
+    Cd["public :80 / :443<br/>HTTPS for HALO_DOMAIN<br/>→ outreach-dashboard:3080"]
   end
   subgraph C3["container n8n (legacy)"]
     N["not used by enrich anymore"]
@@ -97,6 +100,7 @@ flowchart TB
   Tree --- D
   Tenants --- D
   Sock --- D
+  Cd --> D
 ```
 
 Source: [`docker-compose.ionos.yml`](../../docker-compose.ionos.yml). After any

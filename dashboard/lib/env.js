@@ -97,13 +97,20 @@ function parseEnvFile(filePath) {
   return map;
 }
 
+const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** Throws on a key/value that would break the line-based .env format (newline injection). */
+export function assertSafeEnvEntry(k, v) {
+  if (!ENV_KEY_RE.test(String(k))) throw new Error(`Invalid env key: ${String(k).slice(0, 40)}`);
+  if (/[\r\n\0]/.test(String(v))) throw new Error(`Invalid value for ${k}: line breaks are not allowed`);
+}
+
 export function writeEnvFile(updates, { removeKeys = [] } = {}, filePath = ENV_PATH) {
+  const entries = Object.entries(updates || {}).filter(([, v]) => v !== undefined && v !== null);
+  for (const [k, v] of entries) assertSafeEnvEntry(k, v);
   const current = readEnvFile(filePath);
   for (const k of removeKeys) delete current[k];
-  for (const [k, v] of Object.entries(updates || {})) {
-    if (v === undefined || v === null) continue;
-    current[k] = String(v);
-  }
+  for (const [k, v] of entries) current[k] = String(v);
   const lines = Object.entries(current).map(([k, v]) => `${k}=${v}`);
   fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
   invalidateEnvCache(filePath);
@@ -148,6 +155,11 @@ export function msToDays(ms) {
 export const STAGE_B_MIN_INTERVAL_MS = 6 * 60 * 1000;
 
 /** Convert UI value+unit → ms */
+/** Only units the UI offers; anything else (incl. injected text) becomes the fallback. */
+export function cleanIntervalUnit(unit, fallback = 'hours') {
+  return unit === 'minutes' || unit === 'hours' || unit === 'days' ? unit : fallback;
+}
+
 export function intervalToMs(value, unit) {
   const v = Number(value);
   if (!Number.isFinite(v) || v <= 0) return null;

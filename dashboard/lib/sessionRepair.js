@@ -201,6 +201,8 @@ export function maybeResumeAgentAfterRepair(root = hostAppRoot()) {
   if (!plan) return { resumed: false };
   if (repairContainerRunning(root)) return { resumed: false, reason: 'repair_running' };
   if (namedContainerRunning('x-repair')) return { resumed: false, reason: 'x_repair_running' };
+  if (namedContainerRunning('tg-repair')) return { resumed: false, reason: 'tg_repair_running' };
+  if (namedContainerRunning('wa-repair')) return { resumed: false, reason: 'wa_repair_running' };
 
   const st = readRepairState(root);
   const status = st?.status || 'idle';
