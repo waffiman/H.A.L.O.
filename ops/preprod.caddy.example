@@ -1,0 +1,26 @@
+# Copy to caddy-sites/preprod.caddy in the PROD directory (gitignored), then set
+# the bcrypt hash:
+#   docker run --rm caddy:2.8.4 caddy hash-password --plaintext '<password>'
+# Keeping the site out of the main Caddyfile means prod's Caddy still starts if
+# this file is missing or removed.
+preprod.halo.waffiweb.com {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	# Stripe and Telegram can't send basic auth; those routes verify their own secrets.
+	@protected not path /api/billing/webhook* /api/telegram/webhook*
+	basic_auth @protected {
+		dev REPLACE_WITH_BCRYPT_HASH
+	}
+
+	reverse_proxy halo-preprod-dashboard:3080 {
+		header_up -CF-Connecting-IP
+	}
+}

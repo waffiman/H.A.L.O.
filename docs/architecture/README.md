@@ -89,7 +89,7 @@ flowchart TB
     D["/app-data ← repo tree (APP_ROOT)<br/>/marketing/dist (Vite build stage)<br/>127.0.0.1:3080 (local only)"]
   end
   subgraph C4["container caddy"]
-    Cd["public :80 / :443<br/>HTTPS for HALO_DOMAIN<br/>→ outreach-dashboard:3080"]
+    Cd["public :80 / :443<br/>HTTPS for HALO_DOMAIN<br/>→ outreach-dashboard:3080<br/>optional caddy-sites/*.caddy: pre-prod via halo-edge (OVERVIEW §2b)"]
   end
   subgraph C3["container n8n (legacy)"]
     N["not used by enrich anymore"]

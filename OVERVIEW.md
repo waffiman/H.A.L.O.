@@ -86,6 +86,25 @@ Safe to deploy: code (`brainAnalyzer.js`, `brainStore.js`, …), `brain/user_pro
 
 ---
 
+## 2b. Pre-prod environment
+
+Developer copy on the same VPS: `/root/halo-preprod`, a git checkout of `develop`, at `https://preprod.halo.waffiweb.com`.
+
+| | Prod | Pre-prod |
+|---|---|---|
+| Directory | `/root/cold-outreach-agent` | `/root/halo-preprod` |
+| Compose | `docker-compose.ionos.yml` | `docker-compose.preprod.yml` |
+| CRM | prod Supabase | separate Supabase project |
+| Agent | `linkedin-agent` | none; one-shot `halo-preprod-dry-run` |
+| Docker control | `halo-ops` | none, so agent restart and session repair fail by design |
+| Access | cabinet login | Caddy basic auth, then cabinet login |
+
+**Caddy:** prod's `caddy` serves both. The main `Caddyfile` imports optional `caddy-sites/*.caddy` (gitignored; template `ops/preprod.caddy.example`). The external `halo-edge` network links only `caddy` and `halo-preprod-dashboard`; create it first (`docker network create halo-edge`), because prod's compose file now references it.
+
+**Deploy:** `scripts/preprod-deploy.sh` on the VPS. Its preflight aborts if pre-prod's `.env` shares `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`, `STRIPE_SECRET_KEY`, `HALO_SESSION_SECRET` or `HALO_OPS_TOKEN` with prod, contains `sk_live`, or if `cookies.json` or `session_data/` exists.
+
+**Dry-run:** `docker compose -f docker-compose.preprod.yml --profile dry-run run --rm halo-preprod-dry-run`. Runs `fixtures/dry-run/` through the real Brain, outbound guard and CRM and writes messages to `dry_run_outbox.jsonl`. `dryRunGuard.js` makes every Playwright launch throw. It does **not** run `runStageA`/`runStageB` or LinkedIn selectors.
+
 ## 3. Notion CRM pipeline (Status glossary — source of truth)
 
 Exact Status select names (emoji matter). **Do not invent extra statuses.**

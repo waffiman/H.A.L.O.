@@ -176,3 +176,6 @@ backups/
 /login_debug_*.html
 /N8N_PUBLIC_URL.txt
 /dashboard-public-url.txt
+# Pre-prod: dry-run output; extra Caddy sites hold a password hash
+/dry_run_outbox.jsonl
+/caddy-sites/

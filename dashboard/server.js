@@ -239,6 +239,7 @@ function isPublicPath(req) {
     p === '/reset.html' ||
     p === '/verify.html' ||
     p === '/extension-privacy.html' ||
+    p === '/env-banner.js' ||
     p === '/waffi-telegram-bot.png' ||
     p === '/waffi-logo.png' ||
     p === '/logo.svg'
@@ -652,7 +653,11 @@ function waffiWorkspaceIdFallback() {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'outreach-dashboard' });
+  res.json({
+    ok: true,
+    service: 'outreach-dashboard',
+    ...(process.env.HALO_ENV === 'preprod' ? { env: 'preprod' } : {}),
+  });
 });
 
 app.get('/api/settings', async (req, res) => {

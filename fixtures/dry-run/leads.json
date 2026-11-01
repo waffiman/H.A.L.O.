@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ava Testperson",
+    "slug": "dryrun-ava-testperson",
+    "profile": {
+      "name": "Ava Testperson",
+      "headline": "Head of Growth at Example Logistics",
+      "company": "Example Logistics",
+      "location": "Berlin, Germany",
+      "timezone": "Europe/Berlin",
+      "about": "Fictional dry-run lead. Runs a five-person growth team at a mid-size logistics company and is rebuilding the company website this year."
+    },
+    "thread": [
+      { "direction": "outbound", "from": "Me", "text": "Hi Ava, saw you are rebuilding the Example Logistics site this year. How is it going?" },
+      { "direction": "inbound", "from": "Ava Testperson", "text": "Slowly, to be honest. What do you have in mind?" }
+    ]
+  },
+  {
+    "name": "Ben Sampleton",
+    "slug": "dryrun-ben-sampleton",
+    "profile": {
+      "name": "Ben Sampleton",
+      "headline": "Founder at Sample Dental Group",
+      "company": "Sample Dental Group",
+      "location": "London, United Kingdom",
+      "timezone": "Europe/London",
+      "about": "Fictional dry-run lead. Founder of a three-clinic dental group that gets most new patients through referrals."
+    },
+    "thread": [
+      { "direction": "outbound", "from": "Me", "text": "Hi Ben, congrats on opening the third clinic. How are new patients finding you?" },
+      { "direction": "inbound", "from": "Ben Sampleton", "text": "Thanks, but we are not looking for any services right now." }
+    ]
+  }
+]

@@ -37,6 +37,17 @@ Then Level 1 env restore + fresh cookies + send-only verify.
 3. `rm -rf session_data && mkdir session_data`
 4. Level 2 redeploy + Level 1 verify
 
+## Remove pre-prod
+
+Prod's data and agent aren't involved:
+
+1. `cd /root/halo-preprod && docker compose -f docker-compose.preprod.yml down`
+2. `rm /root/cold-outreach-agent/caddy-sites/preprod.caddy`
+3. Recreate only Caddy: `cd /root/cold-outreach-agent && docker compose -f docker-compose.ionos.yml up -d --force-recreate --no-deps caddy`
+4. Remove the `preprod.halo` DNS record.
+
+Keep the `halo-edge` network unless prod's compose file is also reverted, since that file references it.
+
 ## Production-safe env (default after connect code deploy)
 
 All new connect flags **OFF** = same behavior as before connect-pipeline:

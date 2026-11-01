@@ -98,6 +98,21 @@ These come from production incidents; violating them burns the LinkedIn session.
   `docker compose -f docker-compose.ionos.yml up -d --force-recreate linkedin-agent`.
 - Rollback procedure (flags to flip, order of verification): [`ROLLBACK.md`](ROLLBACK.md).
 
+## Pre-prod
+
+`/root/halo-preprod` on the same VPS is a git checkout of `develop`, served at
+`https://preprod.halo.waffiweb.com` behind basic auth. Flow: feature branch →
+`develop` → `scripts/preprod-deploy.sh` → test → `main` → prod deploy. See OVERVIEW §2b.
+
+- It has its own Supabase project and a from-scratch `.env`. **Never copy prod's
+  `.env`, cookies or `session_data` into it**; a shared Telegram token would take
+  over prod's webhook. The deploy preflight refuses shared secrets.
+- **Never add `docker.sock`, `halo-ops` or a prod mount to
+  `docker-compose.preprod.yml`.** The Docker daemon is shared and dashboard code
+  uses fixed names like `linkedin-agent`, so pre-prod could stop prod's agent.
+- No LinkedIn session here. `scripts/dry-run-cycle.js` tests Brain, guard and CRM
+  on fixtures only; browser flows and selectors still can't be tested before prod.
+
 ## Multi-tenant — read this before touching the dashboard
 
 **The CRM and each cabinet's config are multi-tenant; the agent runtime is

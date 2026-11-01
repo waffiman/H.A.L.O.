@@ -94,11 +94,21 @@ services:
       - HALO_DOMAIN=${HALO_DOMAIN:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy-sites:/etc/caddy/sites:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       - outreach-dashboard
+    networks:
+      - default
+      - halo-edge
 
 volumes:
   caddy_data:
   caddy_config:
+
+networks:
+  # Links caddy to the pre-prod dashboard only (docker-compose.preprod.yml).
+  # Create before using this file: docker network create halo-edge
+  halo-edge:
+    external: true

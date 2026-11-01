@@ -1,0 +1,58 @@
+# Pre-prod: developer copy of H.A.L.O. on the prod VPS, in /root/halo-preprod.
+# No docker.sock and no halo-ops: this stack must not be able to control prod
+# containers, so agent restart / session repair fail here by design.
+# Deploy with scripts/preprod-deploy.sh, which checks .env shares no prod secrets.
+name: halo-preprod
+
+services:
+  halo-preprod-dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: halo-preprod-dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3081:3080"
+    env_file:
+      - .env
+    environment:
+      - PORT=3080
+      - APP_ROOT=/app-data
+      - HOST_APP_ROOT=/root/halo-preprod
+      - HALO_ENV=preprod
+      - HALO_COOKIE_SECURE=1
+      # Booting with a shared bot token would take over prod's webhook.
+      - TELEGRAM_SET_WEBHOOK=0
+      # Docker shim fails fast: nothing listens on this port.
+      - HALO_OPS_URL=http://127.0.0.1:9/docker
+    volumes:
+      - .:/app-data
+    mem_limit: 512m
+    cpus: 1
+    networks:
+      - default
+      - halo-edge
+
+  # One-shot, no scheduler. Started only through the dry-run profile.
+  halo-preprod-dry-run:
+    build: .
+    container_name: halo-preprod-dry-run
+    profiles:
+      - dry-run
+    env_file:
+      - .env
+    environment:
+      - HALO_ENV=preprod
+      - HALO_DRY_RUN=1
+      - NODE_OPTIONS=--import=/app/dryRunGuard.js
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: ["node", "scripts/dry-run-cycle.js"]
+    mem_limit: 512m
+    cpus: 1
+
+networks:
+  # Shared only with caddy, so pre-prod can't reach prod's dashboard or halo-ops.
+  halo-edge:
+    external: true

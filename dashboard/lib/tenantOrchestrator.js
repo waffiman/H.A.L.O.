@@ -201,7 +201,7 @@ async function tickOnce() {
 }
 
 export function startTenantOrchestrator() {
-  if (timer) return;
+  if (timer || process.env.HALO_ENV === 'preprod') return; // pre-prod has no docker control
   const ms = Number(process.env.TENANT_ORCH_INTERVAL_MS || 10 * 60 * 1000);
   console.log(`[tenant-orch] scheduler every ${Math.round(ms / 60000)}m (max ${MAX_LINKEDIN_CABINETS} LinkedIn cabinets)`);
   timer = setInterval(() => {

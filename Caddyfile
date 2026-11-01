@@ -1,6 +1,10 @@
 # Public HTTPS for the H.A.L.O. dashboard (docker-compose.ionos.yml → caddy).
 # Caddy obtains/renews the Let's Encrypt cert for HALO_DOMAIN and redirects
 # http:// → https:// automatically.
+
+# Optional extra sites (gitignored; see ops/preprod.caddy.example). Empty is fine.
+import /etc/caddy/sites/*.caddy
+
 {$HALO_DOMAIN} {
 	encode zstd gzip
 
