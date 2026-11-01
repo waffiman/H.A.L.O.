@@ -100,9 +100,10 @@ These come from production incidents; violating them burns the LinkedIn session.
 
 ## Pre-prod
 
-`/root/halo-preprod` on the same VPS is a git checkout of `develop`, served at
-`https://preprod.halo.waffiweb.com` behind basic auth. Flow: feature branch →
-`develop` → `scripts/preprod-deploy.sh` → test → `main` → prod deploy. See OVERVIEW §2b.
+`/root/halo-preprod` on the same VPS is a git checkout, served at
+`https://preprod.halo.waffiweb.com` behind basic auth. Deploy both environments
+from GitHub with `scripts/deploy.sh <prod|preprod>` (`--ref <branch>` to try a
+branch on pre-prod first), not by copying files to the server. See OVERVIEW §2b.
 
 - It has its own Supabase project and a from-scratch `.env`. **Never copy prod's
   `.env`, cookies or `session_data` into it**; a shared Telegram token would take

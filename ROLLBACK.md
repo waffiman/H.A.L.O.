@@ -37,6 +37,10 @@ Then Level 1 env restore + fresh cookies + send-only verify.
 3. `rm -rf session_data && mkdir session_data`
 4. Level 2 redeploy + Level 1 verify
 
+## Roll back a deploy
+
+`scripts/deploy.sh <prod|preprod> --ref <sha>` with the sha it printed. History: `.git/halo-deploy.log`.
+
 ## Remove pre-prod
 
 Prod's data and agent aren't involved:

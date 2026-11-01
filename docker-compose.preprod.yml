@@ -1,7 +1,7 @@
 # Pre-prod: developer copy of H.A.L.O. on the prod VPS, in /root/halo-preprod.
 # No docker.sock and no halo-ops: this stack must not be able to control prod
 # containers, so agent restart / session repair fail here by design.
-# Deploy with scripts/preprod-deploy.sh, which checks .env shares no prod secrets.
+# Deploy with scripts/deploy.sh preprod, which checks .env shares no prod secrets.
 name: halo-preprod
 
 services:
