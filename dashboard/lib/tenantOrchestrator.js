@@ -159,17 +159,32 @@ async function tickOnce() {
       const job = await withBrowserLock(
         { owner: aDue ? 'A' : 'B', workspaceId: cab.workspaceId, skipIfBusy: true },
         async () => {
-          // Stop long-running agent while tenant Chromium runs (same rule as repair)
+          // Stop long-running agent while tenant Chromium runs (same rule as repair).
+          // Unknown state counts as running: never risk two Chromiums at once.
+          let agentWasRunning = true;
           try {
-            await execFileAsync('docker', ['stop', 'linkedin-agent'], { timeout: 60000 });
+            const { stdout } = await execFileAsync(
+              'docker',
+              ['inspect', '-f', '{{.State.Running}}', 'linkedin-agent'],
+              { timeout: 15000 }
+            );
+            agentWasRunning = stdout.trim() !== 'false';
           } catch {
-            /* ignore */
+            /* keep default */
+          }
+          if (agentWasRunning) {
+            try {
+              await execFileAsync('docker', ['stop', 'linkedin-agent'], { timeout: 60000 });
+            } catch {
+              /* ignore */
+            }
           }
           try {
             if (aDue) await runTenantOneShot(cab.workspaceId, 'A');
             if (bDue) await runTenantOneShot(cab.workspaceId, 'B');
           } finally {
-            try {
+            // A deliberately stopped agent stays stopped.
+            if (agentWasRunning) try {
               await execFileAsync(
                 'docker',
                 ['compose', '-f', path.join(hostRoot(), 'docker-compose.ionos.yml'), 'start', 'linkedin-agent'],
