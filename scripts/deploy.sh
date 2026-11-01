@@ -222,7 +222,7 @@ main() {
   done
 
   PROD_ROOT="${PROD_ROOT:-/root/cold-outreach-agent}"
-  REMOTE="${DEPLOY_REMOTE:-git@github.com:waffiman/H.A.L.O.git}"
+  REMOTE="${DEPLOY_REMOTE:-git@github.com:waffiman/H.A.L.O..git}"
   if [ "$TARGET" = prod ]; then
     ROOT="$PROD_ROOT"
     HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3080/api/health}"
