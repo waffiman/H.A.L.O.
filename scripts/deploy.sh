@@ -127,7 +127,8 @@ check_preprod_env() {
   for path in cookies.json session_data; do
     if [ -e "$path" ]; then echo "preflight: $path exists; pre-prod must not hold a LinkedIn session" >&2; failed=1; fi
   done
-  if [ -z "$(env_value .env SUPABASE_URL)" ]; then echo "preflight: SUPABASE_URL is empty" >&2; failed=1; fi
+  # Allowed: the dashboard runs without a CRM, its pages just show zeros.
+  if [ -z "$(env_value .env SUPABASE_URL)" ]; then echo "preflight: warning, SUPABASE_URL is empty, CRM pages will show zeros" >&2; fi
   [ "$failed" = 0 ] || die "pre-prod preflight failed; nothing deployed"
 }
 
